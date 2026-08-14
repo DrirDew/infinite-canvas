@@ -18,7 +18,7 @@ test("renders core node shell, controls, and unknown placeholder", () => {
     const html = renderToString(
         <CanvasNodeShell node={node}>
             <CanvasNodeResizeHandles node={node} scale={1} onResize={() => {}} />
-            <CanvasNodeConnectionHandles visible theme={canvasThemes.light} onConnectStart={() => {}} />
+            <CanvasNodeConnectionHandles nodeId={node.id} visible theme={canvasThemes.light} onConnectStart={() => {}} />
             <CanvasUnknownNode type="missing" theme={canvasThemes.light} />
         </CanvasNodeShell>,
     );

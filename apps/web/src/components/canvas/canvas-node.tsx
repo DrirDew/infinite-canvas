@@ -340,7 +340,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 />
             </div>
 
-            {!isGroup ? <CanvasNodeConnectionHandles visible={hovered || isSelected || isConnecting} theme={theme} source={(definition?.hasSourceHandle ?? true) && data.type !== CanvasNodeType.Config} onConnectStart={(event, handleType) => onConnectStart(event, data.id, handleType)} /> : null}
+            {!isGroup ? <CanvasNodeConnectionHandles nodeId={data.id} visible={hovered || isSelected || isConnecting} theme={theme} source={(definition?.hasSourceHandle ?? true) && data.type !== CanvasNodeType.Config} onConnectStart={onConnectStart} /> : null}
 
             {showPanel && !isGroup && renderPanel ? <div className="absolute left-1/2 top-full z-[70] w-[600px] -translate-x-1/2 pt-4">{renderPanel(data)}</div> : null}
         </CanvasNodeShell>

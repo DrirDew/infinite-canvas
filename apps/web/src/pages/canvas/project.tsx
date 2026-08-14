@@ -365,9 +365,10 @@ function InfiniteCanvasPage() {
         canvasCommands.cancelConnection();
     }, [canvasCommands]);
 
-    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture } = useCanvasInteractions({
+    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture, onConnectionStart: handleConnectStart, onNodeResizeStart: handleNodeResizeStart, onNodeResize: handleNodeResize, onNodeResizeEnd: handleNodeResizeEnd } = useCanvasInteractions({
         commands: canvasCommands,
         containerRef,
+        onResizeStart: () => setExpandedImageNodeId(null),
         onContainerResize: ({ width, height }) => {
             if (didInitialCenterRef.current) return;
             didInitialCenterRef.current = true;
@@ -776,29 +777,6 @@ function InfiniteCanvasPage() {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [cancelCanvasSelection, canvasCommands, copySelectedNodes, deleteConnection, deleteNodes, pasteCopiedNodes, pasteSystemClipboard, redoCanvas, undoCanvas]);
-
-    const handleConnectStart = useCallback(
-        (event: ReactMouseEvent, nodeId: string, handleType: "source" | "target") => {
-            event.stopPropagation();
-            canvasCommands.startConnection({ nodeId, handleType }, screenToCanvas(event.clientX, event.clientY));
-        },
-        [canvasCommands, screenToCanvas],
-    );
-
-    const handleNodeResize = useCallback(
-        (nodeId: string, width: number, height: number, position?: Position) => {
-            canvasCommands.resizeNode(nodeId, width, height, position);
-        },
-        [canvasCommands],
-    );
-
-    const handleNodeResizeStart = useCallback((nodeId: string) => {
-        canvasCommands.startNodeResize(nodeId);
-        setExpandedImageNodeId(null);
-    }, [canvasCommands]);
-    const handleNodeResizeEnd = useCallback(() => {
-        canvasCommands.endNodeResize();
-    }, [canvasCommands]);
 
     const toggleNodeFreeResize = useCallback((nodeId: string) => {
         canvasCommands.updateNode(nodeId, (node) => {

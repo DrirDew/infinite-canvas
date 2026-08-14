@@ -63,18 +63,19 @@ export function CanvasNodeResizeHandles<TMetadata extends BaseCanvasNodeMetadata
 }
 
 export type CanvasNodeConnectionHandlesProps = {
+    nodeId: string;
     visible: boolean;
     theme: CanvasTheme;
     source?: boolean;
     target?: boolean;
-    onConnectStart: (event: MouseEvent, handleType: "source" | "target") => void;
+    onConnectStart: (event: MouseEvent, nodeId: string, handleType: "source" | "target") => void;
 };
 
-export function CanvasNodeConnectionHandles({ visible, theme, source = true, target = true, onConnectStart }: CanvasNodeConnectionHandlesProps) {
+export function CanvasNodeConnectionHandles({ nodeId, visible, theme, source = true, target = true, onConnectStart }: CanvasNodeConnectionHandlesProps) {
     return (
         <>
-            {target ? <CanvasNodeConnectionHandle side="left" visible={visible} theme={theme} onMouseDown={(event) => onConnectStart(event, "target")} /> : null}
-            {source ? <CanvasNodeConnectionHandle side="right" visible={visible} theme={theme} onMouseDown={(event) => onConnectStart(event, "source")} /> : null}
+            {target ? <CanvasNodeConnectionHandle side="left" visible={visible} theme={theme} onMouseDown={(event) => onConnectStart(event, nodeId, "target")} /> : null}
+            {source ? <CanvasNodeConnectionHandle side="right" visible={visible} theme={theme} onMouseDown={(event) => onConnectStart(event, nodeId, "source")} /> : null}
         </>
     );
 }

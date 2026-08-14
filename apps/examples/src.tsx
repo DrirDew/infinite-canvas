@@ -97,11 +97,12 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                             style={{ borderColor: selectedNodeIds.has(node.id) ? accent : "#aaa399" }}
                         >
                             <CanvasNodeConnectionHandles
+                                nodeId={node.id}
                                 visible
                                 theme={canvasThemes.light}
-                                onConnectStart={(event, handleType) => commands.startConnection({ nodeId: node.id, handleType }, interactions.toCanvas(event.clientX, event.clientY))}
+                                onConnectStart={interactions.onConnectionStart}
                             />
-                            <CanvasNodeResizeHandles node={node} scale={viewport.k} onResizeStart={commands.startNodeResize} onResize={commands.resizeNode} onResizeEnd={commands.endNodeResize} />
+                            <CanvasNodeResizeHandles node={node} scale={viewport.k} onResizeStart={interactions.onNodeResizeStart} onResize={interactions.onNodeResize} onResizeEnd={interactions.onNodeResizeEnd} />
                             {node.type === "missing" ? (
                                 <CanvasUnknownNode type={node.type} theme={canvasThemes.light} title="未注册节点" description="由 Core 提供安全占位" />
                             ) : (
@@ -133,7 +134,7 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 13</p>
+                <p>CORE / 14</p>
                 <h1>
                     一块画布，
                     <br />

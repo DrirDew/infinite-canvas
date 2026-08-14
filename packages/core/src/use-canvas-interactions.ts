@@ -11,22 +11,23 @@ export type UseCanvasInteractionsOptions<TMetadata extends BaseCanvasNodeMetadat
     onNodeClick?: (nodeId: string) => void;
     onConnectionEnd?: (result: CanvasConnectionDropResult) => void;
     onContainerResize?: (size: CanvasSize) => void;
+    onResizeStart?: (nodeId: string) => void;
 };
 
 type Marquee = { start: Position; initialNodeIds: string[] };
 
-export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>({ commands, containerRef, onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize }: UseCanvasInteractionsOptions<TMetadata>) {
+export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>({ commands, containerRef, onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize, onResizeStart }: UseCanvasInteractionsOptions<TMetadata>) {
     const [selectionRect, setSelectionRect] = useState<CanvasRect | null>(null);
     const [containerSize, setContainerSize] = useState<CanvasSize>({ width: 0, height: 0 });
     const commandsRef = useRef(commands);
-    const callbacksRef = useRef({ onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize });
+    const callbacksRef = useRef({ onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize, onResizeStart });
     const containerSizeRef = useRef(containerSize);
     const marqueeRef = useRef<Marquee | null>(null);
     const pendingSelectionRef = useRef<{ nodeId: string; ids: Set<string> } | null>(null);
     const frameRef = useRef<number | null>(null);
     const viewportFrameRef = useRef<number | null>(null);
     commandsRef.current = commands;
-    callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize };
+    callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize, onResizeStart };
 
     useLayoutEffect(() => {
         const element = containerRef.current;
@@ -91,6 +92,16 @@ export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>(
         },
         [selectNode],
     );
+    const onConnectionStart = useCallback((event: MouseEvent, nodeId: string, handleType: "source" | "target") => {
+        event.stopPropagation();
+        commandsRef.current.startConnection({ nodeId, handleType }, toCanvas(event.clientX, event.clientY));
+    }, [toCanvas]);
+    const onNodeResizeStart = useCallback((nodeId: string) => {
+        commandsRef.current.startNodeResize(nodeId);
+        callbacksRef.current.onResizeStart?.(nodeId);
+    }, []);
+    const onNodeResize = useCallback((nodeId: string, width: number, height: number, position?: Position) => commandsRef.current.resizeNode(nodeId, width, height, position), []);
+    const onNodeResizeEnd = useCallback(() => commandsRef.current.endNodeResize(), []);
     const onCanvasMouseDown = useCallback(
         (event: PointerEvent<HTMLDivElement>) => {
             callbacksRef.current.onCanvasPointerDown?.(event);
@@ -202,5 +213,5 @@ export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>(
         };
     }, [cancelViewportAnimation, toCanvas]);
 
-    return { containerSize, selectionRect, toCanvas, getCanvasCenter, resetViewport, setZoom, focusNode, cancelSelection, cancelViewportAnimation, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture };
+    return { containerSize, selectionRect, toCanvas, getCanvasCenter, resetViewport, setZoom, focusNode, cancelSelection, cancelViewportAnimation, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture, onConnectionStart, onNodeResizeStart, onNodeResize, onNodeResizeEnd };
 }
