@@ -11,6 +11,7 @@ describe("core geometry", () => {
         expect(normalizeConnection("image", "config", nodes, "source")).toEqual({ fromNodeId: "image", toNodeId: "config" });
         expect(normalizeConnection("image", "config", nodes, "target")).toEqual({ fromNodeId: "config", toNodeId: "image" });
         expect(normalizeConnection("image", "config", nodes, "source", () => null)).toBeNull();
+        expect(normalizeConnection("image", "config", nodes, "source", () => ({ fromNodeId: "image", toNodeId: "missing" }))).toBeNull();
     });
 
     test("converts coordinates and finds nodes inside a normalized rectangle", () => {

@@ -196,8 +196,8 @@ export function useCanvas<TMetadata = unknown>({
             addNodes: (nodes: CanvasNode<TMetadata>[]) => transaction((document) => addDocumentNodes(document, nodes)),
             updateNode: (id: string, patch: CanvasNodePatch<TMetadata>) => transaction((document) => updateDocumentNode(document, id, patch)),
             removeNodes: (ids: Iterable<string>) => transaction((document) => removeDocumentNodes(document, ids)),
-            addConnection: (connection: CanvasConnection) => transaction((document) => addDocumentConnections(document, [connection])),
-            addConnections: (connections: CanvasConnection[]) => transaction((document) => addDocumentConnections(document, connections)),
+            addConnection: (connection: CanvasConnection) => transaction((document) => addDocumentConnections(document, [connection], connectionResolverRef.current)),
+            addConnections: (connections: CanvasConnection[]) => transaction((document) => addDocumentConnections(document, connections, connectionResolverRef.current)),
             removeConnections: (ids: Iterable<string>) => transaction((document) => removeDocumentConnections(document, ids)),
             selectNodes(ids: Iterable<string>) {
                 const available = new Set(documentRef.current.nodes.map((node) => node.id));

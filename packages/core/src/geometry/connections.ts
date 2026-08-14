@@ -41,5 +41,6 @@ export function normalizeConnection<T>(firstNodeId: string, secondNodeId: string
     const first = nodes.find((node) => node.id === firstNodeId);
     const second = nodes.find((node) => node.id === secondNodeId);
     if (!first || !second || first.id === second.id || isGroupNode(first) || isGroupNode(second)) return null;
-    return resolver ? resolver(first, second, firstHandleType) : firstHandleType === "source" ? { fromNodeId: first.id, toNodeId: second.id } : { fromNodeId: second.id, toNodeId: first.id };
+    const connection = resolver ? resolver(first, second, firstHandleType) : firstHandleType === "source" ? { fromNodeId: first.id, toNodeId: second.id } : { fromNodeId: second.id, toNodeId: first.id };
+    return connection && connection.fromNodeId !== connection.toNodeId && [first.id, second.id].includes(connection.fromNodeId) && [first.id, second.id].includes(connection.toNodeId) ? connection : null;
 }

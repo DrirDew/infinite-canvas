@@ -1,7 +1,15 @@
-import { nodeBounds } from "./geometry";
-import type { CanvasClipboard, CanvasConnection, CanvasDocument, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection } from "./types";
+import { nodeBounds, normalizeConnection } from "./geometry";
+import type { CanvasClipboard, CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection } from "./types";
 
-export const addDocumentNodes = <TMetadata,>(document: CanvasDocument<TMetadata>, nodes: CanvasNode<TMetadata>[]) => (nodes.length ? { ...document, nodes: [...document.nodes, ...nodes] } : document);
+export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, nodes: CanvasNode<TMetadata>[]) {
+    const ids = new Set(document.nodes.map((node) => node.id));
+    const added = nodes.filter((node) => {
+        if (!node.id || ids.has(node.id)) return false;
+        ids.add(node.id);
+        return true;
+    });
+    return added.length ? { ...document, nodes: [...document.nodes, ...added] } : document;
+}
 
 export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata>, id: string, patch: CanvasNodePatch<TMetadata>) {
     const index = document.nodes.findIndex((node) => node.id === id);
@@ -26,8 +34,17 @@ export function removeDocumentNodes<TMetadata>(document: CanvasDocument<TMetadat
     };
 }
 
-export const addDocumentConnections = <TMetadata,>(document: CanvasDocument<TMetadata>, connections: CanvasConnection[]) =>
-    connections.length ? { ...document, connections: [...document.connections, ...connections] } : document;
+export function addDocumentConnections<TMetadata>(document: CanvasDocument<TMetadata>, connections: CanvasConnection[], resolver?: CanvasConnectionResolver<TMetadata>) {
+    const ids = new Set(document.connections.map((connection) => connection.id));
+    const added = connections.flatMap((connection) => {
+        if (!connection.id || ids.has(connection.id)) return [];
+        const normalized = normalizeConnection(connection.fromNodeId, connection.toNodeId, document.nodes, "source", resolver);
+        if (!normalized) return [];
+        ids.add(connection.id);
+        return [{ ...connection, ...normalized }];
+    });
+    return added.length ? { ...document, connections: [...document.connections, ...added] } : document;
+}
 
 export function removeDocumentConnections<TMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>) {
     const removed = new Set(ids);

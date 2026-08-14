@@ -46,6 +46,20 @@ test("adds, updates, and removes nodes and connections", () => {
     });
 });
 
+test("add commands reject duplicate ids and invalid connections", () => {
+    const canvas = createCanvas({ nodes: [node("a"), { ...node("group"), role: "group" }], connections: [] });
+    canvas.commands.addNodes([node("a"), node("b"), node("b")]);
+    canvas.commands.addConnections([
+        connection("valid", "a", "b"),
+        connection("valid", "b", "a"),
+        connection("missing", "a", "missing"),
+        connection("self", "a", "a"),
+        connection("group", "a", "group"),
+    ]);
+    expect(canvas.commands.getDocument().nodes.map((item) => item.id)).toEqual(["a", "group", "b"]);
+    expect(canvas.commands.getDocument().connections).toEqual([connection("valid", "a", "b")]);
+});
+
 test("removing nodes clears related connections, child groups, and selection", () => {
     const canvas = createCanvas({
         nodes: [node("group"), { ...node("child"), groupId: "group" }, node("other")],
@@ -209,6 +223,8 @@ test("connection interaction resolves targets without generating ids", () => {
     canvas.commands.addConnection({ id: "ab", ...result!.connection! });
     expect(canvas.commands.getDocument().connections).toEqual([connection("ab", "a", "b")]);
     const blocked = createCanvas({ nodes: [node("a"), { ...node("b"), position: { x: 200, y: 0 } }], connections: [] }, () => null);
+    blocked.commands.addConnection(connection("ab", "a", "b"));
+    expect(blocked.commands.getDocument().connections).toEqual([]);
     blocked.commands.startConnection({ nodeId: "a", handleType: "source" }, { x: 100, y: 50 });
     expect(blocked.commands.moveConnection({ x: 250, y: 50 })).toEqual({ nodeId: null, isNearNode: true });
 });
