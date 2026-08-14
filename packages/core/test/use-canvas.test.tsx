@@ -207,6 +207,16 @@ test("cancels uncommitted previews before undoing history", () => {
     expect(canvas.commands.getInteraction().isNodeResizing).toBe(false);
 });
 
+test("cancels interrupted node resize without history", () => {
+    const canvas = createCanvas({ nodes: [node("a")], connections: [] });
+    canvas.commands.startNodeResize("a");
+    canvas.commands.resizeNode("a", 200, 180);
+    canvas.commands.cancelNodeResize();
+    expect(canvas.commands.getDocument().nodes[0]).toMatchObject({ width: 100, height: 100 });
+    expect(canvas.commands.getHistoryDocuments()).toHaveLength(0);
+    expect(canvas.commands.getInteraction().isNodeResizing).toBe(false);
+});
+
 test("commits an active preview before a new transaction", () => {
     const canvas = createCanvas({ nodes: [node("a")], connections: [] });
     canvas.commands.startNodeResize("a");

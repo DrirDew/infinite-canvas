@@ -74,6 +74,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     }, []);
     const onNodeResize = useCallback((nodeId: string, width: number, height: number, position?: Position) => commandsRef.current.resizeNode(nodeId, width, height, position), []);
     const onNodeResizeEnd = useCallback(() => commandsRef.current.endNodeResize(), []);
+    const onNodeResizeCancel = useCallback(() => commandsRef.current.cancelNodeResize(), []);
     const onConnectionSelect = useCallback((connection: CanvasConnection) => {
         commandsRef.current.selectConnection(connection.id);
         callbacksRef.current.onConnectionSelected?.(connection);
@@ -154,5 +155,5 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
         };
     }, [toCanvas]);
 
-    return { ...viewport, selectionRect, cancelSelection, onCanvasPointerDown, onNodePointerDown, onNodePointerDownCapture, onConnectionStart, onConnectionSelect, onConnectionContextMenu, onNodeResizeStart, onNodeResize, onNodeResizeEnd };
+    return { ...viewport, selectionRect, cancelSelection, onCanvasPointerDown, onNodePointerDown, onNodePointerDownCapture, onConnectionStart, onConnectionSelect, onConnectionContextMenu, onNodeResizeStart, onNodeResize, onNodeResizeEnd, onNodeResizeCancel };
 }

@@ -327,6 +327,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - Core 提供 `getCanvasDocumentIssues` 纯校验入口，外部文档可在加载前检查结构而不被静默修改。
 - `CanvasConnectionLayer` 支持注入路径解析器，普通连线与活动预览共享直线、折线或自定义路由策略。
 - Core 节点更新拒绝空或重复 ID；节点重命名、分组角色和类型变化会同步维护子节点归属、连线端点与注入策略约束。
+- 节点缩放仅在 `pointerup` 提交；`pointercancel`、窗口失焦和控制点卸载通过 `cancelNodeResize` 回滚预览且不写入历史。
 
 ### 10.6 扩充 Examples
 

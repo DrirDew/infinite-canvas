@@ -368,7 +368,7 @@ function InfiniteCanvasPage() {
         canvasCommands.cancelConnection();
     }, [canvasCommands]);
 
-    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onViewportChange: handleViewportChange, onCanvasPointerDown, onNodePointerDown, onNodePointerDownCapture, onConnectionStart: handleConnectStart, onConnectionSelect: handleConnectionSelect, onConnectionContextMenu: handleConnectionContextMenu, onNodeResizeStart: handleNodeResizeStart, onNodeResize: handleNodeResize, onNodeResizeEnd: handleNodeResizeEnd } = useCanvasInteractions({
+    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onViewportChange: handleViewportChange, onCanvasPointerDown, onNodePointerDown, onNodePointerDownCapture, onConnectionStart: handleConnectStart, onConnectionSelect: handleConnectionSelect, onConnectionContextMenu: handleConnectionContextMenu, onNodeResizeStart: handleNodeResizeStart, onNodeResize: handleNodeResize, onNodeResizeEnd: handleNodeResizeEnd, onNodeResizeCancel: handleNodeResizeCancel } = useCanvasInteractions({
         commands: canvasCommands,
         containerRef,
         onResizeStart: () => setExpandedImageNodeId(null),
@@ -2033,6 +2033,7 @@ function InfiniteCanvasPage() {
                             onResizeStart={handleNodeResizeStart}
                             onResize={handleNodeResize}
                             onResizeEnd={handleNodeResizeEnd}
+                            onResizeCancel={handleNodeResizeCancel}
                             onContentChange={handleNodeContentChange}
                             onTitleChange={handleNodeTitleChange}
                             onToggleBatch={toggleBatchExpanded}

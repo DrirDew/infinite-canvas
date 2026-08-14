@@ -41,6 +41,7 @@ type CanvasNodeProps = {
     onResizeStart: (nodeId: string) => void;
     onResize: (nodeId: string, width: number, height: number, position?: Position) => void;
     onResizeEnd: (nodeId: string) => void;
+    onResizeCancel: (nodeId: string) => void;
     onContentChange: (nodeId: string, content: string) => void;
     onTitleChange: (nodeId: string, title: string) => void;
     onToggleBatch?: (nodeId: string) => void;
@@ -105,6 +106,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     onResizeStart,
     onResize,
     onResizeEnd,
+    onResizeCancel,
     onContentChange,
     onTitleChange,
     onToggleBatch,
@@ -339,6 +341,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     onResizeStart={onResizeStart}
                     onResize={onResize}
                     onResizeEnd={onResizeEnd}
+                    onResizeCancel={onResizeCancel}
                 />
             </div>
 

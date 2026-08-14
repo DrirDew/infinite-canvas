@@ -86,6 +86,7 @@ export type CanvasCommands<TMetadata = unknown> = {
     startNodeResize: (id: string) => void;
     resizeNode: (id: string, width: number, height: number, position?: Position) => CanvasDocument<TMetadata>;
     endNodeResize: () => void;
+    cancelNodeResize: () => void;
     startConnection: (handle: ConnectionHandle, position: Position) => void;
     moveConnection: (position: Position) => CanvasConnectionDropTarget | null;
     endConnection: (position: Position) => CanvasConnectionDropResult | null;

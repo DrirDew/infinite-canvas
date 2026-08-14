@@ -19,6 +19,7 @@ export type CanvasNodeResizeHandlesProps<TMetadata = unknown> = {
     onResizeStart?: (nodeId: string) => void;
     onResize: (nodeId: string, width: number, height: number, position: CanvasNode<TMetadata>["position"]) => void;
     onResizeEnd?: (nodeId: string) => void;
+    onResizeCancel?: (nodeId: string) => void;
 };
 
 const resizeHandleStyles: Record<CanvasResizeCorner, CSSProperties> = {
@@ -28,39 +29,42 @@ const resizeHandleStyles: Record<CanvasResizeCorner, CSSProperties> = {
     "bottom-right": { right: -14, bottom: -14, cursor: "nwse-resize" },
 };
 
-export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = 24, minHeight = 24, onResizeStart, onResize, onResizeEnd }: CanvasNodeResizeHandlesProps<TMetadata>) {
-    const resize = useRef({ active: false, pointerId: 0, corner: "bottom-right" as CanvasResizeCorner, x: 0, y: 0, left: 0, top: 0, width: 0, height: 0, keepAspectRatio: false, ratio: 1 });
-    const move = useCallback(
-        (event: globalThis.PointerEvent) => {
-            const current = resize.current;
-            if (!current.active || event.pointerId !== current.pointerId) return;
-            const bounds = resizeNodeBounds({ position: { x: current.left, y: current.top }, width: current.width, height: current.height }, current.corner, { x: (event.clientX - current.x) / scale, y: (event.clientY - current.y) / scale }, current.keepAspectRatio, current.ratio, minWidth, minHeight);
-            onResize(node.id, bounds.width, bounds.height, bounds.position);
-        },
-        [minHeight, minWidth, node.id, onResize, scale],
-    );
-    const end = useCallback(() => {
+export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = 24, minHeight = 24, onResizeStart, onResize, onResizeEnd, onResizeCancel }: CanvasNodeResizeHandlesProps<TMetadata>) {
+    const resize = useRef({ active: false, pointerId: 0, nodeId: "", corner: "bottom-right" as CanvasResizeCorner, x: 0, y: 0, left: 0, top: 0, width: 0, height: 0, scale: 1, minWidth: 24, minHeight: 24, keepAspectRatio: false, ratio: 1 });
+    const callbacks = useRef({ onResize, onResizeEnd, onResizeCancel });
+    callbacks.current = { onResize, onResizeEnd, onResizeCancel };
+    const move = useCallback((event: globalThis.PointerEvent) => {
+        const current = resize.current;
+        if (!current.active || event.pointerId !== current.pointerId) return;
+        const bounds = resizeNodeBounds({ position: { x: current.left, y: current.top }, width: current.width, height: current.height }, current.corner, { x: (event.clientX - current.x) / current.scale, y: (event.clientY - current.y) / current.scale }, current.keepAspectRatio, current.ratio, current.minWidth, current.minHeight);
+        callbacks.current.onResize(current.nodeId, bounds.width, bounds.height, bounds.position);
+    }, []);
+    const finish = useCallback((commit: boolean) => {
         if (!resize.current.active) return;
+        const nodeId = resize.current.nodeId;
         resize.current.active = false;
         window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", end);
-        window.removeEventListener("pointercancel", end);
-        window.removeEventListener("blur", end);
-        onResizeEnd?.(node.id);
-    }, [move, node.id, onResizeEnd]);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", cancel);
+        window.removeEventListener("blur", cancel);
+        if (commit) callbacks.current.onResizeEnd?.(nodeId);
+        else callbacks.current.onResizeCancel?.(nodeId);
+    }, []);
+    const up = useCallback(() => finish(true), [finish]);
+    const cancel = useCallback(() => finish(false), [finish]);
 
-    useEffect(() => () => end(), [end]);
+    useEffect(() => () => finish(false), [finish]);
 
     const start = (event: PointerEvent, corner: CanvasResizeCorner) => {
         if (event.button !== 0) return;
         event.preventDefault();
         event.stopPropagation();
         onResizeStart?.(node.id);
-        resize.current = { active: true, pointerId: event.pointerId, corner, x: event.clientX, y: event.clientY, left: node.position.x, top: node.position.y, width: node.width, height: node.height, keepAspectRatio, ratio };
+        resize.current = { active: true, pointerId: event.pointerId, nodeId: node.id, corner, x: event.clientX, y: event.clientY, left: node.position.x, top: node.position.y, width: node.width, height: node.height, scale, minWidth, minHeight, keepAspectRatio, ratio };
         window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", end);
-        window.addEventListener("pointercancel", end);
-        window.addEventListener("blur", end);
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", cancel);
+        window.addEventListener("blur", cancel);
     };
 
     return Object.entries(resizeHandleStyles).map(([corner, style]) => <div key={corner} data-resize-handle={corner} style={{ position: "absolute", zIndex: 50, width: 28, height: 28, touchAction: "none", ...style }} onPointerDown={(event) => start(event, corner as CanvasResizeCorner)} />);

@@ -244,7 +244,13 @@ export function useCanvas<TMetadata = unknown>({
             },
             resizeNode: (id: string, width: number, height: number, position?: Position) => preview((document) => updateDocumentNode(document, id, (node) => ({ ...node, width, height, position: position || node.position }), connectionResolverRef.current)),
             endNodeResize() {
+                if (!interactionRef.current.isNodeResizing) return;
                 commitPreview();
+                updateInteraction(DEFAULT_INTERACTION);
+            },
+            cancelNodeResize() {
+                if (!interactionRef.current.isNodeResizing) return;
+                cancelPreview();
                 updateInteraction(DEFAULT_INTERACTION);
             },
             startConnection(handle: ConnectionHandle, position: Position) {

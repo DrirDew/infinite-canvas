@@ -102,7 +102,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                                 theme={canvasThemes.light}
                                 onConnectStart={interactions.onConnectionStart}
                             />
-                            <CanvasNodeResizeHandles node={node} scale={viewport.k} onResizeStart={interactions.onNodeResizeStart} onResize={interactions.onNodeResize} onResizeEnd={interactions.onNodeResizeEnd} />
+                            <CanvasNodeResizeHandles node={node} scale={viewport.k} onResizeStart={interactions.onNodeResizeStart} onResize={interactions.onNodeResize} onResizeEnd={interactions.onNodeResizeEnd} onResizeCancel={interactions.onNodeResizeCancel} />
                             {node.type === "missing" ? (
                                 <CanvasUnknownNode type={node.type} theme={canvasThemes.light} title="未注册节点" description="由 Core 提供安全占位" />
                             ) : (
