@@ -92,7 +92,8 @@ const editor = useCanvasEditor({
 - `internal/canvas-state.ts` / `internal/create-canvas-commands.ts`：维护实例临时状态结构，并构造文档、历史、预览和交互命令。
 - `use-canvas-editor.ts`：一次组合实例状态与交互编排的高层 Hook。
 - `use-canvas-viewport.ts`：容器尺寸、坐标转换、缩放、复位和节点聚焦动画。
-- `use-canvas-interactions.ts`：组合视口能力，并管理框选、节点选择与拖动、连线和全局指针生命周期。
+- `use-canvas-interactions.ts`：组合视口能力，并把画布、节点、缩放和连线事件转换为 Core 命令。
+- `internal/use-canvas-pointer-lifecycle.ts`：按交互类型管理框选、节点拖动、连线的 pointer ownership 与全局生命周期。
 - `internal/window-events.ts` / `internal/body-cursor.ts`：复用全局窗口监听，并管理多实例平移光标所有权。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
 - `connection-layer.tsx` / `selection-box.tsx`：不限制世界坐标范围的连线、连线预览和框选渲染。
