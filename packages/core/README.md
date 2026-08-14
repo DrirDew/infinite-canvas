@@ -81,7 +81,8 @@ const editor = useCanvasEditor({
 - `headless.ts` / `react.ts`：无 React 能力与 React 运行时能力的独立包入口。
 - `document.ts`：无 React 依赖的文档校验、修改、选择清理和剪贴板变换逻辑。
 - `selectors.ts`：分组数量、上下游节点、图遍历与关联高亮等纯派生查询。
-- `use-canvas.ts`：实例状态、历史、事务和预览命令。
+- `use-canvas.ts`：只组合 React 实例状态、最新配置引用和稳定命令对象。
+- `internal/canvas-state.ts` / `internal/create-canvas-commands.ts`：维护实例临时状态结构，并构造文档、历史、预览和交互命令。
 - `use-canvas-editor.ts`：一次组合实例状态与交互编排的高层 Hook。
 - `use-canvas-viewport.ts`：容器尺寸、坐标转换、缩放、复位和节点聚焦动画。
 - `use-canvas-interactions.ts`：组合视口能力，并管理框选、节点选择与拖动、连线和全局指针生命周期。
