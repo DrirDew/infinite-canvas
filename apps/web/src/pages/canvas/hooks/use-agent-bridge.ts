@@ -20,10 +20,8 @@ type AgentBridgeParams = {
     selectedNodeIdsRef: MutableRefObject<Set<string>>;
     viewportRef: MutableRefObject<ViewportTransform>;
     generateNodeRef: GenerateNodeRef;
-    setNodes: Dispatch<SetStateAction<CanvasNodeData[]>>;
-    setConnections: Dispatch<SetStateAction<CanvasConnection[]>>;
-    setSelectedNodeIds: Dispatch<SetStateAction<Set<string>>>;
-    setSelectedConnectionId: Dispatch<SetStateAction<string | null>>;
+    transaction: (updater: (document: { nodes: CanvasNodeData[]; connections: CanvasConnection[] }) => { nodes: CanvasNodeData[]; connections: CanvasConnection[] }) => unknown;
+    selectNodes: (ids: Iterable<string>) => void;
     setViewport: Dispatch<SetStateAction<ViewportTransform>>;
     setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
 };
@@ -33,7 +31,7 @@ type AgentBridgeParams = {
  * to the Agent store for the local Codex panel. All members except applyAgentOps are internal.
  */
 export function useAgentBridge(params: AgentBridgeParams) {
-    const { projectId, title, nodes, connections, selectedNodeIds, viewport, nodesRef, connectionsRef, selectedNodeIdsRef, viewportRef, generateNodeRef, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, setViewport, setContextMenu } =
+    const { projectId, title, nodes, connections, selectedNodeIds, viewport, nodesRef, connectionsRef, selectedNodeIdsRef, viewportRef, generateNodeRef, transaction, selectNodes, setViewport, setContextMenu } =
         params;
     const setAgentCanvasContext = useAgentStore((state) => state.setCanvasContext);
     const [agentUndoSnapshot, setAgentUndoSnapshot] = useState<CanvasAgentSnapshot | null>(null);
@@ -54,10 +52,8 @@ export function useAgentBridge(params: AgentBridgeParams) {
             selectedNodeIdsRef.current = new Set(next.selectedNodeIds);
             viewportRef.current = next.viewport;
             setAgentUndoSnapshot(before);
-            setNodes(next.nodes);
-            setConnections(next.connections);
-            setSelectedNodeIds(new Set(next.selectedNodeIds));
-            setSelectedConnectionId(null);
+            transaction(() => ({ nodes: next.nodes, connections: next.connections }));
+            selectNodes(next.selectedNodeIds);
             setViewport(next.viewport);
             setContextMenu(null);
             if (generationOps.length) {
@@ -71,7 +67,7 @@ export function useAgentBridge(params: AgentBridgeParams) {
             }
             return { ...next, projectId, title: projectTitle };
         },
-        [projectTitle, projectId],
+        [projectTitle, projectId, selectNodes, transaction],
     );
     const undoAgentOps = useCallback(() => {
         if (!agentUndoSnapshot) return null;
@@ -79,15 +75,13 @@ export function useAgentBridge(params: AgentBridgeParams) {
         connectionsRef.current = agentUndoSnapshot.connections;
         selectedNodeIdsRef.current = new Set(agentUndoSnapshot.selectedNodeIds);
         viewportRef.current = agentUndoSnapshot.viewport;
-        setNodes(agentUndoSnapshot.nodes);
-        setConnections(agentUndoSnapshot.connections);
-        setSelectedNodeIds(new Set(agentUndoSnapshot.selectedNodeIds));
-        setSelectedConnectionId(null);
+        transaction(() => ({ nodes: agentUndoSnapshot.nodes, connections: agentUndoSnapshot.connections }));
+        selectNodes(agentUndoSnapshot.selectedNodeIds);
         setViewport(agentUndoSnapshot.viewport);
         setContextMenu(null);
         setAgentUndoSnapshot(null);
         return { ...agentUndoSnapshot, projectId, title: projectTitle };
-    }, [agentUndoSnapshot, projectTitle, projectId]);
+    }, [agentUndoSnapshot, projectTitle, projectId, selectNodes, transaction]);
 
     useEffect(() => {
         setAgentCanvasContext({ snapshot: agentSnapshot, applyOps: applyAgentOps, undoOps: undoAgentOps, canUndo: Boolean(agentUndoSnapshot) });

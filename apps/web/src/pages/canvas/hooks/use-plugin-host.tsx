@@ -24,7 +24,7 @@ type PluginHostParams = {
     nodesRef: MutableRefObject<CanvasNodeData[]>;
     connectionsRef: MutableRefObject<CanvasConnection[]>;
     viewportRef: MutableRefObject<ViewportTransform>;
-    setNodes: Dispatch<SetStateAction<CanvasNodeData[]>>;
+    updateNode: (id: string, patch: Partial<CanvasNodeData> | ((node: CanvasNodeData) => CanvasNodeData)) => unknown;
     setDialogNodeId: Dispatch<SetStateAction<string | null>>;
     applyAgentOps: (ops?: CanvasAgentOp[]) => unknown;
 };
@@ -35,7 +35,7 @@ type PluginHostParams = {
  */
 export function usePluginHost(params: PluginHostParams) {
     const { t } = useTranslation();
-    const { effectiveConfig, isAiConfigReady, openConfigDialog, theme, nodesRef, connectionsRef, viewportRef, setNodes, setDialogNodeId, applyAgentOps } = params;
+    const { effectiveConfig, isAiConfigReady, openConfigDialog, theme, nodesRef, connectionsRef, viewportRef, updateNode, setDialogNodeId, applyAgentOps } = params;
 
     // Host capabilities available to plugin nodes; methods receive nodeId and are not bound to a specific node.
     const pluginAi = useMemo<CanvasPluginAi>(() => {
@@ -95,14 +95,14 @@ export function usePluginHost(params: PluginHostParams) {
                     .filter((conn) => conn.fromNodeId === nodeId)
                     .map((conn) => nodesRef.current.find((node) => node.id === conn.toNodeId))
                     .filter((node): node is CanvasNodeData => Boolean(node)),
-            updateNode: (nodeId, patch) => setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, ...patch } : node))),
-            updateMetadata: (nodeId, patch) => setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...patch } } : node))),
+            updateNode: (nodeId, patch) => updateNode(nodeId, patch),
+            updateMetadata: (nodeId, patch) => updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, ...patch } })),
             applyOps: (ops) => applyAgentOps(ops),
             ai: pluginAi,
             openPanel: (nodeId) => setDialogNodeId(nodeId),
             closePanel: () => setDialogNodeId(null),
         }),
-        [applyAgentOps, pluginAi],
+        [applyAgentOps, pluginAi, updateNode],
     );
 
     const renderPluginPanel = useCallback(

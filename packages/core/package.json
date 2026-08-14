@@ -1,12 +1,22 @@
 {
     "name": "@infinite-canvas/core",
     "version": "0.1.0",
-    "private": true,
+    "description": "Embeddable React infinite canvas engine",
+    "license": "MIT",
     "type": "module",
-    "exports": "./src/index.ts",
-    "scripts": {
-        "typecheck": "tsc --noEmit"
+    "sideEffects": false,
+    "files": ["dist"],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
     },
+    "scripts": {
+        "build": "tsc",
+        "test": "bun test"
+    },
+    "publishConfig": { "access": "public" },
     "peerDependencies": {
         "react": ">=18",
         "react-dom": ">=18"

@@ -13,7 +13,7 @@
 
 - `@infinite-canvas/core`：可独立发布和嵌入的 React 画布引擎。
 - `apps/web`：基于 core 构建的完整 AI 创作应用，也是唯一的插件宿主。
-- `apps/example`：只引入 core 的最小演示项目。
+- `apps/examples`：只引入 core 的最小演示项目。
 - `@infinite-canvas/plugin-sdk`：面向 Web 应用插件的开发契约，不属于 core。
 
 Core 只提供画布能力和扩展切入点，不实现插件、业务、持久化或 AI。Web 负责产品能力，并用 Cordis 管理应用插件。
@@ -25,7 +25,7 @@ infinite-canvas/
 ├── apps/
 │   ├── web/                 # 官方 Web 应用
 │   ├── docs/                # 文档站
-│   └── example/             # Core 最小演示项目
+│   └── examples/            # Core 最小演示项目
 ├── packages/
 │   ├── core/                # @infinite-canvas/core
 │   ├── plugin-sdk/          # @infinite-canvas/plugin-sdk
@@ -55,7 +55,7 @@ flowchart LR
     SDK --> User
 ```
 
-`apps/example` 只依赖 core，用于演示基础画布能力并验证 core 可以脱离官方 Web 独立使用。第三方应用同样可以直接安装 core，并通过公开切入点组合自己的节点和业务；是否建立插件系统由第三方应用自行决定。
+`apps/examples` 只依赖 core，用于演示基础画布能力并验证 core 可以脱离官方 Web 独立使用。第三方应用同样可以直接安装 core，并通过公开切入点组合自己的节点和业务；是否建立插件系统由第三方应用自行决定。
 
 ## 4. Core 画布引擎
 
@@ -178,6 +178,98 @@ Core 不提供持久化。第三方使用方自行选择存储方式；官方 We
 
 1. **Monorepo 基座（已完成）**：Web 与文档站移入 `apps/`，Canvas Agent 与 Plugin SDK 移入 `packages/`，插件移入 `plugins/user`，统一使用根 Bun workspace 和 `bun.lock`。
 2. **拆 Core（进行中）**：先迁移画布文档类型、坐标与几何等纯逻辑，再迁移实例状态和基础渲染；Core 内不得引用 `apps/web` 的别名、业务 store、i18n、Ant Design 或持久化。
-3. **建立 Example**：新增 `apps/example`，只依赖 `@infinite-canvas/core`，用它验证 Core 的公开入口与多实例隔离。
+3. **建立 Examples（已完成）**：新增 `apps/examples`，只依赖 `@infinite-canvas/core`，用它验证 Core 的公开入口与多实例隔离。
 4. **Web 接回 Core**：Web 通过 Core 公开 API 组合项目、生成任务、素材、Agent 与插件适配，不直接访问 Core 内部 store。
 5. **替换插件运行时**：删除旧 loader/runtime 后再接入 Cordis，不保留两套运行时并行。
+
+## 10. 下一阶段实施计划
+
+下一阶段的目标是让 Core 真正拥有画布文档、实例状态和基础编辑交互，Web 只负责业务组合。迁移期间按可独立提交的小步骤推进，不一次性重写画布页面。
+
+### 10.1 盘点状态边界
+
+梳理 `project.tsx`、`use-canvas-store.ts` 和画布组件中的状态并分为三类：
+
+- Core：节点、连线、视口、选择、移动、缩放、分组和撤销重做。
+- Web：项目列表、持久化、AI、素材、Agent、插件和业务弹窗。
+- 适配层：把 Web、Agent 和插件动作转换为 Core 命令。
+
+画布文档只能有一个实时权威来源，Web 只保存 Core 文档快照，不同时维护另一份可编辑状态。
+
+### 10.2 建立 Core 文档与状态 API
+
+Core 增加 `CanvasDocument` 和 `useCanvas`，通过受控文档与变更回调接入外部应用：
+
+```ts
+type CanvasDocument = {
+    nodes: CanvasNode[];
+    connections: CanvasConnection[];
+};
+
+const canvas = useCanvas({ document, onDocumentChange });
+```
+
+第一版只提供当前交互真正需要的命令：
+
+- `setDocument`
+- `addNode`、`updateNode`、`removeNodes`
+- `addConnection`、`removeConnections`
+- `selectNodes`、`clearSelection`
+- `undo`、`redo`
+- `getDocument`
+
+优先使用 React 原生状态能力，不为 Core 新增状态管理依赖。
+
+### 10.3 迁移基础交互
+
+按以下顺序迁移，每完成一类交互就让 Web 改用对应 Core API：
+
+1. 坐标转换和视口控制。
+2. 单选、多选和框选。
+3. 节点移动与缩放。
+4. 分组、吸附和组内节点移动。
+5. 连线创建、选择和删除。
+6. 撤销、重做和剪贴板。
+
+第一批先完成视口、坐标与框选：
+
+- `useCanvas` 接管实例 `viewport`，提供稳定的 `setViewport`、`getViewport` 命令；视口不进入文档撤销历史。
+- Core 提供屏幕坐标与画布坐标互转、矩形标准化、节点矩形相交查询等纯函数。
+- Web 继续负责项目视口持久化，但不再维护另一份可编辑视口状态。
+- 框选过程中的起点与当前指针仍是临时交互状态，最终选中节点由 Core 命令写入实例选择状态。
+
+### 10.4 迁移基础渲染
+
+Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框、小地图和未知节点占位。节点具体内容通过节点定义或 `renderNode` 传入。
+
+图片生成、提示词面板、Ant Design 控件和业务工具栏继续由 Web 渲染，不进入 Core。
+
+### 10.5 Web 接回 Core
+
+- `use-canvas-store` 只保存项目数据和 Core 文档快照。
+- `project.tsx` 删除已经迁入 Core 的事件处理与临时编辑状态。
+- AI 生成结果通过 Core 命令添加或更新节点。
+- Agent 操作转换为 Core 命令。
+- Web 插件节点定义通过适配层交给 Core。
+- Web 统一从 Core 引用画布主题，删除重复的 `canvas-theme.ts`。
+
+### 10.6 扩充 Examples
+
+`apps/examples` 逐步补充以下独立验证场景：
+
+- 节点新增、移动、缩放和删除。
+- 连线、框选和撤销重做。
+- 自定义节点渲染和受控文档回调。
+- 两个实例的状态完全隔离。
+- 未知节点占位。
+
+Examples 仍只依赖 Core，不接入 Web、Plugin SDK、Cordis 和业务服务。
+
+### 10.7 清理与完成标准
+
+- 删除 Web 中已经迁移的重复逻辑和组件，不保留兼容转发层。
+- Core 不得引用 `apps/web`、Ant Design、Zustand、i18n、持久化、AI 或插件系统。
+- Core 可以被全新的 React 项目安装并通过公开入口使用。
+- 更新 Core README、TODO、Pending Tests 和 `CHANGELOG.md`。
+
+本阶段不处理 Cordis、插件沙箱、AI 任务和项目存储重构；Core 接入完成后再开始替换插件运行时。

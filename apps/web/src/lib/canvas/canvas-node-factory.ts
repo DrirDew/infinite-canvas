@@ -1,5 +1,5 @@
 import { getNodeSpec, NODE_DEFAULT_SIZE } from "@/constant/canvas";
-import { nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
+import { nodeSizeFromRatio } from "@infinite-canvas/core";
 import type { AiConfig } from "@/stores/use-config-store";
 import type { UploadedImage } from "@/services/image-storage";
 import type { UploadedFile } from "@/services/file-storage";

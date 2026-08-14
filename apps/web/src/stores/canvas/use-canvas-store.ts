@@ -5,15 +5,15 @@ import { nanoid } from "nanoid";
 import i18n from "@/i18n";
 import { localForageStorage } from "@/lib/localforage-storage";
 import type { CanvasBackgroundMode } from "@/lib/canvas-theme";
-import type { CanvasAssistantSession, CanvasConnection, CanvasNodeData, ViewportTransform } from "@/types/canvas";
+import type { CanvasDocument } from "@infinite-canvas/core";
+import type { CanvasAssistantSession, CanvasNodeMetadata, ViewportTransform } from "@/types/canvas";
 
 export type CanvasProject = {
     id: string;
     title: string;
     createdAt: string;
     updatedAt: string;
-    nodes: CanvasNodeData[];
-    connections: CanvasConnection[];
+    document: CanvasDocument<CanvasNodeMetadata>;
     chatSessions: CanvasAssistantSession[];
     activeChatId: string | null;
     backgroundMode: CanvasBackgroundMode;
@@ -30,7 +30,7 @@ type CanvasStore = {
     renameProject: (id: string, title: string) => void;
     deleteProjects: (ids: string[]) => void;
     replaceProjects: (projects: CanvasProject[]) => void;
-    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "nodes" | "connections" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo" | "viewport">>) => void;
+    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "document" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo" | "viewport">>) => void;
 };
 
 const initialViewport: ViewportTransform = { x: 0, y: 0, k: 1 };
@@ -73,8 +73,7 @@ export const useCanvasStore = create<CanvasStore>()(
                     title,
                     createdAt: now,
                     updatedAt: now,
-                    nodes: [],
-                    connections: [],
+                    document: { nodes: [], connections: [] },
                     chatSessions: [],
                     activeChatId: null,
                     backgroundMode: "lines",
@@ -91,8 +90,7 @@ export const useCanvasStore = create<CanvasStore>()(
                     title: source.title || i18n.t("canvas.project.imported"),
                     createdAt: source.createdAt || now,
                     updatedAt: now,
-                    nodes: source.nodes || [],
-                    connections: source.connections || [],
+                    document: source.document || { nodes: [], connections: [] },
                     chatSessions: source.chatSessions || [],
                     activeChatId: source.activeChatId || null,
                     backgroundMode: source.backgroundMode || "lines",

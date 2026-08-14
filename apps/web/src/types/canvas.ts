@@ -1,27 +1,7 @@
-export type Position = {
-    x: number;
-    y: number;
-};
+import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnection, type CanvasNode, type CanvasNodeStatus, type CanvasNodeTypeId, type ConnectionHandle, type Position, type ViewportTransform } from "@infinite-canvas/core";
 
-export type ViewportTransform = {
-    x: number;
-    y: number;
-    k: number;
-};
-
-export enum CanvasNodeType {
-    Image = "image",
-    Text = "text",
-    Config = "config",
-    Video = "video",
-    Audio = "audio",
-    Group = "group",
-}
-
-// Node types are open strings: built-ins use CanvasNodeType and plugins use "<pluginId>:<name>".
-export type CanvasNodeTypeId = CanvasNodeType | (string & {});
-
-export type CanvasNodeStatus = "idle" | "success" | "loading" | "error";
+export { CanvasNodeType };
+export type { CanvasConnection, CanvasNodeStatus, CanvasNodeTypeId, ConnectionHandle, Position, ViewportTransform };
 export type CanvasGenerationMode = "text" | "image" | "video" | "audio";
 export type CanvasImageGenerationType = "generation" | "edit";
 
@@ -37,7 +17,7 @@ export type CanvasNodeImage = {
     mimeType: string;
 };
 
-export type CanvasNodeMetadata = {
+export type CanvasNodeMetadata = BaseCanvasNodeMetadata & {
     content?: string;
     composerContent?: string;
     prompt?: string;
@@ -74,21 +54,7 @@ export type CanvasNodeMetadata = {
     interactive?: boolean; // Plugin node interaction/move state; see CanvasNodeDefinition.interactionToggle.
 };
 
-export type CanvasNodeData = {
-    id: string;
-    type: CanvasNodeTypeId;
-    title: string;
-    position: Position;
-    width: number;
-    height: number;
-    metadata?: CanvasNodeMetadata;
-};
-
-export type CanvasConnection = {
-    id: string;
-    fromNodeId: string;
-    toNodeId: string;
-};
+export type CanvasNodeData = CanvasNode<CanvasNodeMetadata>;
 
 export type CanvasAssistantReference = {
     id: string;
@@ -122,11 +88,6 @@ export type CanvasAssistantSession = {
     messages: CanvasAssistantMessage[];
     createdAt: string;
     updatedAt: string;
-};
-
-export type ConnectionHandle = {
-    nodeId: string;
-    handleType: "source" | "target";
 };
 
 export type SelectionBox = {

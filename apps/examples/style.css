@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;900&display=swap');
+:root { font-family: "DM Mono", monospace; color: #191814; background: #ece9e1; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+main { min-height: 100vh; padding: clamp(28px, 5vw, 72px); background: linear-gradient(115deg, transparent 68%, #ded9ce 68%); }
+.intro { display: grid; grid-template-columns: 1fr 1.5fr 1fr; align-items: end; gap: 32px; margin-bottom: 48px; }
+.intro p { align-self: start; color: #ff5c35; }
+h1 { margin: 0; font: 900 clamp(48px, 7vw, 110px)/.92 "Noto Serif SC", serif; letter-spacing: -.08em; }
+aside { max-width: 360px; line-height: 1.8; color: #635f56; }
+code { color: #197e67; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+section { border: 1px solid #aaa399; background: #f8f6f0; box-shadow: 8px 8px 0 #191814; }
+header { min-height: 46px; display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid #aaa399; font-size: 12px; }
+header span::before { content: "CANVAS "; color: #8a8479; }
+header nav { display: flex; gap: 4px; margin-left: auto; }
+button { border: 0; padding: 5px 7px; color: inherit; background: transparent; font: inherit; cursor: pointer; }
+button:hover { background: #e5e1d8; }
+button:disabled { opacity: .35; cursor: default; }
+.stage { height: min(48vh, 500px); }
+article { position: absolute; padding: 20px; border: 1px solid; background: #fffdf7; box-shadow: 7px 7px 0 #d2cec5; cursor: pointer; }
+article i { display: block; width: 22px; height: 6px; margin-bottom: 36px; }
+article strong, article small { display: block; margin-top: 8px; }
+article strong { font: 900 42px/1 "Noto Serif SC", serif; }
+article small { color: #8a8479; }
+@media (max-width: 800px) { .intro, .grid { grid-template-columns: 1fr; } .intro { gap: 18px; } main { padding: 24px; } }

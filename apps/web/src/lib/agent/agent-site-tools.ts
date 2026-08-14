@@ -139,8 +139,8 @@ function listCanvasProjects(input: SiteToolInput) {
         title: project.title,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
-        nodeCount: project.nodes.length,
-        connectionCount: project.connections.length,
+        nodeCount: project.document.nodes.length,
+        connectionCount: project.document.connections.length,
     }));
     return { total: filtered.length, page, pageSize, items, hint: siteText("canvasHint") };
 }
