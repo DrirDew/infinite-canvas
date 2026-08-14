@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react";
-import { normalizeRect, screenToCanvas } from "./geometry";
+import { centerViewport, fitViewportToNode, normalizeRect, screenToCanvas, zoomViewport } from "./geometry";
 import type { BaseCanvasNodeMetadata, CanvasCommands, CanvasConnectionDropResult, CanvasRect, CanvasSize, Position } from "./types";
 
 export type UseCanvasInteractionsOptions<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
@@ -24,6 +24,7 @@ export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>(
     const marqueeRef = useRef<Marquee | null>(null);
     const pendingSelectionRef = useRef<{ nodeId: string; ids: Set<string> } | null>(null);
     const frameRef = useRef<number | null>(null);
+    const viewportFrameRef = useRef<number | null>(null);
     commandsRef.current = commands;
     callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize };
 
@@ -106,6 +107,42 @@ export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>(
         marqueeRef.current = null;
         setSelectionRect(null);
     }, []);
+    const cancelViewportAnimation = useCallback(() => {
+        if (viewportFrameRef.current) cancelAnimationFrame(viewportFrameRef.current);
+        viewportFrameRef.current = null;
+    }, []);
+    const resetViewport = useCallback(() => {
+        cancelViewportAnimation();
+        return commandsRef.current.setViewport(centerViewport(containerSizeRef.current));
+    }, [cancelViewportAnimation]);
+    const setZoom = useCallback(
+        (scale: number) => {
+            cancelViewportAnimation();
+            return commandsRef.current.setViewport((viewport) => zoomViewport(viewport, containerSizeRef.current, scale));
+        },
+        [cancelViewportAnimation],
+    );
+    const focusNode = useCallback(
+        (nodeId: string) => {
+            const node = commandsRef.current.getDocument().nodes.find((item) => item.id === nodeId);
+            if (!node) return false;
+            cancelViewportAnimation();
+            commandsRef.current.selectNodes([nodeId]);
+            const start = commandsRef.current.getViewport();
+            const target = fitViewportToNode(node, containerSizeRef.current);
+            let started = 0;
+            const step = (now: number) => {
+                started ||= now;
+                const progress = Math.min((now - started) / 450, 1);
+                const t = 1 - Math.pow(1 - progress, 3);
+                commandsRef.current.setViewport({ x: start.x + (target.x - start.x) * t, y: start.y + (target.y - start.y) * t, k: start.k + (target.k - start.k) * t });
+                viewportFrameRef.current = progress < 1 ? requestAnimationFrame(step) : null;
+            };
+            viewportFrameRef.current = requestAnimationFrame(step);
+            return true;
+        },
+        [cancelViewportAnimation],
+    );
 
     useEffect(() => {
         const move = (event: globalThis.PointerEvent) => {
@@ -149,6 +186,7 @@ export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>(
             setSelectionRect(null);
             commandsRef.current.endNodeDrag();
             commandsRef.current.cancelConnection();
+            cancelViewportAnimation();
         };
         window.addEventListener("pointermove", move);
         window.addEventListener("pointerup", up);
@@ -160,8 +198,9 @@ export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>(
             window.removeEventListener("pointercancel", cancel);
             window.removeEventListener("blur", cancel);
             if (frameRef.current) cancelAnimationFrame(frameRef.current);
+            cancelViewportAnimation();
         };
-    }, [toCanvas]);
+    }, [cancelViewportAnimation, toCanvas]);
 
-    return { containerSize, selectionRect, toCanvas, getCanvasCenter, cancelSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture };
+    return { containerSize, selectionRect, toCanvas, getCanvasCenter, resetViewport, setZoom, focusNode, cancelSelection, cancelViewportAnimation, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture };
 }

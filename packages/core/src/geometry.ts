@@ -8,6 +8,20 @@ export function canvasToScreen(position: Position, viewport: ViewportTransform, 
     return { x: origin.left + viewport.x + position.x * viewport.k, y: origin.top + viewport.y + position.y * viewport.k };
 }
 
+export function centerViewport(size: CanvasSize, k = 1): ViewportTransform {
+    return { x: size.width / 2, y: size.height / 2, k };
+}
+
+export function zoomViewport(viewport: ViewportTransform, size: CanvasSize, scale: number): ViewportTransform {
+    const k = Math.min(Math.max(scale, 0.05), 5);
+    return { x: size.width / 2 - ((size.width / 2 - viewport.x) / viewport.k) * k, y: size.height / 2 - ((size.height / 2 - viewport.y) / viewport.k) * k, k };
+}
+
+export function fitViewportToNode<T extends BaseCanvasNodeMetadata>(node: CanvasNode<T>, size: CanvasSize): ViewportTransform {
+    const k = Math.min(Math.max(Math.min((size.width * 0.6) / node.width, (size.height * 0.6) / node.height), 0.05), 1);
+    return { x: size.width / 2 - (node.position.x + node.width / 2) * k, y: size.height / 2 - (node.position.y + node.height / 2) * k, k };
+}
+
 export function normalizeRect(start: Position, end: Position): CanvasRect {
     return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
 }

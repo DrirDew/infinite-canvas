@@ -56,6 +56,10 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                     <button disabled={selectedNodeIds.size !== 1} onClick={resize}>
                         放大
                     </button>
+                    <button disabled={selectedNodeIds.size !== 1} onClick={() => interactions.focusNode([...selectedNodeIds][0])}>
+                        聚焦
+                    </button>
+                    <button onClick={interactions.resetViewport}>复位</button>
                     <button disabled={!selectedNodeIds.size} onClick={commands.copySelection}>
                         复制
                     </button>
@@ -129,7 +133,7 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 12</p>
+                <p>CORE / 13</p>
                 <h1>
                     一块画布，
                     <br />

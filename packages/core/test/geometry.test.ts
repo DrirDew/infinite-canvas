@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CanvasNodeType, canvasToScreen, findConnectionDropTarget, fitNodeSize, getConnectionPath, nodesInRect, nodesInViewport, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas } from "../src";
+import { CanvasNodeType, canvasToScreen, centerViewport, findConnectionDropTarget, fitNodeSize, fitViewportToNode, getConnectionPath, nodesInRect, nodesInViewport, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas, zoomViewport } from "../src";
 
 describe("core geometry", () => {
     test("keeps node ratios and connection direction", () => {
@@ -47,6 +47,13 @@ describe("core geometry", () => {
             ).map((node) => node.id),
         ).toEqual(["inside"]);
         expect(nodesInViewport([{ id: "visible", type: "test", title: "", position: { x: 0, y: 0 }, width: 40, height: 40 }], viewport, { width: 200, height: 200 })).toHaveLength(1);
+    });
+
+    test("centers, zooms, and fits viewport targets", () => {
+        const size = { width: 800, height: 600 };
+        expect(centerViewport(size)).toEqual({ x: 400, y: 300, k: 1 });
+        expect(zoomViewport({ x: 400, y: 300, k: 1 }, size, 2)).toEqual({ x: 400, y: 300, k: 2 });
+        expect(fitViewportToNode({ id: "node", type: "test", title: "", position: { x: 100, y: 50 }, width: 200, height: 100 }, size)).toEqual({ x: 200, y: 200, k: 1 });
     });
 
     test("resizes nodes from any corner with optional ratio locking", () => {
