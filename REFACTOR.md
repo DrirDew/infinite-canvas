@@ -321,6 +321,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - Core 选择命令只保留当前文档中存在的节点和连线 ID，避免外部状态收到悬空选择。
 - Core 几何实现按视口、节点分组和连线拆分目录，公共 `geometry` 导出保持不变。
 - Core 文档纯逻辑按校验、修改与剪贴板拆分目录，公共 `document` 导出保持不变。
+- Core 节点基础渲染按外壳、缩放控制、连线端口和未知节点占位拆分目录，公共 `node` 导出保持不变。
 - 节点拖动、缩放和连线创建只响应主键 Pointer Events，右键菜单不会启动编辑状态。
 - Core 增加 `cancelPreview`，transaction 会先提交已有预览，undo/redo 会先恢复未提交预览的起点。
 - 视口 Hook 的外部输入回调改名为 `onViewportInput`，与返回给渲染层的 `onViewportChange` 区分。

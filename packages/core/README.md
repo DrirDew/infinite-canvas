@@ -174,7 +174,7 @@ Core 负责画布文档、实例状态、历史、视口、几何、基础交互
 - `use-canvas-viewport.ts` / `use-canvas-interactions.ts`：视口能力与 React 事件编排。
 - `internal/canvas-command-runtime.ts` / `create-canvas-commands.ts`：状态发布、历史预览运行时和领域命令。
 - `internal/use-canvas-pointer-lifecycle.ts` / `pointer-ownership.ts` / `window-events.ts`：指针生命周期、实例所有权和共享全局事件。
-- `infinite-canvas.tsx` / `node.tsx` / `connection-layer.tsx` / `selection-box.tsx` / `minimap.tsx`：基础渲染。
+- `infinite-canvas.tsx` / `node/` / `connection-layer.tsx` / `selection-box.tsx` / `minimap.tsx`：画布表面、节点外壳与控制、连线、框选和小地图基础渲染；`node.tsx` 保持统一入口。
 - `headless.ts` / `react.ts` / `index.ts`：分环境公开入口。
 
 仓库内运行 `bun run dev:examples` 可查看两个独立画布实例、文档快照、选择、拖动、缩放、连线、剪贴板、撤销重做和未知节点占位。
