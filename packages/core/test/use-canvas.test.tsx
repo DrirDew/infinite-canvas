@@ -24,7 +24,7 @@ function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connecti
     return canvas;
 }
 
-type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode" | "onSelectionChange" | "onInteractionChange">;
+type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode" | "onDocumentChange" | "onSelectionChange" | "onInteractionChange">;
 
 test("adds, updates, and removes nodes and connections", () => {
     const canvas = createCanvas();
@@ -112,6 +112,17 @@ test("instances keep documents, selections, and history isolated", () => {
     expect([...first.commands.getSelection().nodeIds]).toEqual([]);
     expect(second.commands.getDocument().nodes).toEqual([node("b")]);
     expect([...second.commands.getSelection().nodeIds]).toEqual(["b"]);
+});
+
+test("document replacement publishes the new snapshot and resets history", () => {
+    let snapshot: CanvasDocument<Metadata> | null = null;
+    const canvas = createCanvas(undefined, undefined, { onDocumentChange: (document) => (snapshot = document) });
+    canvas.commands.addNode(node("old"));
+    const next = { nodes: [node("new")], connections: [] };
+    canvas.commands.setDocument(next);
+    expect(snapshot).toBe(next);
+    expect(canvas.commands.getDocument()).toBe(next);
+    expect(canvas.commands.getHistoryDocuments()).toEqual([]);
 });
 
 test("viewport and rectangle selection stay inside each instance", () => {

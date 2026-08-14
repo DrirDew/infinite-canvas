@@ -45,7 +45,7 @@ canvas.commands.cancelPreview();
 canvas.commands.undo();
 
 const issues = getCanvasDocumentIssues(externalDocument, optionalConnectionPolicy);
-if (!issues.length) canvas.commands.setDocument(externalDocument);
+if (!issues.length) canvas.commands.setDocument(externalDocument); // 同步清空选择与历史，并触发 onDocumentChange
 interactions.focusNode(node.id);
 interactions.setZoom(1.5);
 interactions.resetViewport();

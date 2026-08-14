@@ -186,8 +186,7 @@ export function useCanvas<TMetadata = unknown>({
                 historyRef.current = emptyHistory();
                 previewRef.current = null;
                 dragRef.current = null;
-                documentRef.current = next;
-                setDocumentState(next);
+                publish(next);
                 updateSelection(emptySelection());
                 updateInteraction(DEFAULT_INTERACTION);
                 updateHistoryState();
