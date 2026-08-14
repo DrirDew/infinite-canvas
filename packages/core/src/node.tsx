@@ -52,6 +52,7 @@ export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRati
     useEffect(() => () => end(), [end]);
 
     const start = (event: PointerEvent, corner: CanvasResizeCorner) => {
+        if (event.button !== 0) return;
         event.preventDefault();
         event.stopPropagation();
         onResizeStart?.(node.id);
@@ -90,6 +91,7 @@ function CanvasNodeConnectionHandle({ side, visible, theme, onPointerDown }: { s
             style={{ position: "absolute", top: "50%", [side]: -24, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, cursor: "crosshair", touchAction: "none", opacity: visible ? 1 : 0, pointerEvents: visible ? "auto" : "none", transform: "translateY(-50%)", transition: "opacity 150ms" }}
             onPointerDown={(event) => {
                 event.stopPropagation();
+                if (event.button !== 0) return;
                 onPointerDown(event);
             }}
         >

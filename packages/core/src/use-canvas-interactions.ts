@@ -55,6 +55,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     const onNodePointerDown = useCallback(
         (event: PointerEvent, nodeId: string) => {
             event.stopPropagation();
+            if (event.button !== 0) return;
             const pending = pendingSelectionRef.current;
             const ids = pending?.nodeId === nodeId ? pending.ids : selectNode(event, nodeId);
             pendingSelectionRef.current = null;
@@ -64,6 +65,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     );
     const onConnectionStart = useCallback((event: PointerEvent, nodeId: string, handleType: "source" | "target") => {
         event.stopPropagation();
+        if (event.button !== 0) return;
         commandsRef.current.startConnection({ nodeId, handleType }, toCanvas(event.clientX, event.clientY));
     }, [toCanvas]);
     const onNodeResizeStart = useCallback((nodeId: string) => {
