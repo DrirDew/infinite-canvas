@@ -52,18 +52,23 @@ export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRati
         if (commit) callbacks.current.onResizeEnd?.(nodeId);
         else callbacks.current.onResizeCancel?.(nodeId);
     }, []);
-    const up = useCallback(() => finish(true), [finish]);
-    const cancel = useCallback(() => finish(false), [finish]);
+    const up = useCallback((event: globalThis.PointerEvent) => {
+        if (event.pointerId === resize.current.pointerId) finish(true);
+    }, [finish]);
+    const cancel = useCallback((event: globalThis.PointerEvent) => {
+        if (event.pointerId === resize.current.pointerId) finish(false);
+    }, [finish]);
+    const blur = useCallback(() => finish(false), [finish]);
 
     useEffect(() => () => finish(false), [finish]);
 
     const start = (event: PointerEvent, corner: CanvasResizeCorner) => {
-        if (event.button !== 0) return;
+        if (event.button !== 0 || resize.current.active) return;
         event.preventDefault();
         event.stopPropagation();
         onResizeStart?.(node.id);
         resize.current = { active: true, pointerId: event.pointerId, nodeId: node.id, corner, x: event.clientX, y: event.clientY, left: node.position.x, top: node.position.y, width: node.width, height: node.height, scale, minWidth, minHeight, keepAspectRatio, ratio, dispose: [] };
-        resize.current.dispose = [subscribeWindowEvent("pointermove", move), subscribeWindowEvent("pointerup", up), subscribeWindowEvent("pointercancel", cancel), subscribeWindowEvent("blur", cancel)];
+        resize.current.dispose = [subscribeWindowEvent("pointermove", move), subscribeWindowEvent("pointerup", up), subscribeWindowEvent("pointercancel", cancel), subscribeWindowEvent("blur", blur)];
     };
 
     return Object.entries(resizeHandleStyles(-handleSize / 2)).map(([value, style]) => {
