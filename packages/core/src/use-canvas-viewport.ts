@@ -19,6 +19,8 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
     const commandsRef = useRef(commands);
     const callbacksRef = useRef({ onContainerResize, onViewportInput });
     const containerSizeRef = useRef(containerSize);
+    const containerElementRef = useRef<HTMLDivElement | null>(null);
+    const resizeObserverRef = useRef<ResizeObserver | null>(null);
     const frameRef = useRef<number | null>(null);
     const optionsRef = useRef(options);
     commandsRef.current = commands;
@@ -27,6 +29,9 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
 
     useLayoutEffect(() => {
         const element = containerRef.current;
+        if (containerElementRef.current === element) return;
+        resizeObserverRef.current?.disconnect();
+        containerElementRef.current = element;
         if (!element) return;
         const update = () => {
             const { width, height } = element.getBoundingClientRect();
@@ -39,8 +44,10 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
         update();
         const observer = new ResizeObserver(update);
         observer.observe(element);
-        return () => observer.disconnect();
-    }, [containerRef]);
+        resizeObserverRef.current = observer;
+    });
+
+    useLayoutEffect(() => () => resizeObserverRef.current?.disconnect(), []);
 
     const toCanvas = useCallback(
         (clientX: number, clientY: number) => {
