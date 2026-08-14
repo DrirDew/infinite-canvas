@@ -1,4 +1,5 @@
 import { useMemo, type MouseEvent, type SVGAttributes } from "react";
+import { canvasDefaults } from "./defaults.js";
 import { getConnectionPath } from "./geometry.js";
 import type { CanvasTheme } from "./theme.js";
 import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "./types.js";
@@ -20,7 +21,7 @@ export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     onConnectionContextMenu?: (event: MouseEvent<SVGPathElement>, connection: CanvasConnection) => void;
 };
 
-export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, resolvePath = getConnectionPath, resolveStyle, previewStyle, hitStrokeWidth = 16, onConnectionSelect, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
+export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, resolvePath = getConnectionPath, resolveStyle, previewStyle, hitStrokeWidth = canvasDefaults.connectionStrokeHitWidth, onConnectionSelect, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
     const byId = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     const source = interaction ? byId.get(interaction.handle.nodeId) : undefined;
     const target = interaction?.targetNodeId ? byId.get(interaction.targetNodeId) : undefined;

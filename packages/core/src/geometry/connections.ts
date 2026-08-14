@@ -1,3 +1,4 @@
+import { canvasDefaults } from "../defaults.js";
 import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, ConnectionHandle, Position } from "../types.js";
 import { isGroupNode } from "./nodes.js";
 
@@ -12,7 +13,7 @@ export function getConnectionPath<T>(source: CanvasNode<T>, target?: CanvasNode<
     return `M ${start.x} ${start.y} C ${start.x + curvature} ${start.y}, ${end.x - curvature} ${end.y}, ${end.x} ${end.y}`;
 }
 
-export function findConnectionDropTarget<T>(nodes: CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, resolver?: CanvasConnectionResolver<T>, handleRadius = 40, nodePadding = 32): CanvasConnectionDropTarget {
+export function findConnectionDropTarget<T>(nodes: CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, resolver?: CanvasConnectionResolver<T>, handleRadius = canvasDefaults.connectionHandleRadius, nodePadding = canvasDefaults.connectionNodePadding): CanvasConnectionDropTarget {
     const radius = handleRadius / Math.max(scale, 0.05);
     const padding = nodePadding / Math.max(scale, 0.05);
     let isNearNode = false;

@@ -78,12 +78,12 @@ const editor = useCanvasEditor({
 
 `CanvasSelectionBox` 保持随缩放稳定的默认描边，同时允许通过 `className`、`style` 和 `rectProps` 覆盖容器与矩形 SVG 属性。`CanvasMinimap` 可配置 `worldPadding`、节点和视口最小可见尺寸，通过 `className`、`style` 接入应用布局，并用 `nodeStyle`、`renderNode`、`viewportStyle` 扩展缩略节点和视口外观。
 
-`CanvasNodeResizeHandles` 可配置控制点命中尺寸并通过 `renderHandle` 渲染四角视觉；`CanvasNodeConnectionHandles` 可配置命中尺寸、节点偏移、默认圆点尺寸或自定义源/目标端口内容。
+`CanvasNodeResizeHandles` 可配置控制点命中尺寸并通过 `renderHandle` 渲染四角视觉；`CanvasNodeConnectionHandles` 可配置命中尺寸、节点偏移、默认圆点尺寸或自定义源/目标端口内容。所有默认尺寸均可从 `canvasDefaults` 读取，便于宿主组件保持一致。
 
 ## 源码职责
 
 - `model.ts` / `commands.ts` / `options.ts`：分别定义画布数据模型、实例命令和 Hook 配置；`types.ts` 保持统一公开类型入口。
-- `defaults.ts`：公开且可覆盖的引擎默认参数。
+- `defaults.ts`：公开且可复用的行为、视口、缩放控制、连线命中和小地图默认参数。
 - `headless.ts` / `react.ts`：无 React 能力与 React 运行时能力的独立包入口。
 - `tsconfig.json`：按 NodeNext 输出可直接发布的 ESM、源码映射和类型声明映射。
 - `document.ts`：无 React 依赖的文档校验、修改、选择清理和剪贴板变换逻辑。

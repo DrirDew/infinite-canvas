@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, type CSSProperties, type HTMLAttributes, type PointerEvent, type ReactNode } from "react";
+import { canvasDefaults } from "./defaults.js";
 import { resizeNodeBounds } from "./geometry.js";
 import { subscribeWindowEvent } from "./internal/window-events.js";
 import type { CanvasNode, CanvasResizeCorner } from "./types.js";
@@ -32,7 +33,7 @@ const resizeHandleStyles = (offset: number): Record<CanvasResizeCorner, CSSPrope
     "bottom-right": { right: offset, bottom: offset, cursor: "nwse-resize" },
 });
 
-export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = 24, minHeight = 24, handleSize = 28, renderHandle, onResizeStart, onResize, onResizeEnd, onResizeCancel }: CanvasNodeResizeHandlesProps<TMetadata>) {
+export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = canvasDefaults.resizeMinWidth, minHeight = canvasDefaults.resizeMinHeight, handleSize = canvasDefaults.resizeHandleSize, renderHandle, onResizeStart, onResize, onResizeEnd, onResizeCancel }: CanvasNodeResizeHandlesProps<TMetadata>) {
     handleSize = Math.max(0, handleSize);
     const resize = useRef({ active: false, pointerId: 0, nodeId: "", corner: "bottom-right" as CanvasResizeCorner, x: 0, y: 0, left: 0, top: 0, width: 0, height: 0, scale: 1, minWidth: 24, minHeight: 24, keepAspectRatio: false, ratio: 1, dispose: [] as (() => void)[] });
     const callbacks = useRef({ onResize, onResizeEnd, onResizeCancel });
@@ -84,7 +85,7 @@ export type CanvasNodeConnectionHandlesProps = {
     onConnectStart: (event: PointerEvent, nodeId: string, handleType: "source" | "target") => void;
 };
 
-export function CanvasNodeConnectionHandles({ nodeId, visible, theme, source = true, target = true, hitSize = 48, offset = 24, indicatorSize = 12, renderHandle, onConnectStart }: CanvasNodeConnectionHandlesProps) {
+export function CanvasNodeConnectionHandles({ nodeId, visible, theme, source = true, target = true, hitSize = canvasDefaults.connectionPortHitSize, offset = canvasDefaults.connectionPortOffset, indicatorSize = canvasDefaults.connectionPortIndicatorSize, renderHandle, onConnectStart }: CanvasNodeConnectionHandlesProps) {
     hitSize = Math.max(0, hitSize);
     indicatorSize = Math.max(0, indicatorSize);
     return (

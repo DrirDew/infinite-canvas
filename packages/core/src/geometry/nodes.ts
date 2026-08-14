@@ -1,10 +1,11 @@
+import { canvasDefaults } from "../defaults.js";
 import type { CanvasGroupResolver, CanvasNode, CanvasRect, CanvasResizeCorner, Position } from "../types.js";
 
 export function normalizeRect(start: Position, end: Position): CanvasRect {
     return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
 }
 
-export function resizeNodeBounds(node: Pick<CanvasNode, "position" | "width" | "height">, corner: CanvasResizeCorner, delta: Position, keepRatio = false, ratio = node.width / node.height, minWidth = 24, minHeight = 24) {
+export function resizeNodeBounds(node: Pick<CanvasNode, "position" | "width" | "height">, corner: CanvasResizeCorner, delta: Position, keepRatio = false, ratio = node.width / node.height, minWidth = canvasDefaults.resizeMinWidth, minHeight = canvasDefaults.resizeMinHeight) {
     const fromLeft = corner.includes("left");
     const fromTop = corner.includes("top");
     const right = node.position.x + node.width;
@@ -52,7 +53,7 @@ export function findGroupDropTarget<T>(movedIds: ReadonlySet<string>, nodes: Can
     );
 }
 
-export function snapNodesIntoGroup<T>(movedIds: ReadonlySet<string>, nodes: CanvasNode<T>[], group: CanvasNode<T>, padding = 24) {
+export function snapNodesIntoGroup<T>(movedIds: ReadonlySet<string>, nodes: CanvasNode<T>[], group: CanvasNode<T>, padding = canvasDefaults.groupPadding) {
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return nodes;
     const bounds = nodeBounds(moving);
