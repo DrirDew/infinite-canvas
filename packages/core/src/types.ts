@@ -6,6 +6,13 @@ export type CanvasTool = "select" | "pan";
 export type ViewportUpdater = ViewportTransform | ((viewport: ViewportTransform) => ViewportTransform);
 export type CanvasResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 export type CanvasNodeDragResult = { moved: boolean; clickedNodeId: string | null };
+export type CanvasBehaviorOptions = {
+    historyLimit?: number;
+    dragThreshold?: number;
+    groupPadding?: number;
+    connectionHandleRadius?: number;
+    connectionNodePadding?: number;
+};
 
 export type CanvasNodeTypeId = string;
 export type CanvasNodeRole = "group";
@@ -90,7 +97,7 @@ export type CanvasCommands<TMetadata = unknown> = {
     preview: (updater: CanvasDocumentUpdater<TMetadata>) => CanvasDocument<TMetadata>;
     commitPreview: () => void;
 };
-export type UseCanvasOptions<TMetadata = unknown> = {
+export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
     document?: CanvasDocument<TMetadata>;
     viewport?: ViewportTransform;
     onDocumentChange?: (document: CanvasDocument<TMetadata>) => void;

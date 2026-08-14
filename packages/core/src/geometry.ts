@@ -89,11 +89,11 @@ export function findGroupDropTarget<T>(movedIds: Set<string>, nodes: CanvasNode<
     );
 }
 
-export function snapNodesIntoGroup<T>(movedIds: Set<string>, nodes: CanvasNode<T>[], group: CanvasNode<T>) {
+export function snapNodesIntoGroup<T>(movedIds: Set<string>, nodes: CanvasNode<T>[], group: CanvasNode<T>, padding = 24) {
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return nodes;
     const bounds = nodeBounds(moving);
-    const [left, top, right, bottom] = [group.position.x + 24, group.position.y + 24, group.position.x + group.width - 24, group.position.y + group.height - 24];
+    const [left, top, right, bottom] = [group.position.x + padding, group.position.y + padding, group.position.x + group.width - padding, group.position.y + group.height - padding];
     const dx = bounds.right - bounds.left > right - left ? left - bounds.left : bounds.left < left ? left - bounds.left : bounds.right > right ? right - bounds.right : 0;
     const dy = bounds.bottom - bounds.top > bottom - top ? top - bounds.top : bounds.top < top ? top - bounds.top : bounds.bottom > bottom ? bottom - bounds.bottom : 0;
     return nodes.map((node) =>

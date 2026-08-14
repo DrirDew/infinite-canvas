@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { renderToString } from "react-dom/server";
-import { useCanvas, type CanvasConnection, type CanvasConnectionResolver, type CanvasDocument, type CanvasNode } from "../src";
+import { useCanvas, type CanvasConnection, type CanvasConnectionResolver, type CanvasDocument, type CanvasNode, type UseCanvasOptions } from "../src";
 
 type Metadata = { value?: number };
 const node = (id: string, metadata?: Metadata): CanvasNode<Metadata> => ({
@@ -14,15 +14,17 @@ const node = (id: string, metadata?: Metadata): CanvasNode<Metadata> => ({
 });
 const connection = (id: string, fromNodeId: string, toNodeId: string): CanvasConnection => ({ id, fromNodeId, toNodeId });
 
-function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connections: [] }, resolveConnection?: CanvasConnectionResolver<Metadata>) {
+function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connections: [] }, resolveConnection?: CanvasConnectionResolver<Metadata>, options?: CanvasBehaviorOptions) {
     let canvas!: ReturnType<typeof useCanvas<Metadata>>;
     function Capture() {
-        canvas = useCanvas<Metadata>({ document, resolveConnection });
+        canvas = useCanvas<Metadata>({ document, resolveConnection, ...options });
         return null;
     }
     renderToString(<Capture />);
     return canvas;
 }
+
+type CanvasBehaviorOptions = Pick<UseCanvasOptions<Metadata>, "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding">;
 
 test("adds, updates, and removes nodes and connections", () => {
     const canvas = createCanvas();
@@ -113,6 +115,15 @@ test("drag previews commit once, snap into groups, and cancel safely", () => {
     canvas.commands.moveNodeDrag({ x: 100, y: 0 });
     canvas.commands.endNodeDrag();
     expect(canvas.commands.getDocument().nodes[0].position).toEqual({ x: 324, y: 24 });
+});
+
+test("accepts instance behavior tuning without changing command identity", () => {
+    const canvas = createCanvas({ nodes: [node("a"), { ...node("group"), role: "group", position: { x: 300, y: 0 }, width: 400, height: 300 }], connections: [] }, undefined, { historyLimit: 1, groupPadding: 10 });
+    canvas.commands.startNodeDrag(["a"], { x: 0, y: 0 });
+    canvas.commands.endNodeDrag({ x: 300, y: 0 });
+    canvas.commands.addNode(node("b"));
+    expect(canvas.commands.getDocument().nodes[0]).toMatchObject({ groupId: "group", position: { x: 310, y: 10 } });
+    expect(canvas.commands.getHistoryDocuments()).toHaveLength(1);
 });
 
 test("dragging groups moves children and resizing creates one history entry", () => {

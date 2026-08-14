@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { canvasDefaults } from "./defaults";
 import { addDocumentConnections, addDocumentNodes, cleanCanvasSelection, createCanvasClipboard, pasteCanvasClipboard, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "./document";
 import { findConnectionDropTarget, findContainingGroupId, findGroupDropTarget, isGroupNode, nodesInRect, normalizeConnection, snapNodesIntoGroup } from "./geometry";
 import type { CanvasClipboard, CanvasCommands, CanvasConnection, CanvasConnectionDropResult, CanvasDocument, CanvasDocumentUpdater, CanvasInteractionState, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection, ConnectionHandle, Position, UseCanvasOptions, UseCanvasResult, ViewportTransform, ViewportUpdater } from "./types";
@@ -9,7 +10,6 @@ type CanvasHistory<TMetadata> = {
 };
 type CanvasDrag<TMetadata> = { start: Position; document: CanvasDocument<TMetadata>; positions: Map<string, Position>; moved: boolean };
 
-const HISTORY_LIMIT = 50;
 const DEFAULT_VIEWPORT: ViewportTransform = { x: 0, y: 0, k: 1 };
 const DEFAULT_INTERACTION: CanvasInteractionState = { isNodeDragging: false, isNodeResizing: false, dropTargetGroupId: null, connectionInteraction: null };
 const emptySelection = (): CanvasSelection => ({ nodeIds: new Set(), connectionId: null });
@@ -21,7 +21,13 @@ export function useCanvas<TMetadata = unknown>({
     onDocumentChange,
     onViewportChange,
     resolveConnection,
+    historyLimit = canvasDefaults.historyLimit,
+    dragThreshold = canvasDefaults.dragThreshold,
+    groupPadding = canvasDefaults.groupPadding,
+    connectionHandleRadius = canvasDefaults.connectionHandleRadius,
+    connectionNodePadding = canvasDefaults.connectionNodePadding,
 }: UseCanvasOptions<TMetadata> = {}): UseCanvasResult<TMetadata> {
+    const behavior = { historyLimit: Math.max(1, historyLimit), dragThreshold: Math.max(0, dragThreshold), groupPadding: Math.max(0, groupPadding), connectionHandleRadius: Math.max(0, connectionHandleRadius), connectionNodePadding: Math.max(0, connectionNodePadding) };
     const [document, setDocumentState] = useState(initialDocument);
     const [viewport, setViewportState] = useState(initialViewport);
     const [selection, setSelection] = useState<CanvasSelection>(emptySelection);
@@ -38,9 +44,11 @@ export function useCanvas<TMetadata = unknown>({
     const onChangeRef = useRef(onDocumentChange);
     const onViewportChangeRef = useRef(onViewportChange);
     const connectionResolverRef = useRef(resolveConnection);
+    const behaviorRef = useRef(behavior);
     onChangeRef.current = onDocumentChange;
     onViewportChangeRef.current = onViewportChange;
     connectionResolverRef.current = resolveConnection;
+    behaviorRef.current = behavior;
 
     const commands = useMemo(() => {
         const updateHistoryState = () => setHistoryState({ canUndo: Boolean(historyRef.current.past.length), canRedo: Boolean(historyRef.current.future.length) });
@@ -76,7 +84,8 @@ export function useCanvas<TMetadata = unknown>({
             onChangeRef.current?.(next);
         };
         const pushHistory = (entry: CanvasDocument<TMetadata>) => {
-            historyRef.current.past = [...historyRef.current.past.slice(1 - HISTORY_LIMIT), entry];
+            const past = historyRef.current.past;
+            historyRef.current.past = [...past.slice(Math.max(0, past.length - behaviorRef.current.historyLimit + 1)), entry];
             historyRef.current.future = [];
             updateHistoryState();
         };
@@ -118,7 +127,7 @@ export function useCanvas<TMetadata = unknown>({
         const moveNodeDrag = (pointer: Position, finalize = false) => {
             const drag = dragRef.current;
             if (!drag) return null;
-            drag.moved ||= Math.abs(pointer.x - drag.start.x) > 3 || Math.abs(pointer.y - drag.start.y) > 3;
+            drag.moved ||= Math.abs(pointer.x - drag.start.x) > behaviorRef.current.dragThreshold || Math.abs(pointer.y - drag.start.y) > behaviorRef.current.dragThreshold;
             if (!drag.moved) return null;
             const dx = (pointer.x - drag.start.x) / viewportRef.current.k;
             const dy = (pointer.y - drag.start.y) / viewportRef.current.k;
@@ -130,7 +139,7 @@ export function useCanvas<TMetadata = unknown>({
             const target = findGroupDropTarget(movedIds, nodes);
             if (finalize) {
                 nodes = target
-                    ? snapNodesIntoGroup(movedIds, nodes, target)
+                    ? snapNodesIntoGroup(movedIds, nodes, target, behaviorRef.current.groupPadding)
                     : nodes.map((node) => {
                           if (!movedIds.has(node.id) || isGroupNode(node)) return node;
                           const groupId = findContainingGroupId(node, nodes);
@@ -145,7 +154,7 @@ export function useCanvas<TMetadata = unknown>({
         const moveConnection = (position: Position) => {
             const current = interactionRef.current.connectionInteraction;
             if (!current) return null;
-            const target = findConnectionDropTarget(documentRef.current.nodes, current.handle, position, viewportRef.current.k, connectionResolverRef.current);
+            const target = findConnectionDropTarget(documentRef.current.nodes, current.handle, position, viewportRef.current.k, connectionResolverRef.current, behaviorRef.current.connectionHandleRadius, behaviorRef.current.connectionNodePadding);
             updateInteraction({ ...interactionRef.current, connectionInteraction: { handle: current.handle, pointer: position, targetNodeId: target.nodeId } });
             return target;
         };
