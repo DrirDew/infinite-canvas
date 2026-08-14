@@ -24,13 +24,15 @@ test("renders core node shell, controls, and unknown placeholder", () => {
     const node = nodes[0];
     const html = renderToString(
         <CanvasNodeShell node={node}>
-            <CanvasNodeResizeHandles node={node} scale={1} onResize={() => {}} />
-            <CanvasNodeConnectionHandles nodeId={node.id} visible theme={canvasThemes.light} onConnectStart={() => {}} />
+            <CanvasNodeResizeHandles node={node} scale={1} renderHandle={(corner) => <span data-custom-resize={corner} />} onResize={() => {}} />
+            <CanvasNodeConnectionHandles nodeId={node.id} visible theme={canvasThemes.light} renderHandle={(type) => <span data-custom-handle={type} />} onConnectStart={() => {}} />
             <CanvasUnknownNode type="missing" theme={canvasThemes.light} />
         </CanvasNodeShell>,
     );
     expect(html).toContain('data-node-id="a"');
     expect(html).toContain('data-resize-handle="bottom-right"');
+    expect(html).toContain('data-custom-resize="bottom-right"');
     expect(html).toContain('data-connection-handle="source"');
+    expect(html).toContain('data-custom-handle="source"');
     expect(html).toContain("No renderer is registered for missing.");
 });

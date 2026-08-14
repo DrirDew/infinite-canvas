@@ -76,6 +76,8 @@ const editor = useCanvasEditor({
 
 `CanvasSelectionBox` 保持随缩放稳定的默认描边，同时允许通过 `className`、`style` 和 `rectProps` 覆盖容器与矩形 SVG 属性。`CanvasMinimap` 可配置 `worldPadding`、节点和视口最小可见尺寸，并通过 `className`、`style` 接入应用布局。
 
+`CanvasNodeResizeHandles` 可配置控制点命中尺寸并通过 `renderHandle` 渲染四角视觉；`CanvasNodeConnectionHandles` 可配置命中尺寸、节点偏移、默认圆点尺寸或自定义源/目标端口内容。
+
 ## 源码职责
 
 - `model.ts` / `commands.ts` / `options.ts`：分别定义画布数据模型、实例命令和 Hook 配置；`types.ts` 保持统一公开类型入口。

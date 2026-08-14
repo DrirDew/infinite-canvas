@@ -17,20 +17,23 @@ export type CanvasNodeResizeHandlesProps<TMetadata = unknown> = {
     ratio?: number;
     minWidth?: number;
     minHeight?: number;
+    handleSize?: number;
+    renderHandle?: (corner: CanvasResizeCorner) => ReactNode;
     onResizeStart?: (nodeId: string) => void;
     onResize: (nodeId: string, width: number, height: number, position: CanvasNode<TMetadata>["position"]) => void;
     onResizeEnd?: (nodeId: string) => void;
     onResizeCancel?: (nodeId: string) => void;
 };
 
-const resizeHandleStyles: Record<CanvasResizeCorner, CSSProperties> = {
-    "top-left": { left: -14, top: -14, cursor: "nwse-resize" },
-    "top-right": { right: -14, top: -14, cursor: "nesw-resize" },
-    "bottom-left": { left: -14, bottom: -14, cursor: "nesw-resize" },
-    "bottom-right": { right: -14, bottom: -14, cursor: "nwse-resize" },
-};
+const resizeHandleStyles = (offset: number): Record<CanvasResizeCorner, CSSProperties> => ({
+    "top-left": { left: offset, top: offset, cursor: "nwse-resize" },
+    "top-right": { right: offset, top: offset, cursor: "nesw-resize" },
+    "bottom-left": { left: offset, bottom: offset, cursor: "nesw-resize" },
+    "bottom-right": { right: offset, bottom: offset, cursor: "nwse-resize" },
+});
 
-export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = 24, minHeight = 24, onResizeStart, onResize, onResizeEnd, onResizeCancel }: CanvasNodeResizeHandlesProps<TMetadata>) {
+export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = 24, minHeight = 24, handleSize = 28, renderHandle, onResizeStart, onResize, onResizeEnd, onResizeCancel }: CanvasNodeResizeHandlesProps<TMetadata>) {
+    handleSize = Math.max(0, handleSize);
     const resize = useRef({ active: false, pointerId: 0, nodeId: "", corner: "bottom-right" as CanvasResizeCorner, x: 0, y: 0, left: 0, top: 0, width: 0, height: 0, scale: 1, minWidth: 24, minHeight: 24, keepAspectRatio: false, ratio: 1, dispose: [] as (() => void)[] });
     const callbacks = useRef({ onResize, onResizeEnd, onResizeCancel });
     callbacks.current = { onResize, onResizeEnd, onResizeCancel };
@@ -62,7 +65,10 @@ export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRati
         resize.current.dispose = [subscribeWindowEvent("pointermove", move), subscribeWindowEvent("pointerup", up), subscribeWindowEvent("pointercancel", cancel), subscribeWindowEvent("blur", cancel)];
     };
 
-    return Object.entries(resizeHandleStyles).map(([corner, style]) => <div key={corner} data-resize-handle={corner} style={{ position: "absolute", zIndex: 50, width: 28, height: 28, touchAction: "none", ...style }} onPointerDown={(event) => start(event, corner as CanvasResizeCorner)} />);
+    return Object.entries(resizeHandleStyles(-handleSize / 2)).map(([value, style]) => {
+        const corner = value as CanvasResizeCorner;
+        return <div key={corner} data-resize-handle={corner} style={{ position: "absolute", zIndex: 50, display: "grid", placeItems: "center", width: handleSize, height: handleSize, touchAction: "none", ...style }} onPointerDown={(event) => start(event, corner)}>{renderHandle?.(corner)}</div>;
+    });
 }
 
 export type CanvasNodeConnectionHandlesProps = {
@@ -71,30 +77,36 @@ export type CanvasNodeConnectionHandlesProps = {
     theme: CanvasTheme;
     source?: boolean;
     target?: boolean;
+    hitSize?: number;
+    offset?: number;
+    indicatorSize?: number;
+    renderHandle?: (handleType: "source" | "target") => ReactNode;
     onConnectStart: (event: PointerEvent, nodeId: string, handleType: "source" | "target") => void;
 };
 
-export function CanvasNodeConnectionHandles({ nodeId, visible, theme, source = true, target = true, onConnectStart }: CanvasNodeConnectionHandlesProps) {
+export function CanvasNodeConnectionHandles({ nodeId, visible, theme, source = true, target = true, hitSize = 48, offset = 24, indicatorSize = 12, renderHandle, onConnectStart }: CanvasNodeConnectionHandlesProps) {
+    hitSize = Math.max(0, hitSize);
+    indicatorSize = Math.max(0, indicatorSize);
     return (
         <>
-            {target ? <CanvasNodeConnectionHandle side="left" visible={visible} theme={theme} onPointerDown={(event) => onConnectStart(event, nodeId, "target")} /> : null}
-            {source ? <CanvasNodeConnectionHandle side="right" visible={visible} theme={theme} onPointerDown={(event) => onConnectStart(event, nodeId, "source")} /> : null}
+            {target ? <CanvasNodeConnectionHandle side="left" handleType="target" visible={visible} theme={theme} hitSize={hitSize} offset={offset} indicatorSize={indicatorSize} renderHandle={renderHandle} onPointerDown={(event) => onConnectStart(event, nodeId, "target")} /> : null}
+            {source ? <CanvasNodeConnectionHandle side="right" handleType="source" visible={visible} theme={theme} hitSize={hitSize} offset={offset} indicatorSize={indicatorSize} renderHandle={renderHandle} onPointerDown={(event) => onConnectStart(event, nodeId, "source")} /> : null}
         </>
     );
 }
 
-function CanvasNodeConnectionHandle({ side, visible, theme, onPointerDown }: { side: "left" | "right"; visible: boolean; theme: CanvasTheme; onPointerDown: (event: PointerEvent) => void }) {
+function CanvasNodeConnectionHandle({ side, handleType, visible, theme, hitSize, offset, indicatorSize, renderHandle, onPointerDown }: { side: "left" | "right"; handleType: "source" | "target"; visible: boolean; theme: CanvasTheme; hitSize: number; offset: number; indicatorSize: number; renderHandle?: CanvasNodeConnectionHandlesProps["renderHandle"]; onPointerDown: (event: PointerEvent) => void }) {
     return (
         <div
             data-connection-handle={side === "left" ? "target" : "source"}
-            style={{ position: "absolute", top: "50%", [side]: -24, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, cursor: "crosshair", touchAction: "none", opacity: visible ? 1 : 0, pointerEvents: visible ? "auto" : "none", transform: "translateY(-50%)", transition: "opacity 150ms" }}
+            style={{ position: "absolute", top: "50%", [side]: -offset, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", width: hitSize, height: hitSize, cursor: "crosshair", touchAction: "none", opacity: visible ? 1 : 0, pointerEvents: visible ? "auto" : "none", transform: "translateY(-50%)", transition: "opacity 150ms" }}
             onPointerDown={(event) => {
                 event.stopPropagation();
                 if (event.button !== 0) return;
                 onPointerDown(event);
             }}
         >
-            <div style={{ width: 12, height: 12, border: `2px solid ${theme.node.muted}`, borderRadius: "50%", background: theme.node.panel }} />
+            {renderHandle?.(handleType) ?? <div style={{ width: indicatorSize, height: indicatorSize, border: `2px solid ${theme.node.muted}`, borderRadius: "50%", background: theme.node.panel }} />}
         </div>
     );
 }
