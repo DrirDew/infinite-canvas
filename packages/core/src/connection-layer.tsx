@@ -1,10 +1,11 @@
-import { useMemo, type CSSProperties, type MouseEvent, type SVGAttributes } from "react";
+import { useMemo, type CSSProperties, type KeyboardEvent, type MouseEvent, type SVGAttributes } from "react";
 import { canvasDefaults } from "./defaults.js";
 import { getConnectionPath } from "./geometry.js";
 import type { CanvasTheme } from "./theme.js";
 import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "./types.js";
 
 export type CanvasConnectionStyle = Pick<SVGAttributes<SVGPathElement>, "stroke" | "strokeWidth" | "strokeOpacity" | "strokeDasharray" | "style">;
+const defaultConnectionAriaLabel = (connection: CanvasConnection) => `Connection ${connection.id}`;
 
 export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     nodes: readonly CanvasNode<TMetadata>[];
@@ -19,11 +20,14 @@ export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     hitStrokeWidth?: number;
     className?: string;
     style?: CSSProperties;
+    connectionTabIndex?: number;
+    getConnectionAriaLabel?: (connection: CanvasConnection) => string;
     onConnectionSelect?: (connection: CanvasConnection) => void;
+    onConnectionKeyDown?: (event: KeyboardEvent<SVGPathElement>, connection: CanvasConnection) => void;
     onConnectionContextMenu?: (event: MouseEvent<SVGPathElement>, connection: CanvasConnection) => void;
 };
 
-export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, resolvePath = getConnectionPath, resolveStyle, previewStyle, hitStrokeWidth = canvasDefaults.connectionStrokeHitWidth, className, style, onConnectionSelect, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
+export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, resolvePath = getConnectionPath, resolveStyle, previewStyle, hitStrokeWidth = canvasDefaults.connectionStrokeHitWidth, className, style, connectionTabIndex = 0, getConnectionAriaLabel = defaultConnectionAriaLabel, onConnectionSelect, onConnectionKeyDown, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
     const byId = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     const source = interaction ? byId.get(interaction.handle.nodeId) : undefined;
     const target = interaction?.targetNodeId ? byId.get(interaction.targetNodeId) : undefined;
@@ -44,8 +48,19 @@ export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interacti
                             stroke="transparent"
                             strokeWidth={hitStrokeWidth}
                             fill="none"
+                            role="button"
+                            tabIndex={connectionTabIndex}
+                            aria-label={getConnectionAriaLabel(connection)}
+                            aria-pressed={active}
                             style={{ cursor: "pointer", pointerEvents: "stroke" }}
                             onClick={(event) => {
+                                event.stopPropagation();
+                                onConnectionSelect?.(connection);
+                            }}
+                            onKeyDown={(event) => {
+                                onConnectionKeyDown?.(event, connection);
+                                if (event.defaultPrevented || (event.key !== "Enter" && event.key !== " ")) return;
+                                event.preventDefault();
                                 event.stopPropagation();
                                 onConnectionSelect?.(connection);
                             }}

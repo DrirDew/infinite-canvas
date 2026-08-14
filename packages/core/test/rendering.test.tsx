@@ -20,7 +20,9 @@ test("renders core connection, selection, and minimap layers", () => {
     expect(canvasHtml).toContain("transform:translate(0px,0px) scale(1)");
     expect(canvasHtml).toContain("background:rebeccapurple");
     expect(canvasHtml).toContain('data-custom-background="lines"');
-    expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} selectedConnectionId="ab" theme={canvasThemes.light} />)).toContain('data-connection-id="ab"');
+    const selectedConnectionHtml = renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} selectedConnectionId="ab" theme={canvasThemes.light} getConnectionAriaLabel={() => "A to B"} />);
+    expect(selectedConnectionHtml).toContain('data-connection-id="ab"');
+    expect(selectedConnectionHtml).toContain('role="button" tabindex="0" aria-label="A to B" aria-pressed="true"');
     expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} resolvePath={() => "M 0 0 L 1 1"} />)).toContain('d="M 0 0 L 1 1"');
     const connectionHtml = renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} hitStrokeWidth={24} className="custom-connections" style={{ zIndex: 2 }} resolveStyle={() => ({ stroke: "red", strokeWidth: 5, strokeDasharray: "2 2" })} />);
     expect(connectionHtml).toContain('class="custom-connections"');
