@@ -4,31 +4,13 @@ import { CanvasNodeType, canvasToScreen, centerViewport, findConnectionDropTarge
 describe("core geometry", () => {
     test("keeps node ratios and connection direction", () => {
         expect(fitNodeSize(1200, 600)).toEqual({ width: 640, height: 320 });
-        expect(
-            normalizeConnection(
-                "image",
-                "config",
-                [
-                    {
-                        id: "image",
-                        type: CanvasNodeType.Image,
-                        title: "",
-                        position: { x: 0, y: 0 },
-                        width: 1,
-                        height: 1,
-                    },
-                    {
-                        id: "config",
-                        type: CanvasNodeType.Config,
-                        title: "",
-                        position: { x: 0, y: 0 },
-                        width: 1,
-                        height: 1,
-                    },
-                ],
-                "source",
-            ),
-        ).toEqual({ fromNodeId: "image", toNodeId: "config" });
+        const nodes = [
+            { id: "image", type: CanvasNodeType.Image, title: "", position: { x: 0, y: 0 }, width: 1, height: 1 },
+            { id: "config", type: CanvasNodeType.Config, title: "", position: { x: 0, y: 0 }, width: 1, height: 1 },
+        ];
+        expect(normalizeConnection("image", "config", nodes, "source")).toEqual({ fromNodeId: "image", toNodeId: "config" });
+        expect(normalizeConnection("image", "config", nodes, "target")).toEqual({ fromNodeId: "config", toNodeId: "image" });
+        expect(normalizeConnection("image", "config", nodes, "source", () => null)).toBeNull();
     });
 
     test("converts coordinates and finds nodes inside a normalized rectangle", () => {

@@ -20,6 +20,7 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
     viewport: initialViewport = DEFAULT_VIEWPORT,
     onDocumentChange,
     onViewportChange,
+    resolveConnection,
 }: UseCanvasOptions<TMetadata> = {}): UseCanvasResult<TMetadata> {
     const [document, setDocumentState] = useState(initialDocument);
     const [viewport, setViewportState] = useState(initialViewport);
@@ -36,8 +37,10 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
     const clipboardRef = useRef<CanvasClipboard<TMetadata> | null>(null);
     const onChangeRef = useRef(onDocumentChange);
     const onViewportChangeRef = useRef(onViewportChange);
+    const connectionResolverRef = useRef(resolveConnection);
     onChangeRef.current = onDocumentChange;
     onViewportChangeRef.current = onViewportChange;
+    connectionResolverRef.current = resolveConnection;
 
     const commands = useMemo(() => {
         const updateHistoryState = () => setHistoryState({ canUndo: Boolean(historyRef.current.past.length), canRedo: Boolean(historyRef.current.future.length) });
@@ -142,7 +145,7 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
         const moveConnection = (position: Position) => {
             const current = interactionRef.current.connectionInteraction;
             if (!current) return null;
-            const target = findConnectionDropTarget(documentRef.current.nodes, current.handle, position, viewportRef.current.k);
+            const target = findConnectionDropTarget(documentRef.current.nodes, current.handle, position, viewportRef.current.k, connectionResolverRef.current);
             updateInteraction({ ...interactionRef.current, connectionInteraction: { handle: current.handle, pointer: position, targetNodeId: target.nodeId } });
             return target;
         };
@@ -222,7 +225,7 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
                 const target = moveConnection(position);
                 const current = interactionRef.current.connectionInteraction;
                 if (!target || !current) return null;
-                const connection = target.nodeId ? normalizeConnection(current.handle.nodeId, target.nodeId, documentRef.current.nodes, current.handle.handleType) : null;
+                const connection = target.nodeId ? normalizeConnection(current.handle.nodeId, target.nodeId, documentRef.current.nodes, current.handle.handleType, connectionResolverRef.current) : null;
                 const result: CanvasConnectionDropResult = { ...target, handle: current.handle, position, connection };
                 updateInteraction({ ...interactionRef.current, connectionInteraction: null });
                 return result;

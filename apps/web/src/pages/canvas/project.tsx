@@ -25,7 +25,6 @@ import {
     InfiniteCanvas,
     nodeSizeFromRatio,
     nodesInViewport,
-    normalizeConnection,
     resolveCanvasShortcut,
     useCanvas,
     useCanvasInteractions,
@@ -75,6 +74,7 @@ import {
     resolveMetadataReferences,
     sourceNodeReferenceImages,
 } from "@/lib/canvas/canvas-generation-helpers";
+import { resolveCanvasConnection } from "@/lib/canvas/canvas-connection";
 import { getNodeDefinition, isBuiltinNodeType as isBuiltinType, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
 import { registerBuiltinNodes } from "@/components/canvas/nodes/builtin-nodes";
 import { CanvasPluginManagerModal } from "@/components/canvas/canvas-plugin-manager-modal";
@@ -173,7 +173,7 @@ function InfiniteCanvasPage() {
         dropTargetGroupId,
         connectionInteraction,
         commands: canvasCommands,
-    } = useCanvas<CanvasNodeMetadata>({ onDocumentChange });
+    } = useCanvas<CanvasNodeMetadata>({ onDocumentChange, resolveConnection: resolveCanvasConnection });
     const setViewport = canvasCommands.setViewport;
     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -346,7 +346,8 @@ function InfiniteCanvasPage() {
         (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Config | CanvasNodeType.Video | CanvasNodeType.Audio, pending: PendingConnectionCreate) => {
             const metadata = type === CanvasNodeType.Config ? { model: effectiveConfig.imageModel || effectiveConfig.model, size: effectiveConfig.size, count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count) } : undefined;
             const newNode = createCanvasNode(type, pending.position, metadata);
-            const connection = normalizeConnection(pending.connection.nodeId, newNode.id, [...nodesRef.current, newNode], pending.connection.handleType);
+            const source = nodesRef.current.find((node) => node.id === pending.connection.nodeId);
+            const connection = source ? resolveCanvasConnection(source, newNode, pending.connection.handleType) : null;
             if (!connection) {
                 message.warning(t("canvas.projectPage.configConnection"));
                 return;

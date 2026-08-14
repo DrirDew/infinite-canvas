@@ -33,6 +33,7 @@ export type CanvasConnection = {
     fromNodeId: string;
     toNodeId: string;
 };
+export type CanvasConnectionResolver<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = (first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>, firstHandleType: "source" | "target") => Omit<CanvasConnection, "id"> | null;
 export type ConnectionHandle = {
     nodeId: string;
     handleType: "source" | "target";
@@ -102,6 +103,7 @@ export type UseCanvasOptions<TMetadata extends BaseCanvasNodeMetadata = BaseCanv
     viewport?: ViewportTransform;
     onDocumentChange?: (document: CanvasDocument<TMetadata>) => void;
     onViewportChange?: (viewport: ViewportTransform) => void;
+    resolveConnection?: CanvasConnectionResolver<TMetadata>;
 };
 export type UseCanvasResult<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
     document: CanvasDocument<TMetadata>;

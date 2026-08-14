@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { renderToString } from "react-dom/server";
-import { useCanvas, type CanvasConnection, type CanvasDocument, type CanvasNode } from "../src";
+import { useCanvas, type CanvasConnection, type CanvasConnectionResolver, type CanvasDocument, type CanvasNode } from "../src";
 
 type Metadata = { groupId?: string; value?: number };
 const node = (id: string, metadata?: Metadata): CanvasNode<Metadata> => ({
@@ -14,10 +14,10 @@ const node = (id: string, metadata?: Metadata): CanvasNode<Metadata> => ({
 });
 const connection = (id: string, fromNodeId: string, toNodeId: string): CanvasConnection => ({ id, fromNodeId, toNodeId });
 
-function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connections: [] }) {
+function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connections: [] }, resolveConnection?: CanvasConnectionResolver<Metadata>) {
     let canvas!: ReturnType<typeof useCanvas<Metadata>>;
     function Capture() {
-        canvas = useCanvas<Metadata>({ document });
+        canvas = useCanvas<Metadata>({ document, resolveConnection });
         return null;
     }
     renderToString(<Capture />);
@@ -143,6 +143,9 @@ test("connection interaction resolves targets without generating ids", () => {
     expect(canvas.commands.getDocument().connections).toEqual([]);
     canvas.commands.addConnection({ id: "ab", ...result!.connection! });
     expect(canvas.commands.getDocument().connections).toEqual([connection("ab", "a", "b")]);
+    const blocked = createCanvas({ nodes: [node("a"), { ...node("b"), position: { x: 200, y: 0 } }], connections: [] }, () => null);
+    blocked.commands.startConnection({ nodeId: "a", handleType: "source" }, { x: 100, y: 50 });
+    expect(blocked.commands.moveConnection({ x: 250, y: 50 })).toEqual({ nodeId: null, isNearNode: true });
 });
 
 test("clipboard remaps groups and connections in one isolated transaction", () => {

@@ -1,4 +1,4 @@
-import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnectionDropTarget, type CanvasConnectionInteraction, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type CanvasSize, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
+import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnectionDropTarget, type CanvasConnectionInteraction, type CanvasConnectionResolver, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type CanvasSize, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
 
 export const CANVAS_MIN_ZOOM = 0.05;
 export const CANVAS_MAX_ZOOM = 5;
@@ -125,7 +125,7 @@ export function getConnectionPath<T extends BaseCanvasNodeMetadata>(source: Canv
     return `M ${start.x} ${start.y} C ${start.x + curvature} ${start.y}, ${end.x - curvature} ${end.y}, ${end.x} ${end.y}`;
 }
 
-export function findConnectionDropTarget<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, handleRadius = 40, nodePadding = 32): CanvasConnectionDropTarget {
+export function findConnectionDropTarget<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, resolver?: CanvasConnectionResolver<T>, handleRadius = 40, nodePadding = 32): CanvasConnectionDropTarget {
     const radius = handleRadius / Math.max(scale, 0.05);
     const padding = nodePadding / Math.max(scale, 0.05);
     let isNearNode = false;
@@ -140,7 +140,7 @@ export function findConnectionDropTarget<T extends BaseCanvasNodeMetadata>(nodes
         const hitsExpanded = position.x >= node.position.x - padding && position.x <= node.position.x + node.width + padding && position.y >= node.position.y - padding && position.y <= node.position.y + node.height + padding;
         if (!hitsHandle && !hitsInside && !hitsExpanded) return;
         isNearNode = true;
-        if (node.id === current.nodeId || !normalizeConnection(current.nodeId, node.id, nodes, current.handleType)) return;
+        if (node.id === current.nodeId || !normalizeConnection(current.nodeId, node.id, nodes, current.handleType, resolver)) return;
         const nextPriority = hitsInside ? 0 : hitsHandle ? 1 : 2;
         if (nextPriority < priority) {
             nodeId = node.id;
@@ -150,13 +150,11 @@ export function findConnectionDropTarget<T extends BaseCanvasNodeMetadata>(nodes
     return { nodeId, isNearNode };
 }
 
-export function normalizeConnection<T extends BaseCanvasNodeMetadata>(firstNodeId: string, secondNodeId: string, nodes: CanvasNode<T>[], firstHandleType: "source" | "target") {
+export function normalizeConnection<T extends BaseCanvasNodeMetadata>(firstNodeId: string, secondNodeId: string, nodes: CanvasNode<T>[], firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
     const first = nodes.find((node) => node.id === firstNodeId);
     const second = nodes.find((node) => node.id === secondNodeId);
-    if (!first || !second || first.id === second.id || first.type === CanvasNodeType.Group || second.type === CanvasNodeType.Group || (first.type === CanvasNodeType.Config && second.type === CanvasNodeType.Config)) return null;
-    if (second.type === CanvasNodeType.Config) return { fromNodeId: first.id, toNodeId: second.id };
-    if (first.type === CanvasNodeType.Config && firstHandleType === "target") return { fromNodeId: second.id, toNodeId: first.id };
-    return { fromNodeId: first.id, toNodeId: second.id };
+    if (!first || !second || first.id === second.id || first.type === CanvasNodeType.Group || second.type === CanvasNodeType.Group) return null;
+    return resolver ? resolver(first, second, firstHandleType) : firstHandleType === "source" ? { fromNodeId: first.id, toNodeId: second.id } : { fromNodeId: second.id, toNodeId: first.id };
 }
 
 export function fitNodeSize(width: number, height: number, maxWidth = 640, maxHeight = 640) {
