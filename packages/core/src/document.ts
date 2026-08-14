@@ -1,6 +1,38 @@
 import { nodeBounds, normalizeConnection } from "./geometry";
 import type { CanvasClipboard, CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection } from "./types";
 
+export type CanvasDocumentIssue = {
+    type: "empty-node-id" | "duplicate-node-id" | "invalid-group" | "empty-connection-id" | "duplicate-connection-id" | "missing-connection-node" | "self-connection" | "group-connection" | "rejected-connection";
+    id: string;
+};
+
+export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>) {
+    const issues: CanvasDocumentIssue[] = [];
+    const nodeIds = new Set<string>();
+    document.nodes.forEach((node) => {
+        if (!node.id) issues.push({ type: "empty-node-id", id: node.id });
+        else if (nodeIds.has(node.id)) issues.push({ type: "duplicate-node-id", id: node.id });
+        else nodeIds.add(node.id);
+    });
+    const nodes = new Map(document.nodes.map((node) => [node.id, node]));
+    document.nodes.forEach((node) => {
+        if (node.groupId && (node.groupId === node.id || nodes.get(node.groupId)?.role !== "group")) issues.push({ type: "invalid-group", id: node.id });
+    });
+    const connectionIds = new Set<string>();
+    document.connections.forEach((connection) => {
+        if (!connection.id) issues.push({ type: "empty-connection-id", id: connection.id });
+        else if (connectionIds.has(connection.id)) issues.push({ type: "duplicate-connection-id", id: connection.id });
+        else connectionIds.add(connection.id);
+        const from = nodes.get(connection.fromNodeId);
+        const to = nodes.get(connection.toNodeId);
+        if (!from || !to) issues.push({ type: "missing-connection-node", id: connection.id });
+        else if (from.id === to.id) issues.push({ type: "self-connection", id: connection.id });
+        else if (from.role === "group" || to.role === "group") issues.push({ type: "group-connection", id: connection.id });
+        else if (!normalizeConnection(from.id, to.id, document.nodes, "source", resolver)) issues.push({ type: "rejected-connection", id: connection.id });
+    });
+    return issues;
+}
+
 export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, nodes: CanvasNode<TMetadata>[]) {
     const ids = new Set(document.nodes.map((node) => node.id));
     const added = nodes.filter((node) => {

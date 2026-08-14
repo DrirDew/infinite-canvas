@@ -324,6 +324,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - 视口 Hook 的外部输入回调改名为 `onViewportInput`，与返回给渲染层的 `onViewportChange` 区分。
 - Core 提供 `useCanvasEditor` 高层组合 Hook，第三方可用嵌套配置一次创建状态与交互实例。
 - Core 新增节点和连线命令过滤重复 ID、悬空端点、自连线、分组连线及策略拒绝结果。
+- Core 提供 `getCanvasDocumentIssues` 纯校验入口，外部文档可在加载前检查结构而不被静默修改。
 
 ### 10.6 扩充 Examples
 
