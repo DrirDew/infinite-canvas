@@ -50,7 +50,6 @@ export type CanvasNodeMetadata = BaseCanvasNodeMetadata & {
     mimeType?: string;
     bytes?: number;
     durationMs?: number;
-    groupId?: string;
     interactive?: boolean; // Plugin node interaction/move state; see CanvasNodeDefinition.interactionToggle.
 };
 
@@ -88,15 +87,6 @@ export type CanvasAssistantSession = {
     messages: CanvasAssistantMessage[];
     createdAt: string;
     updatedAt: string;
-};
-
-export type SelectionBox = {
-    startWorldX: number;
-    startWorldY: number;
-    currentWorldX: number;
-    currentWorldY: number;
-    additive: boolean;
-    initialSelectedNodeIds: string[];
 };
 
 export type ContextMenuState =
