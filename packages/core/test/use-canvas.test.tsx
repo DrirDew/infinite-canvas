@@ -98,3 +98,34 @@ test("viewport and rectangle selection stay inside each instance", () => {
     expect(second.commands.getViewport()).toEqual({ x: 0, y: 0, k: 1 });
     expect([...second.commands.getSelection().nodeIds]).toEqual([]);
 });
+
+test("drag previews commit once, snap into groups, and cancel safely", () => {
+    const canvas = createCanvas({
+        nodes: [node("a"), { ...node("group"), type: "group", position: { x: 300, y: 0 }, width: 400, height: 300 }],
+        connections: [],
+    });
+    canvas.commands.startNodeDrag(["a"], { x: 0, y: 0 });
+    canvas.commands.moveNodeDrag({ x: 300, y: 0 });
+    canvas.commands.endNodeDrag({ x: 300, y: 0 });
+    expect(canvas.commands.getDocument().nodes[0]).toEqual({ ...node("a", { groupId: "group" }), position: { x: 324, y: 24 } });
+    expect(canvas.commands.getHistoryDocuments()).toHaveLength(1);
+    canvas.commands.startNodeDrag(["a"], { x: 0, y: 0 });
+    canvas.commands.moveNodeDrag({ x: 100, y: 0 });
+    canvas.commands.endNodeDrag();
+    expect(canvas.commands.getDocument().nodes[0].position).toEqual({ x: 324, y: 24 });
+});
+
+test("dragging groups moves children and resizing creates one history entry", () => {
+    const canvas = createCanvas({ nodes: [{ ...node("group"), type: "group" }, node("child", { groupId: "group" })], connections: [] });
+    canvas.commands.startNodeDrag(["group"], { x: 0, y: 0 });
+    canvas.commands.endNodeDrag({ x: 100, y: 50 });
+    expect(canvas.commands.getDocument().nodes.map(({ position }) => position)).toEqual([
+        { x: 100, y: 50 },
+        { x: 100, y: 50 },
+    ]);
+    canvas.commands.startNodeResize("child");
+    canvas.commands.resizeNode("child", 240, 180, { x: 120, y: 70 });
+    canvas.commands.endNodeResize();
+    expect(canvas.commands.getDocument().nodes[1]).toMatchObject({ width: 240, height: 180, position: { x: 120, y: 70 } });
+    expect(canvas.commands.getHistoryDocuments()).toHaveLength(2);
+});

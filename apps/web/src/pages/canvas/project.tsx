@@ -18,8 +18,6 @@ import { useAssetStore } from "@/stores/use-asset-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
 import {
-    findContainingGroupId,
-    findGroupDropTarget,
     fitNodeSize,
     getConnectionTargetAnchor,
     InfiniteCanvas,
@@ -27,7 +25,6 @@ import {
     normalizeConnection,
     normalizeRect,
     screenToCanvas as screenPointToCanvas,
-    snapNodesIntoGroup,
     useCanvas,
     type CanvasDocument,
 } from "@infinite-canvas/core";
@@ -163,20 +160,6 @@ function InfiniteCanvasPage() {
     const viewportSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const didInitialCenterRef = useRef(false);
     const rafRef = useRef<number | null>(null);
-    const nodeDraggingRef = useRef(false);
-    const dragRef = useRef<{
-        isDraggingNode: boolean;
-        hasMoved: boolean;
-        startX: number;
-        startY: number;
-        initialSelectedNodes: { id: string; x: number; y: number }[];
-    }>({
-        isDraggingNode: false,
-        hasMoved: false,
-        startX: 0,
-        startY: 0,
-        initialSelectedNodes: [],
-    });
 
     const config = useConfigStore((state) => state.config);
     const effectiveConfig = useEffectiveConfig();
@@ -200,6 +183,9 @@ function InfiniteCanvasPage() {
         selectedConnectionId,
         canUndo,
         canRedo,
+        isNodeDragging,
+        isNodeResizing,
+        dropTargetGroupId,
         commands: canvasCommands,
     } = useCanvas<CanvasNodeMetadata>({ onDocumentChange });
     const setViewport = canvasCommands.setViewport;
@@ -282,10 +268,6 @@ function InfiniteCanvasPage() {
     const [titleEditing, setTitleEditing] = useState(false);
     const [titleDraft, setTitleDraft] = useState("");
     const [expandedImageNodeId, setExpandedImageNodeId] = useState<string | null>(null);
-    const [isNodeDragging, setIsNodeDragging] = useState(false);
-    const [isNodeResizing, setIsNodeResizing] = useState(false);
-    const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(null);
-
     const nodesRef = useRef(nodes);
     const connectionsRef = useRef(connections);
     const selectedNodeIdsRef = useRef(selectedNodeIds);
@@ -466,10 +448,10 @@ function InfiniteCanvasPage() {
 
     const keepNodeToolbar = useCallback(
         (nodeId: string) => {
-            if (nodeDraggingRef.current || nodeImageSettingsOpen || !selectedNodeIdsRef.current.has(nodeId)) return;
+            if (canvasCommands.getInteraction().isNodeDragging || nodeImageSettingsOpen || !selectedNodeIdsRef.current.has(nodeId)) return;
             setToolbarNodeId(nodeId);
         },
-        [nodeImageSettingsOpen],
+        [canvasCommands, nodeImageSettingsOpen],
     );
 
     const hideNodeToolbar = useCallback(() => {}, []);
@@ -984,28 +966,10 @@ function InfiniteCanvasPage() {
     const handleNodeMouseDown = useCallback((event: ReactMouseEvent, nodeId: string) => {
         event.stopPropagation();
         // Capture already selected the node; this only starts dragging, with a fallback selection if capture did not run.
-        const currentNodes = nodesRef.current;
         const nextSelected = pendingSelectionRef.current ?? selectNodeByEvent(event, nodeId).nextSelected;
         pendingSelectionRef.current = null;
-        const dragIds = new Set(nextSelected);
-        currentNodes.forEach((node) => {
-            if (!nextSelected.has(node.id)) return;
-            if (node.type === CanvasNodeType.Group) {
-                currentNodes.forEach((child) => {
-                    if (child.metadata?.groupId === node.id) dragIds.add(child.id);
-                });
-            }
-        });
-        dragRef.current = {
-            isDraggingNode: true,
-            hasMoved: false,
-            startX: event.clientX,
-            startY: event.clientY,
-            initialSelectedNodes: currentNodes.filter((node) => dragIds.has(node.id)).map((node) => ({ id: node.id, x: node.position.x, y: node.position.y })),
-        };
-        nodeDraggingRef.current = true;
-        setIsNodeDragging(true);
-    }, []);
+        canvasCommands.startNodeDrag(nextSelected, { x: event.clientX, y: event.clientY });
+    }, [canvasCommands, selectNodeByEvent]);
 
     const finishNodeDrag = useCallback(
         (clientX?: number, clientY?: number) => {
@@ -1013,43 +977,9 @@ function InfiniteCanvasPage() {
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
             }
-            if (!dragRef.current.isDraggingNode) return;
-
-            const wasClick = !dragRef.current.hasMoved && dragRef.current.initialSelectedNodes.length === 1;
-            const clickedNodeId = dragRef.current.initialSelectedNodes[0]?.id;
-            const currentViewport = viewportRef.current;
-            const dx = clientX == null ? 0 : (clientX - dragRef.current.startX) / currentViewport.k;
-            const dy = clientY == null ? 0 : (clientY - dragRef.current.startY) / currentViewport.k;
-            const initialPositions = dragRef.current.initialSelectedNodes;
-
-            nodeDraggingRef.current = false;
-            setIsNodeDragging(false);
-            setDropTargetGroupId(null);
-            if (dragRef.current.hasMoved && clientX != null && clientY != null) {
-                const movedIds = new Set(initialPositions.map((item) => item.id));
-                canvasCommands.preview((document) => {
-                    const moved = document.nodes.map((node) => {
-                        const initial = initialPositions.find((item) => item.id === node.id);
-                        return initial ? { ...node, position: { x: initial.x + dx, y: initial.y + dy } } : node;
-                    });
-                    const targetGroup = findGroupDropTarget(movedIds, moved);
-                    const nodes = targetGroup
-                        ? snapNodesIntoGroup(movedIds, moved, targetGroup)
-                        : moved.map((node) => {
-                              if (!movedIds.has(node.id) || node.type === CanvasNodeType.Group) return node;
-                              const groupId = findContainingGroupId(node, moved);
-                              if (node.metadata?.groupId === groupId) return node;
-                              return { ...node, metadata: { ...node.metadata, groupId } };
-                          });
-                    return { ...document, nodes };
-                });
-                canvasCommands.commitPreview();
-            }
-
-            dragRef.current.isDraggingNode = false;
-            dragRef.current.hasMoved = false;
-            dragRef.current.initialSelectedNodes = [];
-            if (wasClick && clickedNodeId) {
+            const result = canvasCommands.endNodeDrag(clientX == null || clientY == null ? undefined : { x: clientX, y: clientY });
+            if (result.clickedNodeId) {
+                const clickedNodeId = result.clickedNodeId;
                 const clickedNode = nodesRef.current.find((node) => node.id === clickedNodeId);
                 const clickedDefinition = clickedNode ? getNodeDefinition(clickedNode.type) : undefined;
                 if (clickedNode?.type === CanvasNodeType.Text) {
@@ -1067,32 +997,10 @@ function InfiniteCanvasPage() {
 
     const handleGlobalMouseMove = useCallback(
         (event: MouseEvent) => {
-            const currentViewport = viewportRef.current;
-
-            if (dragRef.current.isDraggingNode) {
-                const dx = (event.clientX - dragRef.current.startX) / currentViewport.k;
-                const dy = (event.clientY - dragRef.current.startY) / currentViewport.k;
-                const initialPositions = dragRef.current.initialSelectedNodes;
-                if (Math.abs(event.clientX - dragRef.current.startX) > 3 || Math.abs(event.clientY - dragRef.current.startY) > 3) {
-                    dragRef.current.hasMoved = true;
-                }
-
-                const movedIds = new Set(initialPositions.map((item) => item.id));
-                const previewNodes = nodesRef.current.map((node) => {
-                    const initial = initialPositions.find((item) => item.id === node.id);
-                    return initial ? { ...node, position: { x: initial.x + dx, y: initial.y + dy } } : node;
-                });
-                setDropTargetGroupId(findGroupDropTarget(movedIds, previewNodes)?.id || null);
-
+            if (canvasCommands.getInteraction().isNodeDragging) {
                 if (rafRef.current) cancelAnimationFrame(rafRef.current);
                 rafRef.current = requestAnimationFrame(() => {
-                    canvasCommands.preview((document) => ({
-                        ...document,
-                        nodes: document.nodes.map((node) => {
-                            const initial = initialPositions.find((item) => item.id === node.id);
-                            return initial ? { ...node, position: { x: initial.x + dx, y: initial.y + dy } } : node;
-                        }),
-                    }));
+                    canvasCommands.moveNodeDrag({ x: event.clientX, y: event.clientY });
                     rafRef.current = null;
                 });
                 return;
@@ -1105,7 +1013,7 @@ function InfiniteCanvasPage() {
                 setMouseWorld(screenToCanvas(event.clientX, event.clientY));
             }
         },
-        [canvasCommands, finishNodeDrag, getConnectionDropTarget, screenToCanvas],
+        [canvasCommands, getConnectionDropTarget, screenToCanvas],
     );
 
     const handleGlobalPointerMove = useCallback(
@@ -1363,18 +1271,17 @@ function InfiniteCanvasPage() {
 
     const handleNodeResize = useCallback(
         (nodeId: string, width: number, height: number, position?: Position) => {
-            canvasCommands.preview((document) => ({ ...document, nodes: document.nodes.map((node) => (node.id === nodeId ? { ...node, width, height, position: position || node.position } : node)) }));
+            canvasCommands.resizeNode(nodeId, width, height, position);
         },
         [canvasCommands],
     );
 
-    const handleNodeResizeStart = useCallback(() => {
-        setIsNodeResizing(true);
+    const handleNodeResizeStart = useCallback((nodeId: string) => {
+        canvasCommands.startNodeResize(nodeId);
         setExpandedImageNodeId(null);
-    }, []);
+    }, [canvasCommands]);
     const handleNodeResizeEnd = useCallback(() => {
-        setIsNodeResizing(false);
-        canvasCommands.commitPreview();
+        canvasCommands.endNodeResize();
     }, [canvasCommands]);
 
     const toggleNodeFreeResize = useCallback((nodeId: string) => {
@@ -2688,9 +2595,9 @@ function InfiniteCanvasPage() {
     // during click, hover, or viewport changes, which is especially expensive for Markdown. These useCallback values
     // and their memoized map/handler dependencies remain stable during interaction, so unchanged nodes do not rerender.
     const handleNodeHoverStart = useCallback((nodeId: string) => {
-        if (nodeDraggingRef.current) return;
+        if (canvasCommands.getInteraction().isNodeDragging) return;
         setHoveredNodeId(nodeId);
-    }, []);
+    }, [canvasCommands]);
     const handleNodeHoverEnd = useCallback((nodeId: string) => {
         setHoveredNodeId((current) => (current === nodeId ? null : current));
     }, []);

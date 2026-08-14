@@ -1,4 +1,4 @@
-import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasNode, type CanvasRect, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
+import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
 
 export function screenToCanvas(clientX: number, clientY: number, viewport: ViewportTransform, origin: Pick<DOMRect, "left" | "top"> = { left: 0, top: 0 }): Position {
     return { x: (clientX - origin.left - viewport.x) / viewport.k, y: (clientY - origin.top - viewport.y) / viewport.k };
@@ -10,6 +10,22 @@ export function canvasToScreen(position: Position, viewport: ViewportTransform, 
 
 export function normalizeRect(start: Position, end: Position): CanvasRect {
     return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
+}
+
+export function resizeNodeBounds(node: Pick<CanvasNode, "position" | "width" | "height">, corner: CanvasResizeCorner, delta: Position, keepRatio = false, ratio = node.width / node.height, minWidth = 220, minHeight = 160) {
+    const fromLeft = corner.includes("left");
+    const fromTop = corner.includes("top");
+    const right = node.position.x + node.width;
+    const bottom = node.position.y + node.height;
+    let width = Math.max(minWidth, node.width + (fromLeft ? -delta.x : delta.x));
+    let height = Math.max(minHeight, node.height + (fromTop ? -delta.y : delta.y));
+    if (keepRatio) {
+        if (Math.abs(delta.x) >= Math.abs(delta.y)) height = width / ratio;
+        else width = height * ratio;
+        if (height < minHeight) [width, height] = [minHeight * ratio, minHeight];
+        if (width < minWidth) [width, height] = [minWidth, minWidth / ratio];
+    }
+    return { width, height, position: { x: fromLeft ? right - width : node.position.x, y: fromTop ? bottom - height : node.position.y } };
 }
 
 export function nodesInRect<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], rect: CanvasRect) {

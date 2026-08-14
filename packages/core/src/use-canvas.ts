@@ -1,15 +1,17 @@
 import { useMemo, useRef, useState } from "react";
 import { addDocumentConnections, addDocumentNodes, cleanCanvasSelection, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "./document";
-import { nodesInRect } from "./geometry";
-import type { BaseCanvasNodeMetadata, CanvasCommands, CanvasConnection, CanvasDocument, CanvasDocumentUpdater, CanvasNode, CanvasNodePatch, CanvasSelection, UseCanvasOptions, UseCanvasResult, ViewportTransform, ViewportUpdater } from "./types";
+import { findContainingGroupId, findGroupDropTarget, nodesInRect, snapNodesIntoGroup } from "./geometry";
+import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasCommands, type CanvasConnection, type CanvasDocument, type CanvasDocumentUpdater, type CanvasInteractionState, type CanvasNode, type CanvasNodePatch, type CanvasSelection, type Position, type UseCanvasOptions, type UseCanvasResult, type ViewportTransform, type ViewportUpdater } from "./types";
 
 type CanvasHistory<TMetadata extends BaseCanvasNodeMetadata> = {
     past: CanvasDocument<TMetadata>[];
     future: CanvasDocument<TMetadata>[];
 };
+type CanvasDrag<TMetadata extends BaseCanvasNodeMetadata> = { start: Position; document: CanvasDocument<TMetadata>; positions: Map<string, Position>; moved: boolean };
 
 const HISTORY_LIMIT = 50;
 const DEFAULT_VIEWPORT: ViewportTransform = { x: 0, y: 0, k: 1 };
+const DEFAULT_INTERACTION: CanvasInteractionState = { isNodeDragging: false, isNodeResizing: false, dropTargetGroupId: null };
 const emptySelection = (): CanvasSelection => ({ nodeIds: new Set(), connectionId: null });
 const emptyHistory = <TMetadata extends BaseCanvasNodeMetadata>(): CanvasHistory<TMetadata> => ({ past: [], future: [] });
 
@@ -23,11 +25,14 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
     const [viewport, setViewportState] = useState(initialViewport);
     const [selection, setSelection] = useState<CanvasSelection>(emptySelection);
     const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
+    const [interaction, setInteraction] = useState(DEFAULT_INTERACTION);
     const documentRef = useRef(document);
     const viewportRef = useRef(viewport);
     const selectionRef = useRef(selection);
+    const interactionRef = useRef(interaction);
     const historyRef = useRef<CanvasHistory<TMetadata>>(emptyHistory());
     const previewRef = useRef<CanvasDocument<TMetadata> | null>(null);
+    const dragRef = useRef<CanvasDrag<TMetadata> | null>(null);
     const onChangeRef = useRef(onDocumentChange);
     const onViewportChangeRef = useRef(onViewportChange);
     onChangeRef.current = onDocumentChange;
@@ -38,6 +43,10 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
         const updateSelection = (next: CanvasSelection) => {
             selectionRef.current = next;
             setSelection(next);
+        };
+        const updateInteraction = (next: CanvasInteractionState) => {
+            interactionRef.current = next;
+            setInteraction(next);
         };
         const setViewport = (updater: ViewportUpdater) => {
             const next = typeof updater === "function" ? updater(viewportRef.current) : updater;
@@ -76,15 +85,61 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
             cleanSelection(next);
             updateHistoryState();
         };
+        const preview = (updater: CanvasDocumentUpdater<TMetadata>) => {
+            previewRef.current ||= documentRef.current;
+            const next = updater(documentRef.current);
+            if (next !== documentRef.current) {
+                documentRef.current = next;
+                setDocumentState(next);
+                cleanSelection(next);
+            }
+            return next;
+        };
+        const commitPreview = () => {
+            const previous = previewRef.current;
+            previewRef.current = null;
+            if (!previous || previous === documentRef.current) return;
+            pushHistory(previous);
+            onChangeRef.current?.(documentRef.current);
+        };
+        const moveNodeDrag = (pointer: Position, finalize = false) => {
+            const drag = dragRef.current;
+            if (!drag) return null;
+            drag.moved ||= Math.abs(pointer.x - drag.start.x) > 3 || Math.abs(pointer.y - drag.start.y) > 3;
+            if (!drag.moved) return null;
+            const dx = (pointer.x - drag.start.x) / viewportRef.current.k;
+            const dy = (pointer.y - drag.start.y) / viewportRef.current.k;
+            const movedIds = new Set(drag.positions.keys());
+            let nodes = drag.document.nodes.map((node) => {
+                const position = drag.positions.get(node.id);
+                return position ? { ...node, position: { x: position.x + dx, y: position.y + dy } } : node;
+            });
+            const target = findGroupDropTarget(movedIds, nodes);
+            if (finalize) {
+                nodes = target
+                    ? snapNodesIntoGroup(movedIds, nodes, target)
+                    : nodes.map((node) => {
+                          if (!movedIds.has(node.id) || node.type === CanvasNodeType.Group) return node;
+                          const groupId = findContainingGroupId(node, nodes);
+                          return node.metadata?.groupId === groupId ? node : { ...node, metadata: { ...node.metadata, groupId } };
+                      });
+            }
+            preview(() => ({ ...drag.document, nodes }));
+            const dropTargetGroupId = target?.id || null;
+            if (interactionRef.current.dropTargetGroupId !== dropTargetGroupId) updateInteraction({ ...interactionRef.current, dropTargetGroupId });
+            return dropTargetGroupId;
+        };
 
         return {
             setDocument(next: CanvasDocument<TMetadata>) {
                 historyRef.current = emptyHistory();
                 previewRef.current = null;
+                dragRef.current = null;
                 documentRef.current = next;
                 selectionRef.current = emptySelection();
                 setDocumentState(next);
                 setSelection(selectionRef.current);
+                updateInteraction(DEFAULT_INTERACTION);
                 updateHistoryState();
             },
             addNode: (node: CanvasNode<TMetadata>) => transaction((document) => addDocumentNodes(document, [node])),
@@ -103,9 +158,48 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
             },
             selectConnection: (connectionId: string | null) => updateSelection({ nodeIds: new Set(), connectionId }),
             clearSelection: () => updateSelection(emptySelection()),
+            startNodeDrag(ids: Iterable<string>, pointer: Position) {
+                commitPreview();
+                const selected = new Set(ids);
+                const moved = new Set(selected);
+                documentRef.current.nodes.forEach((node) => {
+                    if (node.metadata?.groupId && selected.has(node.metadata.groupId)) moved.add(node.id);
+                });
+                const positions = new Map(documentRef.current.nodes.filter((node) => moved.has(node.id)).map((node) => [node.id, node.position] as const));
+                if (!positions.size) return;
+                dragRef.current = { start: pointer, document: documentRef.current, positions, moved: false };
+                updateInteraction({ isNodeDragging: true, isNodeResizing: false, dropTargetGroupId: null });
+            },
+            moveNodeDrag: (pointer: Position) => moveNodeDrag(pointer),
+            endNodeDrag(pointer?: Position) {
+                const drag = dragRef.current;
+                if (!drag) return { moved: false, clickedNodeId: null };
+                if (pointer) moveNodeDrag(pointer, true);
+                if (drag.moved && pointer) commitPreview();
+                else if (previewRef.current) {
+                    previewRef.current = null;
+                    documentRef.current = drag.document;
+                    setDocumentState(drag.document);
+                }
+                const result = { moved: drag.moved, clickedNodeId: !drag.moved && drag.positions.size === 1 ? drag.positions.keys().next().value || null : null };
+                dragRef.current = null;
+                updateInteraction(DEFAULT_INTERACTION);
+                return result;
+            },
+            startNodeResize(id: string) {
+                if (!documentRef.current.nodes.some((node) => node.id === id)) return;
+                commitPreview();
+                updateInteraction({ isNodeDragging: false, isNodeResizing: true, dropTargetGroupId: null });
+            },
+            resizeNode: (id: string, width: number, height: number, position?: Position) => preview((document) => updateDocumentNode(document, id, (node) => ({ ...node, width, height, position: position || node.position }))),
+            endNodeResize() {
+                commitPreview();
+                updateInteraction(DEFAULT_INTERACTION);
+            },
             getDocument: () => documentRef.current,
             getViewport: () => viewportRef.current,
             getSelection: () => selectionRef.current,
+            getInteraction: () => interactionRef.current,
             getHistoryDocuments: () => [...historyRef.current.past, ...historyRef.current.future],
             transaction,
             setViewport,
@@ -121,25 +215,10 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
                 historyRef.current.past.push(documentRef.current);
                 restore(next);
             },
-            preview(updater: CanvasDocumentUpdater<TMetadata>) {
-                previewRef.current ||= documentRef.current;
-                const next = updater(documentRef.current);
-                if (next !== documentRef.current) {
-                    documentRef.current = next;
-                    setDocumentState(next);
-                    cleanSelection(next);
-                }
-                return next;
-            },
-            commitPreview() {
-                const previous = previewRef.current;
-                previewRef.current = null;
-                if (!previous || previous === documentRef.current) return;
-                pushHistory(previous);
-                onChangeRef.current?.(documentRef.current);
-            },
+            preview,
+            commitPreview,
         } satisfies CanvasCommands<TMetadata>;
     }, []);
 
-    return { document, viewport, selectedNodeIds: selection.nodeIds, selectedConnectionId: selection.connectionId, ...historyState, commands };
+    return { document, viewport, selectedNodeIds: selection.nodeIds, selectedConnectionId: selection.connectionId, ...historyState, ...interaction, commands };
 }

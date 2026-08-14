@@ -12,12 +12,15 @@ const canvas = useCanvas({
 });
 
 canvas.commands.addNode(node);
+canvas.commands.startNodeDrag([node.id], pointer);
+canvas.commands.moveNodeDrag(nextPointer);
+canvas.commands.endNodeDrag(nextPointer);
 canvas.commands.undo();
 
 <InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" onViewportChange={canvas.commands.setViewport} />;
 ```
 
-视口属于画布实例状态，不进入文档撤销历史。坐标和框选计算使用 `screenToCanvas`、`canvasToScreen`、`normalizeRect` 与 `nodesInRect` 等纯函数，持久化仍由接入应用负责。
+视口属于画布实例状态，不进入文档撤销历史。节点拖动、缩放、分组吸附由 `useCanvas` 的稳定命令管理，连续预览只在结束时生成一条文档历史。坐标、框选和缩放尺寸计算使用 `screenToCanvas`、`canvasToScreen`、`normalizeRect`、`nodesInRect` 与 `resizeNodeBounds` 等纯函数，持久化仍由接入应用负责。
 
 仓库内运行 `bun run dev:examples` 可查看多实例示例。
 

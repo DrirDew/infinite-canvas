@@ -238,6 +238,13 @@ const canvas = useCanvas({ document, onDocumentChange });
 - Web 继续负责项目视口持久化，但不再维护另一份可编辑视口状态。
 - 框选过程中的起点与当前指针仍是临时交互状态，最终选中节点由 Core 命令写入实例选择状态。
 
+第二批完成节点拖动、缩放、分组与吸附：
+
+- Core 通过 `startNodeDrag`、`moveNodeDrag`、`endNodeDrag` 管理拖动预览和提交，拖动指针与初始位置保存在实例 ref 中。
+- 拖动分组时自动带上组内节点，结束时统一处理目标分组吸附、脱离分组和重新归组，只生成一条历史记录。
+- Core 通过 `startNodeResize`、`resizeNode`、`endNodeResize` 管理缩放预览与历史，通过 `resizeNodeBounds` 计算四角缩放和比例锁定尺寸。
+- Web 继续渲染现有节点和控制点，只负责转发指针坐标与节点业务面板状态，不再拼装拖动、吸附或缩放文档。
+
 ### 10.4 迁移基础渲染
 
 Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框、小地图和未知节点占位。节点具体内容通过节点定义或 `renderNode` 传入。

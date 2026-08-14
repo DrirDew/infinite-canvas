@@ -19,12 +19,17 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
 
     useEffect(() => {
         const move = (event: PointerEvent) => {
+            if (commands.getInteraction().isNodeDragging) {
+                commands.moveNodeDrag({ x: event.clientX, y: event.clientY });
+                return;
+            }
             if (!selectionStartRef.current) return;
             const rect = normalizeRect(selectionStartRef.current, toCanvas(event.clientX, event.clientY));
             setSelectionRect(rect);
             commands.selectNodesInRect(rect);
         };
-        const up = () => {
+        const up = (event: PointerEvent) => {
+            commands.endNodeDrag({ x: event.clientX, y: event.clientY });
             selectionStartRef.current = null;
             setSelectionRect(null);
         };
@@ -42,6 +47,14 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
         commands.addNode({ id, type: "demo", title: id, position: { x: 70 + index * 28, y: 60 + index * 24 }, width: 180, height: 112 });
         commands.selectNodes([id]);
     };
+    const resize = () => {
+        const id = [...selectedNodeIds][0];
+        const node = document.nodes.find((item) => item.id === id);
+        if (!node) return;
+        commands.startNodeResize(id);
+        commands.resizeNode(id, node.width + 40, node.height + 24);
+        commands.endNodeResize();
+    };
 
     return (
         <section>
@@ -51,6 +64,9 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                     <button onClick={add}>新增</button>
                     <button disabled={!selectedNodeIds.size} onClick={() => commands.removeNodes(selectedNodeIds)}>
                         删除
+                    </button>
+                    <button disabled={selectedNodeIds.size !== 1} onClick={resize}>
+                        放大
                     </button>
                     <button disabled={!canUndo} onClick={commands.undo}>
                         撤销
@@ -84,12 +100,13 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                             onPointerDown={(event) => {
                                 event.stopPropagation();
                                 commands.selectNodes([node.id]);
+                                commands.startNodeDrag([node.id], { x: event.clientX, y: event.clientY });
                             }}
                             style={{ borderColor: selectedNodeIds.has(node.id) ? accent : "#aaa399", transform: `translate(${node.position.x}px,${node.position.y}px)`, width: node.width, height: node.height }}
                         >
                             <i style={{ background: accent }} />
                             独立实例<strong>{node.title.replace(`${title}-`, "")}</strong>
-                            <small>选择 · 框选 · 视口 · 历史</small>
+                            <small>选择 · 拖动 · 缩放 · 历史</small>
                         </article>
                     ))}
                     {selectionRect ? <div style={{ position: "absolute", left: selectionRect.x, top: selectionRect.y, width: selectionRect.width, height: selectionRect.height, border: `1px dashed ${accent}`, pointerEvents: "none" }} /> : null}
@@ -105,14 +122,14 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 03</p>
+                <p>CORE / 04</p>
                 <h1>
                     一块画布，
                     <br />
                     任意产品。
                 </h1>
                 <aside>
-                    这个应用只组合 <code>@infinite-canvas/core</code>。两个实例的文档、视口、框选和撤销历史完全隔离。
+                    这个应用只组合 <code>@infinite-canvas/core</code>。两个实例的文档、视口、拖动、缩放和撤销历史完全隔离。
                 </aside>
             </div>
             <div className="grid">

@@ -3,6 +3,9 @@ export type ViewportTransform = Position & { k: number };
 export type CanvasRect = Position & { width: number; height: number };
 export type CanvasTool = "select" | "pan";
 export type ViewportUpdater = ViewportTransform | ((viewport: ViewportTransform) => ViewportTransform);
+export type CanvasResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+export type CanvasNodeDragResult = { moved: boolean; clickedNodeId: string | null };
+export type CanvasInteractionState = { isNodeDragging: boolean; isNodeResizing: boolean; dropTargetGroupId: string | null };
 
 export enum CanvasNodeType {
     Image = "image",
@@ -57,9 +60,16 @@ export type CanvasCommands<TMetadata extends BaseCanvasNodeMetadata = BaseCanvas
     selectNodesInRect: (rect: CanvasRect, initialIds?: Iterable<string>) => Set<string>;
     selectConnection: (id: string | null) => void;
     clearSelection: () => void;
+    startNodeDrag: (ids: Iterable<string>, pointer: Position) => void;
+    moveNodeDrag: (pointer: Position) => string | null;
+    endNodeDrag: (pointer?: Position) => CanvasNodeDragResult;
+    startNodeResize: (id: string) => void;
+    resizeNode: (id: string, width: number, height: number, position?: Position) => CanvasDocument<TMetadata>;
+    endNodeResize: () => void;
     getDocument: () => CanvasDocument<TMetadata>;
     getViewport: () => ViewportTransform;
     getSelection: () => CanvasSelection;
+    getInteraction: () => CanvasInteractionState;
     getHistoryDocuments: () => CanvasDocument<TMetadata>[];
     transaction: (updater: CanvasDocumentUpdater<TMetadata>) => CanvasDocument<TMetadata>;
     setViewport: (updater: ViewportUpdater) => ViewportTransform;
@@ -81,5 +91,8 @@ export type UseCanvasResult<TMetadata extends BaseCanvasNodeMetadata = BaseCanva
     selectedConnectionId: string | null;
     canUndo: boolean;
     canRedo: boolean;
+    isNodeDragging: boolean;
+    isNodeResizing: boolean;
+    dropTargetGroupId: string | null;
     commands: CanvasCommands<TMetadata>;
 };

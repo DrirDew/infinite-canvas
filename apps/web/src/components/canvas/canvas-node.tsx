@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ChevronRight, Copy, Download, Group, Image as ImageIcon, Music2, Puzzle, RefreshCw, Star, Trash2, Video } from "lucide-react";
+import { resizeNodeBounds, type CanvasResizeCorner } from "@infinite-canvas/core";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
@@ -13,7 +14,6 @@ import type { CanvasNodeContext, CanvasPluginHost } from "@/types/canvas-plugin"
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { useTranslation } from "react-i18next";
 
-type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
 
 type CanvasNodeProps = {
@@ -147,7 +147,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     const titleInputRef = useRef<HTMLInputElement>(null);
     const resizeRef = useRef({
         isResizing: false,
-        corner: "bottom-right" as ResizeCorner,
+        corner: "bottom-right" as CanvasResizeCorner,
         startX: 0,
         startY: 0,
         startLeft: 0,
@@ -228,37 +228,14 @@ export const CanvasNode = React.memo(function CanvasNode({
 
             const dx = (event.clientX - resizeRef.current.startX) / scale;
             const dy = (event.clientY - resizeRef.current.startY) / scale;
-            const minWidth = 220;
-            const minHeight = 160;
-            const startRight = resizeRef.current.startLeft + resizeRef.current.startWidth;
-            const startBottom = resizeRef.current.startTop + resizeRef.current.startHeight;
-            const fromLeft = resizeRef.current.corner.includes("left");
-            const fromTop = resizeRef.current.corner.includes("top");
-            const rawWidth = Math.max(minWidth, resizeRef.current.startWidth + (fromLeft ? -dx : dx));
-            const rawHeight = Math.max(minHeight, resizeRef.current.startHeight + (fromTop ? -dy : dy));
-            let width = rawWidth;
-            let height = rawHeight;
-            if (resizeRef.current.keepRatio) {
-                const ratio = resizeRef.current.ratio;
-                if (Math.abs(dx) >= Math.abs(dy)) {
-                    height = width / ratio;
-                } else {
-                    width = height * ratio;
-                }
-                if (height < minHeight) {
-                    height = minHeight;
-                    width = height * ratio;
-                }
-                if (width < minWidth) {
-                    width = minWidth;
-                    height = width / ratio;
-                }
-            }
-
-            onResize(data.id, width, height, {
-                x: fromLeft ? startRight - width : resizeRef.current.startLeft,
-                y: fromTop ? startBottom - height : resizeRef.current.startTop,
-            });
+            const { width, height, position } = resizeNodeBounds(
+                { position: { x: resizeRef.current.startLeft, y: resizeRef.current.startTop }, width: resizeRef.current.startWidth, height: resizeRef.current.startHeight },
+                resizeRef.current.corner,
+                { x: dx, y: dy },
+                resizeRef.current.keepRatio,
+                resizeRef.current.ratio,
+            );
+            onResize(data.id, width, height, position);
         },
         [data.id, onResize, scale],
     );
@@ -270,7 +247,7 @@ export const CanvasNode = React.memo(function CanvasNode({
         onResizeEnd(data.id);
     }, [data.id, handleResizeMove, onResizeEnd]);
 
-    const handleResizeMouseDown = (event: React.MouseEvent, corner: ResizeCorner) => {
+    const handleResizeMouseDown = (event: React.MouseEvent, corner: CanvasResizeCorner) => {
         event.stopPropagation();
         event.preventDefault();
         onResizeStart(data.id);
@@ -849,7 +826,7 @@ function BatchFrame({ batchCount, batchExpanded, onToggleBatch, children }: { ba
         </div>
     );
 }
-function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; onMouseDown: (event: React.MouseEvent, corner: ResizeCorner) => void }) {
+function ResizeHandle({ corner, onMouseDown }: { corner: CanvasResizeCorner; onMouseDown: (event: React.MouseEvent, corner: CanvasResizeCorner) => void }) {
     const positionClass = {
         "top-left": "-left-[14px] -top-[14px] cursor-nwse-resize",
         "top-right": "-right-[14px] -top-[14px] cursor-nesw-resize",

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CanvasNodeType, canvasToScreen, fitNodeSize, nodesInRect, normalizeConnection, normalizeRect, screenToCanvas } from "../src";
+import { CanvasNodeType, canvasToScreen, fitNodeSize, nodesInRect, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas } from "../src";
 
 describe("core geometry", () => {
     test("keeps node ratios and connection direction", () => {
@@ -46,5 +46,11 @@ describe("core geometry", () => {
                 rect,
             ).map((node) => node.id),
         ).toEqual(["inside"]);
+    });
+
+    test("resizes nodes from any corner with optional ratio locking", () => {
+        const node = { position: { x: 100, y: 100 }, width: 300, height: 200 };
+        expect(resizeNodeBounds(node, "top-left", { x: 50, y: 20 })).toEqual({ position: { x: 150, y: 120 }, width: 250, height: 180 });
+        expect(resizeNodeBounds(node, "bottom-right", { x: 100, y: 10 }, true, 1.5)).toEqual({ position: { x: 100, y: 100 }, width: 400, height: 400 / 1.5 });
     });
 });
