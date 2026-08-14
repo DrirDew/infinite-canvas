@@ -2,6 +2,8 @@
 
 可独立嵌入 React 应用的无限画布核心，提供画布文档、选择、撤销重做、视口、主题和几何工具，不包含 AI、插件、持久化或官方 Web 业务。
 
+包提供三个入口：根入口包含全部 API；`@infinite-canvas/core/headless` 只导出文档、几何、选择器、快捷键、主题和配置；`@infinite-canvas/core/react` 只导出 Hooks 与基础渲染组件。非 React 工具或服务可使用 headless 入口，避免加载 React 模块。
+
 Core 的公开边界包括文档与实例状态、基础编辑命令、指针与视口交互、剪贴板、快捷键识别和基础渲染。节点 `type` 是接入应用定义的普通字符串；需要参与分组引擎的节点使用 `role: "group"`，子节点通过顶层 `groupId` 归属分组。泛型 `metadata` 不受 Core 字段约束，可由接入应用自由定义。项目存储、系统剪贴板媒体、ID 生成、节点业务内容、AI、Agent 与插件宿主由接入应用负责。
 
 ```tsx
@@ -59,6 +61,7 @@ interactions.resetViewport();
 
 - `types.ts`：公开文档、节点、选择和命令类型。
 - `defaults.ts`：公开且可覆盖的引擎默认参数。
+- `headless.ts` / `react.ts`：无 React 能力与 React 运行时能力的独立包入口。
 - `document.ts`：无 React 依赖的文档修改、选择清理和剪贴板变换逻辑。
 - `selectors.ts`：分组数量、上下游节点、图遍历与关联高亮等纯派生查询。
 - `use-canvas.ts`：实例状态、历史、事务和预览命令。
