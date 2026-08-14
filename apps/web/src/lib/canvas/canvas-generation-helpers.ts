@@ -3,6 +3,7 @@ import i18n from "@/i18n";
 import { resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { resolveMediaUrl } from "@/services/file-storage";
 import { imageMetadata, referenceUrl } from "@/lib/canvas/canvas-node-factory";
+import { findCanvasUpstreamNode } from "@infinite-canvas/core";
 import type { NodeGenerationInput } from "@/components/canvas/canvas-node-generation";
 import type { CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-prompt-panel";
 import type { CanvasImageAngleParams } from "@/components/canvas/canvas-node-angle-dialog";
@@ -132,17 +133,7 @@ export function isGenerationCanceled(error: unknown) {
 }
 
 export function findRetrySourceNode(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]) {
-    const queue = connections.filter((connection) => connection.toNodeId === nodeId).map((connection) => connection.fromNodeId);
-    const visited = new Set<string>();
-    while (queue.length) {
-        const id = queue.shift()!;
-        if (visited.has(id)) continue;
-        visited.add(id);
-        const node = nodes.find((item) => item.id === id);
-        if (node?.type === CanvasNodeType.Config) return node;
-        connections.filter((connection) => connection.toNodeId === id).forEach((connection) => queue.push(connection.fromNodeId));
-    }
-    return null;
+    return findCanvasUpstreamNode(nodeId, nodes, connections, (node) => node.type === CanvasNodeType.Config);
 }
 
 export function sourceNodeReferenceImages(node: CanvasNodeData | null) {

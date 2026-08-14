@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { countCanvasGroupChildren, getCanvasDownstreamNodes, getCanvasRelations, getCanvasUpstreamNodes, type CanvasNode } from "../src";
+import { countCanvasGroupChildren, findCanvasUpstreamNode, getCanvasDownstreamNodes, getCanvasRelations, getCanvasUpstreamNodes, type CanvasNode } from "../src";
 
 test("derives group counts and related connection highlights", () => {
     const nodes: CanvasNode[] = [
@@ -13,4 +13,5 @@ test("derives group counts and related connection highlights", () => {
     expect([...related.connectionIds]).toEqual(["ab"]);
     expect(getCanvasUpstreamNodes("b", nodes, [{ id: "ab", fromNodeId: "a", toNodeId: "b" }]).map((node) => node.id)).toEqual(["a"]);
     expect(getCanvasDownstreamNodes("a", nodes, [{ id: "ab", fromNodeId: "a", toNodeId: "b" }]).map((node) => node.id)).toEqual(["b"]);
+    expect(findCanvasUpstreamNode("b", nodes, [{ id: "ga", fromNodeId: "group", toNodeId: "a" }, { id: "ab", fromNodeId: "a", toNodeId: "b" }], (node) => node.role === "group")?.id).toBe("group");
 });

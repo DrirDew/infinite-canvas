@@ -32,3 +32,21 @@ export function getCanvasDownstreamNodes<TMetadata extends BaseCanvasNodeMetadat
     const byId = new Map(nodes.map((node) => [node.id, node]));
     return connections.flatMap((connection) => (connection.fromNodeId === nodeId && byId.has(connection.toNodeId) ? [byId.get(connection.toNodeId)!] : []));
 }
+
+export function findCanvasUpstreamNode<TMetadata extends BaseCanvasNodeMetadata>(nodeId: string, nodes: CanvasNode<TMetadata>[], connections: CanvasConnection[], predicate: (node: CanvasNode<TMetadata>) => boolean) {
+    const byId = new Map(nodes.map((node) => [node.id, node]));
+    const upstream = new Map<string, string[]>();
+    connections.forEach((connection) => upstream.set(connection.toNodeId, [...(upstream.get(connection.toNodeId) || []), connection.fromNodeId]));
+    const queue = [...(upstream.get(nodeId) || [])];
+    const visited = new Set<string>();
+    let index = 0;
+    while (index < queue.length) {
+        const id = queue[index++]!;
+        if (visited.has(id)) continue;
+        visited.add(id);
+        const node = byId.get(id);
+        if (node && predicate(node)) return node;
+        queue.push(...(upstream.get(id) || []));
+    }
+    return null;
+}
