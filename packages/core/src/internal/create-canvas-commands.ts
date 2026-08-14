@@ -162,9 +162,9 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
             updateInteraction(DEFAULT_INTERACTION);
             updateHistoryState();
         },
-        addNode: (node: CanvasNode<TMetadata>) => transaction((document) => addDocumentNodes(document, [node])),
-        addNodes: (nodes: CanvasNode<TMetadata>[]) => transaction((document) => addDocumentNodes(document, nodes)),
-        updateNode: (id: string, patch: CanvasNodePatch<TMetadata>) => transaction((document) => updateDocumentNode(document, id, patch, connectionResolverRef.current)),
+        addNode: (node: CanvasNode<TMetadata>) => transaction((document) => addDocumentNodes(document, [node], groupResolverRef.current)),
+        addNodes: (nodes: CanvasNode<TMetadata>[]) => transaction((document) => addDocumentNodes(document, nodes, groupResolverRef.current)),
+        updateNode: (id: string, patch: CanvasNodePatch<TMetadata>) => transaction((document) => updateDocumentNode(document, id, patch, connectionResolverRef.current, groupResolverRef.current)),
         removeNodes: (ids: Iterable<string>) => transaction((document) => removeDocumentNodes(document, ids)),
         addConnection: (connection: CanvasConnection) => transaction((document) => addDocumentConnections(document, [connection], connectionResolverRef.current)),
         addConnections: (connections: CanvasConnection[]) => transaction((document) => addDocumentConnections(document, connections, connectionResolverRef.current)),
@@ -212,7 +212,7 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
             commitPreview();
             updateInteraction({ ...DEFAULT_INTERACTION, isNodeResizing: true });
         },
-        resizeNode: (id, width, height, position) => preview((document) => updateDocumentNode(document, id, (node) => ({ ...node, width, height, position: position || node.position }), connectionResolverRef.current)),
+        resizeNode: (id, width, height, position) => preview((document) => updateDocumentNode(document, id, (node) => ({ ...node, width, height, position: position || node.position }), connectionResolverRef.current, groupResolverRef.current)),
         endNodeResize() {
             if (!interactionRef.current.isNodeResizing) return;
             commitPreview();
@@ -251,7 +251,7 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
             let nodes: CanvasNode<TMetadata>[] = [];
             let connections: CanvasConnection[] = [];
             transaction((document) => {
-                const withNodes = addDocumentNodes(document, pasted.nodes);
+                const withNodes = addDocumentNodes(document, pasted.nodes, groupResolverRef.current);
                 nodes = withNodes.nodes.slice(document.nodes.length);
                 if (!nodes.length) return document;
                 const ids = new Set(nodes.map((node) => node.id));

@@ -17,6 +17,7 @@ test("reports invalid canvas document structure without mutating it", () => {
         ],
     };
     expect(getCanvasDocumentIssues(document).map((issue) => issue.type)).toEqual(["duplicate-node-id", "invalid-group", "self-connection", "group-connection", "missing-connection-node"]);
+    expect(getCanvasDocumentIssues({ nodes: [{ ...node("group"), role: "group" }, { ...node("child"), groupId: "group" }], connections: [] }, undefined, () => false)).toEqual([{ type: "rejected-group", id: "child" }]);
 });
 
 test("keeps node updates structurally valid", () => {

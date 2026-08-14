@@ -1,12 +1,12 @@
 import { nodeBounds, normalizeConnection } from "./geometry";
-import type { CanvasClipboard, CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection } from "./types";
+import type { CanvasClipboard, CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection } from "./types";
 
 export type CanvasDocumentIssue = {
-    type: "empty-node-id" | "duplicate-node-id" | "invalid-group" | "empty-connection-id" | "duplicate-connection-id" | "missing-connection-node" | "self-connection" | "group-connection" | "rejected-connection";
+    type: "empty-node-id" | "duplicate-node-id" | "invalid-group" | "rejected-group" | "empty-connection-id" | "duplicate-connection-id" | "missing-connection-node" | "self-connection" | "group-connection" | "rejected-connection";
     id: string;
 };
 
-export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>) {
+export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>, groupResolver?: CanvasGroupResolver<TMetadata>) {
     const issues: CanvasDocumentIssue[] = [];
     const nodeIds = new Set<string>();
     document.nodes.forEach((node) => {
@@ -16,7 +16,9 @@ export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMet
     });
     const nodes = new Map(document.nodes.map((node) => [node.id, node]));
     document.nodes.forEach((node) => {
-        if (node.groupId && (node.groupId === node.id || nodes.get(node.groupId)?.role !== "group")) issues.push({ type: "invalid-group", id: node.id });
+        const group = node.groupId ? nodes.get(node.groupId) : undefined;
+        if (node.groupId && (node.groupId === node.id || group?.role !== "group")) issues.push({ type: "invalid-group", id: node.id });
+        else if (group && groupResolver && !groupResolver(node, group)) issues.push({ type: "rejected-group", id: node.id });
     });
     const connectionIds = new Set<string>();
     document.connections.forEach((connection) => {
@@ -33,7 +35,7 @@ export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMet
     return issues;
 }
 
-export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, nodes: CanvasNode<TMetadata>[]) {
+export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, nodes: CanvasNode<TMetadata>[], groupResolver?: CanvasGroupResolver<TMetadata>) {
     const ids = new Set(document.nodes.map((node) => node.id));
     let added = nodes.filter((node) => {
         if (!node.id || ids.has(node.id)) return false;
@@ -41,11 +43,15 @@ export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>,
         return true;
     });
     const available = new Map([...document.nodes, ...added].map((node) => [node.id, node]));
-    added = added.map((node) => (node.groupId && (node.groupId === node.id || available.get(node.groupId)?.role !== "group") ? { ...node, groupId: undefined } : node));
+    added = added.map((node) => {
+        const group = node.groupId ? available.get(node.groupId) : undefined;
+        const valid = group?.role === "group" && node.groupId !== node.id && (!groupResolver || groupResolver(node, group));
+        return node.groupId && !valid ? { ...node, groupId: undefined } : node;
+    });
     return added.length ? { ...document, nodes: [...document.nodes, ...added] } : document;
 }
 
-export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata>, id: string, patch: CanvasNodePatch<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>) {
+export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata>, id: string, patch: CanvasNodePatch<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>, groupResolver?: CanvasGroupResolver<TMetadata>) {
     const index = document.nodes.findIndex((node) => node.id === id);
     if (index < 0) return document;
     const node = document.nodes[index];
@@ -57,7 +63,8 @@ export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata
         if (item.groupId !== id) return item;
         return { ...item, groupId: next.role === "group" ? next.id : undefined };
     });
-    const groupId = next.groupId && next.groupId !== next.id && nodes.some((item) => item.id === next.groupId && item.role === "group") ? next.groupId : undefined;
+    const group = next.groupId ? nodes.find((item) => item.id === next.groupId && item.role === "group") : undefined;
+    const groupId = next.groupId && next.groupId !== next.id && group && (!groupResolver || groupResolver(next, group)) ? next.groupId : undefined;
     if (groupId !== next.groupId) nodes[index] = next = { ...next, groupId };
     const connections = document.connections.flatMap((connection) => {
         if (connection.fromNodeId !== id && connection.toNodeId !== id) return [connection];

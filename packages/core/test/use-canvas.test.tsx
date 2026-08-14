@@ -173,6 +173,10 @@ test("accepts instance behavior tuning without changing command identity", () =>
 
 test("supports application grouping policies", () => {
     const canvas = createCanvas({ nodes: [node("a"), { ...node("group"), role: "group", position: { x: 300, y: 0 }, width: 400, height: 300 }], connections: [] }, undefined, { canGroupNode: () => false });
+    canvas.commands.addNode({ ...node("direct"), groupId: "group" });
+    canvas.commands.updateNode("a", { groupId: "group" });
+    expect(canvas.commands.getDocument().nodes.slice(-1)[0].groupId).toBeUndefined();
+    expect(canvas.commands.getDocument().nodes[0].groupId).toBeUndefined();
     canvas.commands.startNodeDrag(["a"], { x: 0, y: 0 });
     expect(canvas.commands.moveNodeDrag({ x: 300, y: 0 })).toBeNull();
     canvas.commands.endNodeDrag({ x: 300, y: 0 });
