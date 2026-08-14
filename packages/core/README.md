@@ -178,3 +178,5 @@ Core 负责画布文档、实例状态、历史、视口、几何、基础交互
 - `headless.ts` / `react.ts` / `index.ts`：分环境公开入口。
 
 仓库内运行 `bun run dev:examples` 可查看两个独立画布实例、文档快照、选择、拖动、缩放、连线、剪贴板、撤销重做和未知节点占位。
+
+包内的 `bun run test:types:headless` 使用不包含 DOM 和 React 全局类型的独立 TypeScript 配置验证 headless 消费者契约。

@@ -30,7 +30,8 @@
     },
     "scripts": {
         "build": "tsc",
-        "test": "bun test"
+        "test": "bun test",
+        "test:types:headless": "tsc -p test/tsconfig.headless.json"
     },
     "publishConfig": { "access": "public" },
     "peerDependencies": {

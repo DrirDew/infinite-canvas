@@ -316,6 +316,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - Core 支持通过 `canGroupNode` 注入分组策略，预览命中和最终归组共享同一规则。
 - Core 增加 `headless` 与 `react` 子路径入口，纯文档和几何使用方无需加载 React 模块。
 - Headless 坐标与快捷键 API 使用 Core 自有结构类型，纯 Node TypeScript 消费者无需启用 DOM lib。
+- Core 提供独立 headless 类型契约配置，以纯 ES lib 和空全局 types 验证 Node 消费者入口。
 - Core 画布、节点和连线起点统一使用 Pointer Events，并将公开入口命名统一为 `PointerDown`。
 - `useCanvas` 增加选择与交互状态回调，外部检查器和状态面板无需接触 Core 内部 state。
 - Core 选择命令只保留当前文档中存在的节点和连线 ID，避免外部状态收到悬空选择。
