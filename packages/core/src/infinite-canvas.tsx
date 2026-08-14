@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject, type WheelEvent } from "react";
+import { zoomViewportAtPoint } from "./geometry";
 import type { CanvasBackgroundMode, CanvasTheme } from "./theme";
 import type { CanvasTool, ViewportTransform } from "./types";
 
 const DEFAULT_IGNORE_SELECTOR = "[data-canvas-no-zoom]";
 const NODE_SELECTOR = "[data-node-id],[data-connection-id]";
 const GRID_SIZE = 48;
-const MIN_ZOOM = 0.05;
-const MAX_ZOOM = 5;
 
 type PanState = {
     active: boolean;
@@ -157,10 +156,9 @@ export function InfiniteCanvas({
         if (ignored(event.target, ignoreSelector)) return;
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
-        const k = Math.min(Math.max(viewport.k * Math.pow(1.1, -event.deltaY / 100), MIN_ZOOM), MAX_ZOOM);
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        onViewportChange({ x: x - ((x - viewport.x) / viewport.k) * k, y: y - ((y - viewport.y) / viewport.k) * k, k });
+        onViewportChange(zoomViewportAtPoint(viewport, { x, y }, viewport.k * Math.pow(1.1, -event.deltaY / 100)));
     };
     const grid = GRID_SIZE * viewport.k;
     const backgroundImage =

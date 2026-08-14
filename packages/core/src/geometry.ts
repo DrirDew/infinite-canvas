@@ -1,5 +1,8 @@
 import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnectionDropTarget, type CanvasConnectionInteraction, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type CanvasSize, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
 
+export const CANVAS_MIN_ZOOM = 0.05;
+export const CANVAS_MAX_ZOOM = 5;
+
 export function screenToCanvas(clientX: number, clientY: number, viewport: ViewportTransform, origin: Pick<DOMRect, "left" | "top"> = { left: 0, top: 0 }): Position {
     return { x: (clientX - origin.left - viewport.x) / viewport.k, y: (clientY - origin.top - viewport.y) / viewport.k };
 }
@@ -13,12 +16,16 @@ export function centerViewport(size: CanvasSize, k = 1): ViewportTransform {
 }
 
 export function zoomViewport(viewport: ViewportTransform, size: CanvasSize, scale: number): ViewportTransform {
-    const k = Math.min(Math.max(scale, 0.05), 5);
-    return { x: size.width / 2 - ((size.width / 2 - viewport.x) / viewport.k) * k, y: size.height / 2 - ((size.height / 2 - viewport.y) / viewport.k) * k, k };
+    return zoomViewportAtPoint(viewport, { x: size.width / 2, y: size.height / 2 }, scale);
+}
+
+export function zoomViewportAtPoint(viewport: ViewportTransform, point: Position, scale: number): ViewportTransform {
+    const k = Math.min(Math.max(scale, CANVAS_MIN_ZOOM), CANVAS_MAX_ZOOM);
+    return { x: point.x - ((point.x - viewport.x) / viewport.k) * k, y: point.y - ((point.y - viewport.y) / viewport.k) * k, k };
 }
 
 export function fitViewportToNode<T extends BaseCanvasNodeMetadata>(node: CanvasNode<T>, size: CanvasSize): ViewportTransform {
-    const k = Math.min(Math.max(Math.min((size.width * 0.6) / node.width, (size.height * 0.6) / node.height), 0.05), 1);
+    const k = Math.min(Math.max(Math.min((size.width * 0.6) / node.width, (size.height * 0.6) / node.height), CANVAS_MIN_ZOOM), 1);
     return { x: size.width / 2 - (node.position.x + node.width / 2) * k, y: size.height / 2 - (node.position.y + node.height / 2) * k, k };
 }
 
