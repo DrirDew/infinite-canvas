@@ -31,6 +31,10 @@ export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>(
         },
         [containerRef],
     );
+    const getCanvasCenter = useCallback(() => {
+        const rect = containerRef.current?.getBoundingClientRect();
+        return toCanvas((rect?.left || 0) + (rect?.width || 0) / 2, (rect?.top || 0) + (rect?.height || 0) / 2);
+    }, [containerRef, toCanvas]);
     const selectNode = useCallback((event: Pick<MouseEvent, "shiftKey" | "metaKey" | "ctrlKey">, nodeId: string) => {
         const ids = new Set(commandsRef.current.getSelection().nodeIds);
         if (event.shiftKey || event.metaKey || event.ctrlKey) {
@@ -139,5 +143,5 @@ export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>(
         };
     }, [toCanvas]);
 
-    return { selectionRect, cancelSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture };
+    return { selectionRect, toCanvas, getCanvasCenter, cancelSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture };
 }

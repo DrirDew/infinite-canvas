@@ -32,7 +32,7 @@ canvas.commands.undo();
         <CanvasNodeShell key={node.id} node={node} onMouseDown={(event) => interactions.onNodeMouseDown(event, node.id)} onMouseDownCapture={(event) => interactions.onNodeSelectCapture(event, node.id)}>
             {renderNode(node)}
             <CanvasNodeResizeHandles node={node} scale={canvas.viewport.k} onResizeStart={canvas.commands.startNodeResize} onResize={canvas.commands.resizeNode} onResizeEnd={canvas.commands.endNodeResize} />
-            <CanvasNodeConnectionHandles visible theme={canvasThemes.light} onConnectStart={(event, handleType) => canvas.commands.startConnection({ nodeId: node.id, handleType }, toCanvas(event.clientX, event.clientY))} />
+            <CanvasNodeConnectionHandles visible theme={canvasThemes.light} onConnectStart={(event, handleType) => canvas.commands.startConnection({ nodeId: node.id, handleType }, interactions.toCanvas(event.clientX, event.clientY))} />
         </CanvasNodeShell>
     ))}
     {interactions.selectionRect ? <CanvasSelectionBox rect={interactions.selectionRect} scale={canvas.viewport.k} theme={canvasThemes.light} /> : null}

@@ -1,5 +1,5 @@
-import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, screenToCanvas, useCanvas, useCanvasInteractions, type CanvasDocument, type ViewportTransform } from "@infinite-canvas/core";
-import { useCallback, useRef } from "react";
+import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, useCanvas, useCanvasInteractions, type CanvasDocument, type ViewportTransform } from "@infinite-canvas/core";
+import { useRef } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 
@@ -7,14 +7,6 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
     const ref = useRef<HTMLDivElement>(null);
     const count = useRef(2);
     const { document, viewport, selectedNodeIds, connectionInteraction, canUndo, canRedo, commands } = useCanvas({ document: initialDocument(title), viewport: initial });
-    const toCanvas = useCallback(
-        (clientX: number, clientY: number) => {
-            const rect = ref.current?.getBoundingClientRect();
-            return screenToCanvas(clientX, clientY, commands.getViewport(), { left: rect?.left || 0, top: rect?.top || 0 });
-        },
-        [commands],
-    );
-
     const interactions = useCanvasInteractions({
         commands,
         containerRef: ref,
@@ -101,7 +93,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                             <CanvasNodeConnectionHandles
                                 visible
                                 theme={canvasThemes.light}
-                                onConnectStart={(event, handleType) => commands.startConnection({ nodeId: node.id, handleType }, toCanvas(event.clientX, event.clientY))}
+                                onConnectStart={(event, handleType) => commands.startConnection({ nodeId: node.id, handleType }, interactions.toCanvas(event.clientX, event.clientY))}
                             />
                             <CanvasNodeResizeHandles node={node} scale={viewport.k} onResizeStart={commands.startNodeResize} onResize={commands.resizeNode} onResizeEnd={commands.endNodeResize} />
                             <i style={{ background: accent }} />
@@ -129,7 +121,7 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 09</p>
+                <p>CORE / 10</p>
                 <h1>
                     一块画布，
                     <br />
