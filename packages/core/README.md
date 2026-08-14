@@ -18,6 +18,9 @@ const canvas = useCanvas({
 const interactions = useCanvasInteractions({
     commands: canvas.commands,
     containerRef: ref,
+    minZoom: 0.1,
+    maxZoom: 4,
+    focusDuration: 300,
     onConnectionEnd: (result) => result.connection && canvas.commands.addConnection({ id: createConnectionId(), ...result.connection }),
 });
 
@@ -35,7 +38,7 @@ interactions.focusNode(node.id);
 interactions.setZoom(1.5);
 interactions.resetViewport();
 
-<InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" onViewportChange={interactions.onViewportChange} onCanvasMouseDown={interactions.onCanvasMouseDown}>
+<InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" gridSize={40} minZoom={0.1} maxZoom={4} onViewportChange={interactions.onViewportChange} onCanvasMouseDown={interactions.onCanvasMouseDown}>
     {canvas.document.nodes.map((node) => (
         <CanvasNodeShell key={node.id} node={node} onMouseDown={(event) => interactions.onNodeMouseDown(event, node.id)} onMouseDownCapture={(event) => interactions.onNodeSelectCapture(event, node.id)}>
             {renderNode(node)}
@@ -47,7 +50,7 @@ interactions.resetViewport();
 </InfiniteCanvas>;
 ```
 
-视口属于画布实例状态，不进入文档撤销历史。`useCanvasInteractions` 提供容器尺寸、坐标转换、画布中心点、中心缩放、复位和节点聚焦动画。节点拖动、缩放、分组吸附、连线预览和画布剪贴板由 `useCanvas` 的稳定命令管理，连续节点预览和一次粘贴分别只生成一条文档历史。Core 默认按源/目标端口确定连线方向，接入应用可通过 `resolveConnection` 注入节点类型规则，并通过 `historyLimit`、`dragThreshold`、`groupPadding`、`connectionHandleRadius` 和 `connectionNodePadding` 调整实例行为；默认值统一导出为 `canvasDefaults`。Core 不生成节点或连线 ID，连线与粘贴均由接入应用提供 ID。跨平台快捷键通过 `resolveCanvasShortcut` 识别，系统剪贴板媒体读取和持久化仍由接入应用负责。
+视口属于画布实例状态，不进入文档撤销历史。`useCanvasInteractions` 提供容器尺寸、坐标转换、画布中心点、中心缩放、复位和节点聚焦动画，并允许配置缩放范围、聚焦覆盖率、最大缩放和动画时长；`InfiniteCanvas` 可配置相同缩放范围与背景网格间距。节点拖动、缩放、分组吸附、连线预览和画布剪贴板由 `useCanvas` 的稳定命令管理，连续节点预览和一次粘贴分别只生成一条文档历史。Core 默认按源/目标端口确定连线方向，接入应用可通过 `resolveConnection` 注入节点类型规则，并通过 `historyLimit`、`dragThreshold`、`groupPadding`、`connectionHandleRadius` 和 `connectionNodePadding` 调整实例行为；默认值统一导出为 `canvasDefaults`。Core 不生成节点或连线 ID，连线与粘贴均由接入应用提供 ID。跨平台快捷键通过 `resolveCanvasShortcut` 识别，系统剪贴板媒体读取和持久化仍由接入应用负责。
 
 仓库内运行 `bun run dev:examples` 可查看文档快照回调、自定义节点内容、未知节点占位和多实例隔离示例。
 

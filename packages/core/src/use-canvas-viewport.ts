@@ -1,22 +1,28 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { canvasDefaults } from "./defaults";
 import { centerViewport, fitViewportToNode, screenToCanvas, zoomViewport } from "./geometry";
-import type { CanvasCommands, CanvasSize, ViewportTransform } from "./types";
+import type { CanvasCommands, CanvasSize, CanvasViewportOptions, ViewportTransform } from "./types";
 
-export type UseCanvasViewportOptions<TMetadata = unknown> = {
+export type UseCanvasViewportOptions<TMetadata = unknown> = CanvasViewportOptions & {
     commands: CanvasCommands<TMetadata>;
     containerRef: RefObject<HTMLDivElement | null>;
     onContainerResize?: (size: CanvasSize) => void;
     onViewportChange?: (viewport: ViewportTransform) => void;
 };
 
-export function useCanvasViewport<TMetadata>({ commands, containerRef, onContainerResize, onViewportChange }: UseCanvasViewportOptions<TMetadata>) {
+export function useCanvasViewport<TMetadata>({ commands, containerRef, onContainerResize, onViewportChange, minZoom = canvasDefaults.minZoom, maxZoom = canvasDefaults.maxZoom, focusCoverage = canvasDefaults.focusCoverage, focusMaxZoom = canvasDefaults.focusMaxZoom, focusDuration = canvasDefaults.focusDuration }: UseCanvasViewportOptions<TMetadata>) {
+    const lower = Math.max(0.001, minZoom);
+    const upper = Math.max(lower, maxZoom);
+    const options = { minZoom: lower, maxZoom: upper, focusCoverage: Math.max(0, focusCoverage), focusMaxZoom: Math.max(lower, Math.min(upper, focusMaxZoom)), focusDuration: Math.max(0, focusDuration) };
     const [containerSize, setContainerSize] = useState<CanvasSize>({ width: 0, height: 0 });
     const commandsRef = useRef(commands);
     const callbacksRef = useRef({ onContainerResize, onViewportChange });
     const containerSizeRef = useRef(containerSize);
     const frameRef = useRef<number | null>(null);
+    const optionsRef = useRef(options);
     commandsRef.current = commands;
     callbacksRef.current = { onContainerResize, onViewportChange };
+    optionsRef.current = options;
 
     useLayoutEffect(() => {
         const element = containerRef.current;
@@ -66,7 +72,8 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
     const setZoom = useCallback(
         (scale: number) => {
             cancelViewportAnimation();
-            return commandsRef.current.setViewport((viewport) => zoomViewport(viewport, containerSizeRef.current, scale));
+            const { minZoom, maxZoom } = optionsRef.current;
+            return commandsRef.current.setViewport((viewport) => zoomViewport(viewport, containerSizeRef.current, scale, minZoom, maxZoom));
         },
         [cancelViewportAnimation],
     );
@@ -77,11 +84,12 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
             cancelViewportAnimation();
             commandsRef.current.selectNodes([nodeId]);
             const start = commandsRef.current.getViewport();
-            const target = fitViewportToNode(node, containerSizeRef.current);
+            const { minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration } = optionsRef.current;
+            const target = fitViewportToNode(node, containerSizeRef.current, focusCoverage, minZoom, focusMaxZoom);
             let started = 0;
             const step = (now: number) => {
                 started ||= now;
-                const progress = Math.min((now - started) / 450, 1);
+                const progress = focusDuration ? Math.min((now - started) / focusDuration, 1) : 1;
                 const t = 1 - Math.pow(1 - progress, 3);
                 commandsRef.current.setViewport({ x: start.x + (target.x - start.x) * t, y: start.y + (target.y - start.y) * t, k: start.k + (target.k - start.k) * t });
                 frameRef.current = progress < 1 ? requestAnimationFrame(step) : null;

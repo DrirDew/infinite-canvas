@@ -13,6 +13,13 @@ export type CanvasBehaviorOptions = {
     connectionHandleRadius?: number;
     connectionNodePadding?: number;
 };
+export type CanvasViewportOptions = {
+    minZoom?: number;
+    maxZoom?: number;
+    focusCoverage?: number;
+    focusMaxZoom?: number;
+    focusDuration?: number;
+};
 
 export type CanvasNodeTypeId = string;
 export type CanvasNodeRole = "group";

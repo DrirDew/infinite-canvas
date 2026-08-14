@@ -36,7 +36,9 @@ describe("core geometry", () => {
         expect(centerViewport(size)).toEqual({ x: 400, y: 300, k: 1 });
         expect(zoomViewport({ x: 400, y: 300, k: 1 }, size, 2)).toEqual({ x: 400, y: 300, k: 2 });
         expect(zoomViewportAtPoint({ x: 0, y: 0, k: 1 }, { x: 100, y: 50 }, 2)).toEqual({ x: -100, y: -50, k: 2 });
+        expect(zoomViewportAtPoint({ x: 0, y: 0, k: 1 }, { x: 100, y: 50 }, 4, 0.5, 2)).toEqual({ x: -100, y: -50, k: 2 });
         expect(fitViewportToNode({ id: "node", type: "test", title: "", position: { x: 100, y: 50 }, width: 200, height: 100 }, size)).toEqual({ x: 200, y: 200, k: 1 });
+        expect(fitViewportToNode({ id: "node", type: "test", title: "", position: { x: 100, y: 50 }, width: 200, height: 100 }, size, 0.25, 0.1, 0.5)).toEqual({ x: 300, y: 250, k: 0.5 });
     });
 
     test("resizes nodes from any corner with optional ratio locking", () => {

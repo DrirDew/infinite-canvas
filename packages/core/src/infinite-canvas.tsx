@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject, type WheelEvent } from "react";
+import { canvasDefaults } from "./defaults";
 import { zoomViewportAtPoint } from "./geometry";
 import type { CanvasBackgroundMode, CanvasTheme } from "./theme";
 import type { CanvasTool, ViewportTransform } from "./types";
 
 const DEFAULT_IGNORE_SELECTOR = "[data-canvas-no-zoom]";
 const NODE_SELECTOR = "[data-node-id],[data-connection-id]";
-const GRID_SIZE = 48;
-
 type PanState = {
     active: boolean;
     x: number;
@@ -23,6 +22,9 @@ export type InfiniteCanvasProps = {
     theme: CanvasTheme;
     tool: CanvasTool;
     backgroundMode?: CanvasBackgroundMode;
+    gridSize?: number;
+    minZoom?: number;
+    maxZoom?: number;
     ignoreSelector?: string;
     onViewportChange: (viewport: ViewportTransform) => void;
     onCanvasMouseDown?: (event: PointerEvent<HTMLDivElement>) => void;
@@ -39,6 +41,9 @@ export function InfiniteCanvas({
     theme,
     tool,
     backgroundMode = "lines",
+    gridSize = canvasDefaults.gridSize,
+    minZoom = canvasDefaults.minZoom,
+    maxZoom = canvasDefaults.maxZoom,
     ignoreSelector = DEFAULT_IGNORE_SELECTOR,
     onViewportChange,
     onCanvasMouseDown,
@@ -161,9 +166,10 @@ export function InfiniteCanvas({
         if (!rect) return;
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        onViewportChange(zoomViewportAtPoint(viewport, { x, y }, viewport.k * Math.pow(1.1, -event.deltaY / 100)));
+        const lower = Math.max(0.001, minZoom);
+        onViewportChange(zoomViewportAtPoint(viewport, { x, y }, viewport.k * Math.pow(1.1, -event.deltaY / 100), lower, Math.max(lower, maxZoom)));
     };
-    const grid = GRID_SIZE * viewport.k;
+    const grid = Math.max(1, gridSize) * viewport.k;
     const backgroundImage =
         backgroundMode === "dots"
             ? `radial-gradient(circle, ${theme.canvas.dot} ${viewport.k < 0.12 ? 0.8 : 1.15}px, transparent 1.35px)`
