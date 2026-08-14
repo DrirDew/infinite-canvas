@@ -39,6 +39,11 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
         return true;
     }, [claim]);
     const cancelSelection = useCallback(() => {
+        if (ownerRef.current?.kind === "marquee") {
+            if (surfaceRef.current) releaseCanvasPointer(surfaceRef.current, tokenRef.current);
+            surfaceRef.current = null;
+            ownerRef.current = null;
+        }
         marqueeRef.current = null;
         setSelectionRect(null);
     }, []);
@@ -99,7 +104,12 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
         return () => {
             unsubscribe.forEach((dispose) => dispose());
             clearFrame();
+            if (ownerRef.current?.kind === "node") commandsRef.current.endNodeDrag();
+            else if (ownerRef.current?.kind === "connection") commandsRef.current.cancelConnection();
             if (surfaceRef.current) releaseCanvasPointer(surfaceRef.current, tokenRef.current);
+            surfaceRef.current = null;
+            ownerRef.current = null;
+            marqueeRef.current = null;
         };
     }, [toCanvas]);
 
