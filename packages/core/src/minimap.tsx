@@ -1,4 +1,5 @@
 import { useMemo, useRef, type CSSProperties, type PointerEvent } from "react";
+import { nodeBounds } from "./geometry";
 import type { CanvasTheme } from "./theme";
 import type { BaseCanvasNodeMetadata, CanvasNode, CanvasSize, ViewportTransform } from "./types";
 
@@ -19,7 +20,7 @@ export function CanvasMinimap<TMetadata extends BaseCanvasNodeMetadata>({ nodes,
     const dragging = useRef(false);
     const layout = useMemo(() => {
         if (!nodes.length) return { bounds: { x: -500, y: -500, width: 1000, height: 1000 }, scale: 0.16, offset: { x: 40, y: 0 } };
-        const bounds = nodes.reduce((value, node) => ({ left: Math.min(value.left, node.position.x), top: Math.min(value.top, node.position.y), right: Math.max(value.right, node.position.x + node.width), bottom: Math.max(value.bottom, node.position.y + node.height) }), { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
+        const bounds = nodeBounds(nodes);
         const world = { x: bounds.left - 500, y: bounds.top - 500, width: bounds.right - bounds.left + 1000, height: bounds.bottom - bounds.top + 1000 };
         const scale = Math.min(width / world.width, height / world.height);
         return { bounds: world, scale, offset: { x: (width - world.width * scale) / 2, y: (height - world.height * scale) / 2 } };

@@ -78,6 +78,9 @@ export function InfiniteCanvas({
             setSpace(false);
             setControl(false);
             panRef.current.active = false;
+            nextViewportRef.current = null;
+            if (frameRef.current) cancelAnimationFrame(frameRef.current);
+            frameRef.current = null;
             setPanning(false);
             document.body.style.cursor = "";
         };
