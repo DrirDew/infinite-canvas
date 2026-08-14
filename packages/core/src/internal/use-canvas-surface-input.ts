@@ -86,6 +86,11 @@ export function useCanvasSurfaceInput({ containerRef, viewport, tool, minZoom, m
         const pan = panRef.current;
         if (!pan.active || event.pointerId !== pan.pointerId) return;
         if (!cancelled && !pan.moved && pan.background) callbacksRef.current.onCanvasDeselect?.();
+        if (cancelled) {
+            nextViewportRef.current = null;
+            if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+            frameRef.current = null;
+        }
         pan.active = false;
         setPanning(false);
         releasePan();
