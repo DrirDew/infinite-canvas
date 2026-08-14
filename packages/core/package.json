@@ -2,10 +2,18 @@
     "name": "@infinite-canvas/core",
     "version": "0.1.0",
     "description": "Embeddable React infinite canvas engine",
+    "keywords": ["canvas", "infinite-canvas", "react", "diagram", "node-editor"],
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/basketikun/infinite-canvas.git",
+        "directory": "packages/core"
+    },
+    "homepage": "https://github.com/basketikun/infinite-canvas#readme",
+    "bugs": "https://github.com/basketikun/infinite-canvas/issues",
     "type": "module",
     "sideEffects": false,
-    "files": ["dist"],
+    "files": ["dist", "README.md", "LICENSE"],
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
