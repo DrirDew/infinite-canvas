@@ -24,7 +24,7 @@ function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connecti
     return canvas;
 }
 
-type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode" | "onDocumentChange" | "onSelectionChange" | "onInteractionChange">;
+type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode" | "onDocumentChange" | "onViewportChange" | "onSelectionChange" | "onInteractionChange">;
 
 test("adds, updates, and removes nodes and connections", () => {
     const canvas = createCanvas();
@@ -206,6 +206,17 @@ test("publishes selection and interaction changes", () => {
     expect(connecting).toBe(true);
     canvas.commands.cancelConnection();
     expect(connecting).toBe(false);
+});
+
+test("skips repeated selection and viewport notifications", () => {
+    let selectionChanges = 0;
+    let viewportChanges = 0;
+    const canvas = createCanvas({ nodes: [node("a")], connections: [] }, undefined, { onSelectionChange: () => selectionChanges++, onViewportChange: () => viewportChanges++ });
+    canvas.commands.selectNodes(["a"]);
+    canvas.commands.selectNodes(["a"]);
+    canvas.commands.setViewport({ x: 0, y: 0, k: 1 });
+    expect(selectionChanges).toBe(1);
+    expect(viewportChanges).toBe(0);
 });
 
 test("dragging groups moves children and resizing creates one history entry", () => {

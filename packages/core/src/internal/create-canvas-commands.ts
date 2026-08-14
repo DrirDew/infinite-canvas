@@ -32,7 +32,8 @@ type CanvasCommandContext<TMetadata> = {
 export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TMetadata>): CanvasCommands<TMetadata> {
     const { documentRef, viewportRef, selectionRef, interactionRef, historyRef, previewRef, dragRef, clipboardRef, onDocumentChangeRef, onViewportChangeRef, onSelectionChangeRef, onInteractionChangeRef, connectionResolverRef, groupResolverRef, behaviorRef, setDocument, setViewport: setViewportState, setSelection, setInteraction, setHistoryState } = context;
     const updateHistoryState = () => setHistoryState({ canUndo: Boolean(historyRef.current.past.length), canRedo: Boolean(historyRef.current.future.length) });
-    const updateSelection = (next: CanvasSelection) => {
+    const updateSelection = (next: CanvasSelection, force = false) => {
+        if (!force && sameSelection(selectionRef.current, next)) return;
         selectionRef.current = next;
         setSelection(next);
         onSelectionChangeRef.current?.(next);
@@ -44,6 +45,7 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
     };
     const setViewport = (updater: ViewportUpdater) => {
         const next = typeof updater === "function" ? updater(viewportRef.current) : updater;
+        if (next.x === viewportRef.current.x && next.y === viewportRef.current.y && next.k === viewportRef.current.k) return viewportRef.current;
         viewportRef.current = next;
         setViewportState(next);
         onViewportChangeRef.current?.(next);
@@ -158,7 +160,7 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
             previewRef.current = null;
             dragRef.current = null;
             publish(next);
-            updateSelection(createCanvasSelection());
+            updateSelection(createCanvasSelection(), true);
             updateInteraction(DEFAULT_INTERACTION);
             updateHistoryState();
         },
@@ -298,3 +300,5 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
         cancelPreview,
     };
 }
+
+const sameSelection = (first: CanvasSelection, second: CanvasSelection) => first.connectionId === second.connectionId && first.nodeIds.size === second.nodeIds.size && [...first.nodeIds].every((id) => second.nodeIds.has(id));

@@ -64,8 +64,9 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
     const handleViewportChange = useCallback(
         (viewport: ViewportTransform) => {
             cancelViewportAnimation();
+            const previous = commandsRef.current.getViewport();
             const next = commandsRef.current.setViewport(viewport);
-            callbacksRef.current.onViewportInput?.(next);
+            if (next !== previous) callbacksRef.current.onViewportInput?.(next);
             return next;
         },
         [cancelViewportAnimation],
