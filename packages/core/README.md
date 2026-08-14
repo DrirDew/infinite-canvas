@@ -147,7 +147,7 @@ function Editor() {
 | `CanvasNodeConnectionHandles` | 源/目标端口，可配置命中尺寸、偏移、指示器和自定义内容 |
 | `CanvasConnectionLayer` | 持久连线和活动预览，可定制路径、样式、命中宽度与 SVG 容器 |
 | `CanvasSelectionBox` | 缩放无关的框选描边，可覆盖容器样式和 rect 属性 |
-| `CanvasMinimap` | 世界边界和视口导航，可定制布局、节点内容、节点样式和视口样式 |
+| `CanvasMinimap` | 世界边界和视口导航，支持方向键及可访问名称，可定制布局、键盘步长、节点内容和视口样式 |
 | `CanvasUnknownNode` | 未注册节点的安全占位，可替换标题、描述和图标 |
 
 `InfiniteCanvas.renderBackground` 会收到当前 `viewport`、`theme`、`mode` 和 `gridSize`。Core 始终保持背景点击穿透，并保护世界内容层的视口 transform 不被自定义样式覆盖。

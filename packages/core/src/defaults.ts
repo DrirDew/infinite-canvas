@@ -14,6 +14,7 @@ export type CanvasDefaults = Required<CanvasBehaviorOptions & CanvasViewportOpti
     minimapWorldPadding: number;
     minimapNodeSize: number;
     minimapViewportSize: number;
+    minimapKeyboardStep: number;
 };
 
 export const canvasDefaults: CanvasDefaults = {
@@ -40,4 +41,5 @@ export const canvasDefaults: CanvasDefaults = {
     minimapWorldPadding: 500,
     minimapNodeSize: 2,
     minimapViewportSize: 4,
+    minimapKeyboardStep: 40,
 };

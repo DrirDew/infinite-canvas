@@ -1,4 +1,4 @@
-import { useMemo, useRef, type CSSProperties, type PointerEvent, type ReactNode } from "react";
+import { useMemo, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { canvasDefaults } from "./defaults.js";
 import { nodeBounds } from "./geometry.js";
 import type { CanvasTheme } from "./theme.js";
@@ -19,11 +19,14 @@ export type CanvasMinimapProps<TMetadata = unknown> = {
     worldPadding?: number;
     minNodeSize?: number;
     minViewportSize?: number;
+    keyboardStep?: number;
+    tabIndex?: number;
+    ariaLabel?: string;
     className?: string;
     style?: CSSProperties;
 };
 
-export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme, onViewportChange, nodeColor, nodeStyle, renderNode, viewportStyle, width = canvasDefaults.minimapWidth, height = canvasDefaults.minimapHeight, worldPadding = canvasDefaults.minimapWorldPadding, minNodeSize = canvasDefaults.minimapNodeSize, minViewportSize = canvasDefaults.minimapViewportSize, className, style }: CanvasMinimapProps<TMetadata>) {
+export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme, onViewportChange, nodeColor, nodeStyle, renderNode, viewportStyle, width = canvasDefaults.minimapWidth, height = canvasDefaults.minimapHeight, worldPadding = canvasDefaults.minimapWorldPadding, minNodeSize = canvasDefaults.minimapNodeSize, minViewportSize = canvasDefaults.minimapViewportSize, keyboardStep = canvasDefaults.minimapKeyboardStep, tabIndex = 0, ariaLabel = "Canvas minimap", className, style }: CanvasMinimapProps<TMetadata>) {
     const ref = useRef<HTMLDivElement>(null);
     const dragging = useRef<number | null>(null);
     const layout = useMemo(() => {
@@ -47,8 +50,16 @@ export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme,
         const world = { x: (event.clientX - rect.left - layout.offset.x) / layout.scale + layout.bounds.x, y: (event.clientY - rect.top - layout.offset.y) / layout.scale + layout.bounds.y };
         onViewportChange({ x: viewportSize.width / 2 - world.x * viewport.k, y: viewportSize.height / 2 - world.y * viewport.k, k: viewport.k });
     };
+    const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        const step = Math.max(0, keyboardStep);
+        const delta = event.key === "ArrowLeft" ? { x: step, y: 0 } : event.key === "ArrowRight" ? { x: -step, y: 0 } : event.key === "ArrowUp" ? { x: 0, y: step } : event.key === "ArrowDown" ? { x: 0, y: -step } : null;
+        if (!delta) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onViewportChange({ x: viewport.x + delta.x, y: viewport.y + delta.y, k: viewport.k });
+    };
     return (
-        <div data-canvas-minimap data-canvas-no-zoom className={className} style={{ position: "absolute", bottom: 96, left: 24, zIndex: 50, width, height, overflow: "hidden", borderRadius: 8, border: `1px solid ${theme.toolbar.border}`, boxShadow: "0 16px 40px rgba(0,0,0,.24)", backdropFilter: "blur(4px)", background: theme.toolbar.panel, ...style }}>
+        <div data-canvas-minimap data-canvas-no-zoom role="region" tabIndex={tabIndex} aria-label={ariaLabel} className={className} style={{ position: "absolute", bottom: 96, left: 24, zIndex: 50, width, height, overflow: "hidden", borderRadius: 8, border: `1px solid ${theme.toolbar.border}`, boxShadow: "0 16px 40px rgba(0,0,0,.24)", backdropFilter: "blur(4px)", background: theme.toolbar.panel, ...style }} onKeyDown={onKeyDown}>
             <div
                 ref={ref}
                 style={{ position: "relative", width: "100%", height: "100%", cursor: "crosshair" }}

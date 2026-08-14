@@ -33,6 +33,7 @@ test("renders core connection, selection, and minimap layers", () => {
     expect(minimapHtml).toContain('data-canvas-no-zoom="true"');
     expect(minimapHtml).toContain('data-canvas-minimap="true"');
     expect(minimapHtml).toContain('data-minimap-viewport="true"');
+    expect(minimapHtml).toContain('role="region" tabindex="0" aria-label="Canvas minimap"');
     expect(minimapHtml).toContain('data-node-id="a"');
     expect(renderToString(<CanvasMinimap nodes={nodes} viewport={{ x: 0, y: 0, k: 1 }} viewportSize={{ width: 800, height: 600 }} theme={canvasThemes.light} onViewportChange={() => {}} worldPadding={100} minNodeSize={6} className="custom-minimap" nodeStyle={() => ({ borderRadius: 8 })} renderNode={(node) => <span data-minimap-content={node.id} />} />)).toContain('data-minimap-content="a"');
     expect(renderToString(<CanvasMinimap nodes={[]} viewport={{ x: 0, y: 0, k: 1 }} viewportSize={{ width: 800, height: 600 }} theme={canvasThemes.light} onViewportChange={() => {}} worldPadding={100} />)).toContain("width:640px");

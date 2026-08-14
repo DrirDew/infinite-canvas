@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { resolveCanvasShortcut } from "../src";
+import { resolveCanvasShortcut, type CanvasShortcutEvent } from "../src";
 
-const key = (value: string, options: Partial<Pick<KeyboardEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey">> = {}): Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey"> => ({ metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, ...options, key: value });
+const key = (value: string, options: Omit<CanvasShortcutEvent, "key"> = {}): CanvasShortcutEvent => ({ ...options, key: value });
 
 test("resolves cross-platform canvas shortcuts", () => {
     expect(resolveCanvasShortcut(key("z", { ctrlKey: true }))).toBe("undo");
