@@ -1,4 +1,4 @@
-import { InfiniteCanvas, canvasThemes, normalizeRect, screenToCanvas, useCanvas, type CanvasDocument, type CanvasRect, type ViewportTransform } from "@infinite-canvas/core";
+import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, normalizeRect, screenToCanvas, useCanvas, type CanvasDocument, type CanvasRect, type ViewportTransform } from "@infinite-canvas/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
@@ -117,43 +117,33 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                         setSelectionRect(normalizeRect(start, start));
                     }}
                 >
-                    <svg style={{ position: "absolute", inset: 0, width: 1000, height: 700, overflow: "visible", pointerEvents: "none" }}>
-                        {document.connections.map((connection) => {
-                            const from = document.nodes.find((node) => node.id === connection.fromNodeId)!;
-                            const to = document.nodes.find((node) => node.id === connection.toNodeId)!;
-                            return <line key={connection.id} x1={from.position.x + from.width} y1={from.position.y + from.height / 2} x2={to.position.x} y2={to.position.y + to.height / 2} stroke={accent} strokeWidth="3" />;
-                        })}
-                        {connectionInteraction ? (() => {
-                            const from = document.nodes.find((node) => node.id === connectionInteraction.handle.nodeId);
-                            return from ? <line x1={from.position.x + from.width} y1={from.position.y + from.height / 2} x2={connectionInteraction.pointer.x} y2={connectionInteraction.pointer.y} stroke={accent} strokeWidth="2" strokeDasharray="5 5" /> : null;
-                        })() : null}
-                    </svg>
+                    <CanvasConnectionLayer nodes={document.nodes} connections={document.connections} interaction={connectionInteraction} theme={canvasThemes.light} />
                     {document.nodes.map((node) => (
-                        <article
+                        <CanvasNodeShell
                             key={node.id}
-                            data-node-id={node.id}
-                            onPointerDown={(event) => {
+                            node={node}
+                            className="demo-node"
+                            onMouseDown={(event) => {
                                 event.stopPropagation();
                                 commands.selectNodes([node.id]);
                                 commands.startNodeDrag([node.id], { x: event.clientX, y: event.clientY });
                             }}
-                            style={{ borderColor: selectedNodeIds.has(node.id) ? accent : "#aaa399", transform: `translate(${node.position.x}px,${node.position.y}px)`, width: node.width, height: node.height }}
+                            style={{ borderColor: selectedNodeIds.has(node.id) ? accent : "#aaa399" }}
                         >
-                            <button
-                                aria-label="创建连线"
-                                onPointerDown={(event) => {
-                                    event.stopPropagation();
-                                    commands.startConnection({ nodeId: node.id, handleType: "source" }, toCanvas(event.clientX, event.clientY));
-                                }}
-                                style={{ position: "absolute", right: -7, top: "50%", width: 14, height: 14, padding: 0, borderRadius: "50%", border: 0, background: accent, transform: "translateY(-50%)" }}
+                            <CanvasNodeConnectionHandles
+                                visible
+                                theme={canvasThemes.light}
+                                onConnectStart={(event, handleType) => commands.startConnection({ nodeId: node.id, handleType }, toCanvas(event.clientX, event.clientY))}
                             />
+                            <CanvasNodeResizeHandles node={node} scale={viewport.k} onResizeStart={commands.startNodeResize} onResize={commands.resizeNode} onResizeEnd={commands.endNodeResize} />
                             <i style={{ background: accent }} />
                             独立实例<strong>{node.title.replace(`${title}-`, "")}</strong>
                             <small>拖动 · 缩放 · 连线 · 剪贴板</small>
-                        </article>
+                        </CanvasNodeShell>
                     ))}
-                    {selectionRect ? <div style={{ position: "absolute", left: selectionRect.x, top: selectionRect.y, width: selectionRect.width, height: selectionRect.height, border: `1px dashed ${accent}`, pointerEvents: "none" }} /> : null}
+                    {selectionRect ? <CanvasSelectionBox rect={selectionRect} scale={viewport.k} theme={canvasThemes.light} /> : null}
                 </InfiniteCanvas>
+                <CanvasMinimap nodes={document.nodes} viewport={viewport} viewportSize={{ width: ref.current?.clientWidth || 800, height: ref.current?.clientHeight || 500 }} theme={canvasThemes.light} onViewportChange={commands.setViewport} nodeColor={() => accent} width={144} height={96} style={{ bottom: 12, left: 12 }} />
             </div>
         </section>
     );
@@ -171,7 +161,7 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 06</p>
+                <p>CORE / 08</p>
                 <h1>
                     一块画布，
                     <br />

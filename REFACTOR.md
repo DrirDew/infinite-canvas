@@ -265,6 +265,20 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 
 图片生成、提示词面板、Ant Design 控件和业务工具栏继续由 Web 渲染，不进入 Core。
 
+第一批基础渲染已完成：
+
+- `CanvasConnectionLayer` 接管普通连线、选中态、关联高亮、命中路径和活动连线预览，Web 通过回调处理菜单等业务状态。
+- `CanvasSelectionBox` 接管与缩放无关的稳定虚线框样式。
+- `CanvasMinimap` 接管世界边界、视口矩形、节点缩略图和拖动导航，节点颜色可由接入应用注入。
+- 删除 Web 中对应的连线组件和小地图组件。
+
+第二批基础渲染已完成：
+
+- `CanvasNodeShell` 接管节点 ID、世界坐标、尺寸和布局隔离，具体节点内容仍由接入应用组合。
+- `CanvasNodeResizeHandles` 接管四角控制点、缩放比例换算和全局拖动监听，并继续通过 Core 命令提交预览与历史。
+- `CanvasNodeConnectionHandles` 接管目标端口、源端口、显隐状态和基础主题样式。
+- `CanvasUnknownNode` 提供无插件、无渲染器节点的通用占位，图标和本地化文案由接入应用传入。
+
 ### 10.5 Web 接回 Core
 
 - `use-canvas-store` 只保存项目数据和 Core 文档快照。

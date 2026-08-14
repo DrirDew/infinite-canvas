@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ChevronRight, Copy, Download, Group, Image as ImageIcon, Music2, Puzzle, RefreshCw, Star, Trash2, Video } from "lucide-react";
-import { resizeNodeBounds, type CanvasResizeCorner } from "@infinite-canvas/core";
+import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasUnknownNode } from "@infinite-canvas/core";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
@@ -145,18 +145,6 @@ export const CanvasNode = React.memo(function CanvasNode({
     const imageBorderColor = isActive ? selectionBlue : isRelated ? theme.node.muted : "transparent";
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const titleInputRef = useRef<HTMLInputElement>(null);
-    const resizeRef = useRef({
-        isResizing: false,
-        corner: "bottom-right" as CanvasResizeCorner,
-        startX: 0,
-        startY: 0,
-        startLeft: 0,
-        startTop: 0,
-        startWidth: 0,
-        startHeight: 0,
-        keepRatio: false,
-        ratio: 1,
-    });
 
     useEffect(() => {
         setTitleDraft(data.title || "");
@@ -222,68 +210,12 @@ export const CanvasNode = React.memo(function CanvasNode({
         return () => window.removeEventListener("pointerdown", handleOutsidePointerDown, true);
     }, [isEditingContent]);
 
-    const handleResizeMove = useCallback(
-        (event: MouseEvent) => {
-            if (!resizeRef.current.isResizing) return;
-
-            const dx = (event.clientX - resizeRef.current.startX) / scale;
-            const dy = (event.clientY - resizeRef.current.startY) / scale;
-            const { width, height, position } = resizeNodeBounds(
-                { position: { x: resizeRef.current.startLeft, y: resizeRef.current.startTop }, width: resizeRef.current.startWidth, height: resizeRef.current.startHeight },
-                resizeRef.current.corner,
-                { x: dx, y: dy },
-                resizeRef.current.keepRatio,
-                resizeRef.current.ratio,
-            );
-            onResize(data.id, width, height, position);
-        },
-        [data.id, onResize, scale],
-    );
-
-    const handleResizeUp = useCallback(() => {
-        resizeRef.current.isResizing = false;
-        window.removeEventListener("mousemove", handleResizeMove);
-        window.removeEventListener("mouseup", handleResizeUp);
-        onResizeEnd(data.id);
-    }, [data.id, handleResizeMove, onResizeEnd]);
-
-    const handleResizeMouseDown = (event: React.MouseEvent, corner: CanvasResizeCorner) => {
-        event.stopPropagation();
-        event.preventDefault();
-        onResizeStart(data.id);
-        resizeRef.current = {
-            isResizing: true,
-            corner,
-            startX: event.clientX,
-            startY: event.clientY,
-            startLeft: data.position.x,
-            startTop: data.position.y,
-            startWidth: data.width,
-            startHeight: data.height,
-            keepRatio: (data.type === CanvasNodeType.Image && !data.metadata?.freeResize) || data.type === CanvasNodeType.Video || Boolean(definition?.keepAspectRatio?.(data)),
-            ratio: (data.metadata?.naturalWidth || data.width) / (data.metadata?.naturalHeight || data.height || 1),
-        };
-        window.addEventListener("mousemove", handleResizeMove);
-        window.addEventListener("mouseup", handleResizeUp);
-    };
-
-    useEffect(() => {
-        return () => {
-            window.removeEventListener("mousemove", handleResizeMove);
-            window.removeEventListener("mouseup", handleResizeUp);
-        };
-    }, [handleResizeMove, handleResizeUp]);
-
     return (
-        <div
-            data-node-id={data.id}
+        <CanvasNodeShell
+            node={data}
             className={`node-element absolute flex select-none flex-col transition-shadow duration-200 ${isGroup ? "z-[5]" : isSelected ? "z-50" : "z-10"}`}
             style={{
-                transform: `translate(${data.position.x}px, ${data.position.y}px)`,
-                width: data.width,
-                height: data.height,
                 transition: "box-shadow 200ms ease",
-                contain: "layout style",
             }}
             onMouseEnter={() => {
                 setHovered(true);
@@ -399,21 +331,26 @@ export const CanvasNode = React.memo(function CanvasNode({
 
                 {!isGroup && !hasImageContent && !hasVideoContent && !hasAudioContent ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12" style={{ background: `linear-gradient(to top, ${theme.canvas.background}66, transparent)` }} /> : null}
 
-                <ResizeHandle corner="top-left" onMouseDown={handleResizeMouseDown} />
-                <ResizeHandle corner="top-right" onMouseDown={handleResizeMouseDown} />
-                <ResizeHandle corner="bottom-left" onMouseDown={handleResizeMouseDown} />
-                <ResizeHandle corner="bottom-right" onMouseDown={handleResizeMouseDown} />
+                <CanvasNodeResizeHandles
+                    node={data}
+                    scale={scale}
+                    keepAspectRatio={(data.type === CanvasNodeType.Image && !data.metadata?.freeResize) || data.type === CanvasNodeType.Video || Boolean(definition?.keepAspectRatio?.(data))}
+                    ratio={(data.metadata?.naturalWidth || data.width) / (data.metadata?.naturalHeight || data.height || 1)}
+                    onResizeStart={onResizeStart}
+                    onResize={onResize}
+                    onResizeEnd={onResizeEnd}
+                />
             </div>
 
-            {!isGroup ? <ConnectionHandleDot side="left" visible={hovered || isSelected || isConnecting} onMouseDown={(event) => onConnectStart(event, data.id, "target")} /> : null}
-            {!isGroup ? <ConnectionHandleDot side="right" visible={(definition?.hasSourceHandle ?? true) && data.type !== CanvasNodeType.Config && (hovered || isSelected || isConnecting)} onMouseDown={(event) => onConnectStart(event, data.id, "source")} /> : null}
+            {!isGroup ? <CanvasNodeConnectionHandles visible={hovered || isSelected || isConnecting} theme={theme} source={(definition?.hasSourceHandle ?? true) && data.type !== CanvasNodeType.Config} onConnectStart={(event, handleType) => onConnectStart(event, data.id, handleType)} /> : null}
 
             {showPanel && !isGroup && renderPanel ? <div className="absolute left-1/2 top-full z-[70] w-[600px] -translate-x-1/2 pt-4">{renderPanel(data)}</div> : null}
-        </div>
+        </CanvasNodeShell>
     );
 });
 
 function NodeContent(props: NodeContentRendererProps) {
+    const { t } = useTranslation();
     if (props.node.type === CanvasNodeType.Config && props.renderNodeContent) return props.renderNodeContent(props.node);
     if (props.isBatchRoot) return <ImageNodeContent {...props} />;
     if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} />;
@@ -428,7 +365,7 @@ function NodeContent(props: NodeContentRendererProps) {
         const PluginContent = definition.Content;
         return <PluginContent ctx={props.pluginContext} />;
     }
-    return <MissingPluginContent theme={props.theme} type={props.node.type} />;
+    return <CanvasUnknownNode type={props.node.type} theme={props.theme} icon={<Puzzle className="size-7 opacity-40" />} title={t("canvas.node.missingPlugin")} description={t("canvas.node.missingPluginDescription", { type: props.node.type })} />;
 }
 
 const nodeContentRenderers = {
@@ -486,17 +423,6 @@ function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererProps, "
                 <RefreshCw className="size-3.5" />
                 {t("canvas.node.retry")}
             </button>
-        </div>
-    );
-}
-
-function MissingPluginContent({ theme, type }: Pick<NodeContentRendererProps, "theme"> & { type: string }) {
-    const { t } = useTranslation();
-    return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center" style={{ color: theme.node.placeholder }}>
-            <Puzzle className="size-7 opacity-40" />
-            <span className="text-sm">{t("canvas.node.missingPlugin")}</span>
-            <span className="text-[11px] opacity-70">{t("canvas.node.missingPluginDescription", { type })}</span>
         </div>
     );
 }
@@ -823,31 +749,6 @@ function BatchFrame({ batchCount, batchExpanded, onToggleBatch, children }: { ba
                 </div>
             ) : null}
             {children}
-        </div>
-    );
-}
-function ResizeHandle({ corner, onMouseDown }: { corner: CanvasResizeCorner; onMouseDown: (event: React.MouseEvent, corner: CanvasResizeCorner) => void }) {
-    const positionClass = {
-        "top-left": "-left-[14px] -top-[14px] cursor-nwse-resize",
-        "top-right": "-right-[14px] -top-[14px] cursor-nesw-resize",
-        "bottom-left": "-bottom-[14px] -left-[14px] cursor-nesw-resize",
-        "bottom-right": "-bottom-[14px] -right-[14px] cursor-nwse-resize",
-    }[corner];
-
-    return <div className={`absolute z-50 size-7 ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;
-}
-
-function ConnectionHandleDot({ side, visible, onMouseDown }: { side: "left" | "right"; visible: boolean; onMouseDown: (event: React.MouseEvent) => void }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
-
-    return (
-        <div
-            className={`absolute top-1/2 z-30 flex size-12 -translate-y-1/2 cursor-crosshair items-center justify-center transition-opacity duration-150 ${
-                side === "left" ? "-left-6" : "-right-6"
-            } ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
-            onMouseDown={onMouseDown}
-        >
-            <div className="size-3 rounded-full border-2 transition-all hover:scale-125" style={{ background: theme.node.panel, borderColor: theme.node.muted }} />
         </div>
     );
 }

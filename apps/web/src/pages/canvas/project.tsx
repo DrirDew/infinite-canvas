@@ -18,6 +18,9 @@ import { useAssetStore } from "@/stores/use-asset-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
 import {
+    CanvasConnectionLayer,
+    CanvasMinimap,
+    CanvasSelectionBox,
     fitNodeSize,
     InfiniteCanvas,
     nodeSizeFromRatio,
@@ -30,7 +33,6 @@ import {
 } from "@infinite-canvas/core";
 import { App, Button, Modal } from "antd";
 import { NODE_DEFAULT_SIZE, getNodeSpec } from "@/constant/canvas";
-import { ActiveConnectionPath, ConnectionPath } from "@/components/canvas/canvas-connections";
 import { CanvasConfigComposer } from "@/components/canvas/canvas-config-composer";
 import { CanvasConfigNodePanel } from "@/components/canvas/canvas-config-node-panel";
 import { CanvasNodeContextMenu } from "@/components/canvas/canvas-context-menu";
@@ -41,7 +43,6 @@ import { CanvasNodeSplitDialog, type CanvasImageSplitParams } from "@/components
 import { CanvasNodeUpscaleDialog, type CanvasImageUpscaleParams } from "@/components/canvas/canvas-node-upscale-dialog";
 import { buildNodeGenerationContext, buildNodeGenerationInputs, buildNodeResponseMessages, hydrateNodeGenerationContext, type NodeGenerationInput } from "@/components/canvas/canvas-node-generation";
 import { CanvasNodeHoverToolbar, CanvasNodeInfoModal } from "@/components/canvas/canvas-node-hover-toolbar";
-import { Minimap } from "@/components/canvas/canvas-mini-map";
 import { CanvasNode } from "@/components/canvas/canvas-node";
 import { CanvasNodePromptPanel, type CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-prompt-panel";
 import { CanvasToolbar } from "@/components/canvas/canvas-toolbar";
@@ -2529,34 +2530,24 @@ function InfiniteCanvasPage() {
                     onContextMenu={preventCanvasContextMenu}
                     onDrop={handleDrop}
                 >
-                    <svg className="absolute left-0 top-0 h-[10000px] w-[10000px] overflow-visible" style={{ pointerEvents: "none", transform: "translateZ(0)", zIndex: 0 }}>
-                        {connections.map((connection) => {
-                            const from = nodeById.get(connection.fromNodeId);
-                            const to = nodeById.get(connection.toNodeId);
-                            if (!from || !to) return null;
-
-                            return (
-                                <ConnectionPath
-                                    key={connection.id}
-                                    connection={connection}
-                                    from={from}
-                                    to={to}
-                                    active={selectedConnectionId === connection.id || relatedHighlight.connectionIds.has(connection.id)}
-                                    onSelect={() => {
-                                        setSelectedConnectionId(connection.id);
-                                        setSelectedNodeIds(new Set());
-                                        setContextMenu(null);
-                                    }}
-                                    onContextMenu={(event) => {
-                                        setSelectedConnectionId(connection.id);
-                                        setSelectedNodeIds(new Set());
-                                        setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId: connection.id });
-                                    }}
-                                />
-                            );
-                        })}
-                        {connectionInteraction ? <ActiveConnectionPath node={nodeById.get(connectionInteraction.handle.nodeId)} handle={connectionInteraction.handle} mouseWorld={connectionInteraction.pointer} target={connectionInteraction.targetNodeId ? nodeById.get(connectionInteraction.targetNodeId) : undefined} /> : null}
-                    </svg>
+                    <CanvasConnectionLayer
+                        nodes={nodes}
+                        connections={connections}
+                        interaction={connectionInteraction}
+                        selectedConnectionId={selectedConnectionId}
+                        activeConnectionIds={relatedHighlight.connectionIds}
+                        theme={theme}
+                        onConnectionSelect={(connection) => {
+                            setSelectedConnectionId(connection.id);
+                            setSelectedNodeIds(new Set());
+                            setContextMenu(null);
+                        }}
+                        onConnectionContextMenu={(event, connection) => {
+                            setSelectedConnectionId(connection.id);
+                            setSelectedNodeIds(new Set());
+                            setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId: connection.id });
+                        }}
+                    />
 
                     {visibleNodes.map((node) => (
                         <CanvasNode
@@ -2602,19 +2593,7 @@ function InfiniteCanvasPage() {
                         />
                     ))}
 
-                    {selectionBox ? (
-                        <svg
-                            className="pointer-events-none absolute z-[100] overflow-visible"
-                            style={{
-                                left: Math.min(selectionBox.startWorldX, selectionBox.currentWorldX),
-                                top: Math.min(selectionBox.startWorldY, selectionBox.currentWorldY),
-                                width: Math.abs(selectionBox.currentWorldX - selectionBox.startWorldX),
-                                height: Math.abs(selectionBox.currentWorldY - selectionBox.startWorldY),
-                            }}
-                        >
-                            <rect width="100%" height="100%" fill={theme.canvas.selectionFill} stroke={theme.canvas.selectionStroke} strokeOpacity={0.55} strokeWidth={1 / viewport.k} strokeDasharray={`${6 / viewport.k} ${4 / viewport.k}`} />
-                        </svg>
-                    ) : null}
+                    {selectionBox ? <CanvasSelectionBox rect={normalizeRect({ x: selectionBox.startWorldX, y: selectionBox.startWorldY }, { x: selectionBox.currentWorldX, y: selectionBox.currentWorldY })} scale={viewport.k} theme={theme} /> : null}
                     {pendingConnectionCreate ? <ConnectionCreateMenu pending={pendingConnectionCreate} onCreate={(type) => createConnectedNode(type, pendingConnectionCreate)} onClose={cancelPendingConnectionCreate} /> : null}
                     {nodeCreatePosition ? (
                         <NodeCreateMenu
@@ -2680,7 +2659,7 @@ function InfiniteCanvasPage() {
                     onShowImageInfoChange={setShowImageInfo}
                 />
 
-                {isMiniMapOpen ? <Minimap nodes={nodes} viewport={viewport} viewportSize={size} onViewportChange={setViewport} /> : null}
+                {isMiniMapOpen ? <CanvasMinimap nodes={nodes} viewport={viewport} viewportSize={size} theme={theme} onViewportChange={setViewport} nodeColor={(node) => getNodeDefinition(node.type)?.minimapColor || theme.node.muted} /> : null}
 
                 <CanvasZoomControls scale={viewport.k} onScaleChange={setZoomScale} onReset={resetViewport} isMiniMapOpen={isMiniMapOpen} onToggleMiniMap={() => setIsMiniMapOpen((value) => !value)} />
 

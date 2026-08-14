@@ -1,4 +1,4 @@
-import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnectionDropTarget, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
+import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnectionDropTarget, type CanvasConnectionInteraction, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
 
 export function screenToCanvas(clientX: number, clientY: number, viewport: ViewportTransform, origin: Pick<DOMRect, "left" | "top"> = { left: 0, top: 0 }): Position {
     return { x: (clientX - origin.left - viewport.x) / viewport.k, y: (clientY - origin.top - viewport.y) / viewport.k };
@@ -91,6 +91,13 @@ export function getConnectionTargetAnchor<T extends BaseCanvasNodeMetadata>(node
         x: current.handleType === "source" ? node.position.x : node.position.x + node.width,
         y: node.position.y + node.height / 2,
     };
+}
+
+export function getConnectionPath<T extends BaseCanvasNodeMetadata>(source: CanvasNode<T>, target?: CanvasNode<T>, interaction?: CanvasConnectionInteraction) {
+    const start = interaction?.handle.handleType === "target" ? (target ? { x: target.position.x + target.width, y: target.position.y + target.height / 2 } : interaction.pointer) : { x: source.position.x + source.width, y: source.position.y + source.height / 2 };
+    const end = interaction?.handle.handleType === "target" ? { x: source.position.x, y: source.position.y + source.height / 2 } : target ? { x: target.position.x, y: target.position.y + target.height / 2 } : interaction?.pointer || start;
+    const curvature = interaction ? Math.abs(end.x - start.x) * 0.5 : Math.max(Math.abs(end.x - start.x) * 0.5, 50);
+    return `M ${start.x} ${start.y} C ${start.x + curvature} ${start.y}, ${end.x - curvature} ${end.y}, ${end.x} ${end.y}`;
 }
 
 export function findConnectionDropTarget<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, handleRadius = 40, nodePadding = 32): CanvasConnectionDropTarget {

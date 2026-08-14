@@ -4,3 +4,7 @@ export * from "./geometry";
 export * from "./shortcuts";
 export * from "./use-canvas";
 export * from "./infinite-canvas";
+export * from "./connection-layer";
+export * from "./selection-box";
+export * from "./minimap";
+export * from "./node";

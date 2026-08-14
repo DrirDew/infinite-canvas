@@ -3,7 +3,7 @@
 可独立嵌入 React 应用的无限画布核心，提供画布文档、选择、撤销重做、视口、主题和几何工具，不包含 AI、插件、持久化或官方 Web 业务。
 
 ```tsx
-import { InfiniteCanvas, canvasThemes, useCanvas } from "@infinite-canvas/core";
+import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, InfiniteCanvas, canvasThemes, useCanvas } from "@infinite-canvas/core";
 
 const canvas = useCanvas({
     document: { nodes: [], connections: [] },
@@ -22,7 +22,15 @@ canvas.commands.copySelection();
 canvas.commands.pasteClipboard({ position, createNodeId, createConnectionId });
 canvas.commands.undo();
 
-<InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" onViewportChange={canvas.commands.setViewport} />;
+<InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" onViewportChange={canvas.commands.setViewport}>
+    {canvas.document.nodes.map((node) => (
+        <CanvasNodeShell key={node.id} node={node}>
+            {renderNode(node)}
+            <CanvasNodeResizeHandles node={node} scale={canvas.viewport.k} onResizeStart={canvas.commands.startNodeResize} onResize={canvas.commands.resizeNode} onResizeEnd={canvas.commands.endNodeResize} />
+            <CanvasNodeConnectionHandles visible theme={canvasThemes.light} onConnectStart={(event, handleType) => canvas.commands.startConnection({ nodeId: node.id, handleType }, toCanvas(event.clientX, event.clientY))} />
+        </CanvasNodeShell>
+    ))}
+</InfiniteCanvas>;
 ```
 
 视口属于画布实例状态，不进入文档撤销历史。节点拖动、缩放、分组吸附、连线预览和画布剪贴板由 `useCanvas` 的稳定命令管理，连续节点预览和一次粘贴分别只生成一条文档历史。Core 不生成节点或连线 ID，连线与粘贴均由接入应用提供 ID。跨平台快捷键通过 `resolveCanvasShortcut` 识别，系统剪贴板媒体读取和持久化仍由接入应用负责。
@@ -35,5 +43,8 @@ canvas.commands.undo();
 - `document.ts`：无 React 依赖的文档修改、选择清理和剪贴板变换逻辑。
 - `use-canvas.ts`：实例状态、历史、事务和预览命令。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
+- `connection-layer.tsx` / `selection-box.tsx`：连线、连线预览和框选渲染。
+- `minimap.tsx`：可自定义节点颜色的独立小地图。
+- `node.tsx`：节点定位外壳、四角缩放控制、连接端口和未知节点占位。
 - `shortcuts.ts`：跨平台画布快捷键识别。
 - `geometry.ts` / `theme.ts`：纯几何工具与画布主题。

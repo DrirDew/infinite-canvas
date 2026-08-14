@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CanvasNodeType, canvasToScreen, findConnectionDropTarget, fitNodeSize, nodesInRect, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas } from "../src";
+import { CanvasNodeType, canvasToScreen, findConnectionDropTarget, fitNodeSize, getConnectionPath, nodesInRect, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas } from "../src";
 
 describe("core geometry", () => {
     test("keeps node ratios and connection direction", () => {
@@ -61,5 +61,12 @@ describe("core geometry", () => {
         ];
         expect(findConnectionDropTarget(nodes, { nodeId: "a", handleType: "source" }, { x: 250, y: 50 })).toEqual({ nodeId: "b", isNearNode: true });
         expect(findConnectionDropTarget(nodes, { nodeId: "a", handleType: "source" }, { x: 50, y: 50 })).toEqual({ nodeId: null, isNearNode: true });
+    });
+
+    test("builds stable and active connection paths", () => {
+        const from = { id: "a", type: "test", title: "", position: { x: 0, y: 0 }, width: 100, height: 100 };
+        const to = { id: "b", type: "test", title: "", position: { x: 300, y: 100 }, width: 100, height: 100 };
+        expect(getConnectionPath(from, to)).toBe("M 100 50 C 200 50, 200 150, 300 150");
+        expect(getConnectionPath(from, to, { handle: { nodeId: "a", handleType: "source" }, pointer: { x: 220, y: 80 }, targetNodeId: "b" })).toBe("M 100 50 C 200 50, 200 150, 300 150");
     });
 });
