@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Drag
 import { canvasDefaults } from "./defaults.js";
 import { zoomViewportAtPoint } from "./geometry.js";
 import { acquireBodyCursor, releaseBodyCursor } from "./internal/body-cursor.js";
+import { acquireCanvasPointer, canOwnCanvasPointer, releaseCanvasPointer } from "./internal/pointer-ownership.js";
 import { subscribeWindowEvent } from "./internal/window-events.js";
 import type { CanvasBackgroundMode, CanvasTheme } from "./theme.js";
 import type { CanvasTool, ViewportTransform } from "./types.js";
@@ -70,7 +71,8 @@ export function InfiniteCanvas({
     children,
 }: InfiniteCanvasProps) {
     const panRef = useRef<PanState>({ active: false, pointerId: -1, x: 0, y: 0, initialX: 0, initialY: 0, moved: false, background: false });
-    const cursorOwnerRef = useRef({});
+    const panOwnerRef = useRef({});
+    const panSurfaceRef = useRef<Element | null>(null);
     const frameRef = useRef<number | null>(null);
     const nextViewportRef = useRef<ViewportTransform | null>(null);
     const viewportRef = useRef(viewport);
@@ -83,6 +85,12 @@ export function InfiniteCanvas({
     viewportChangeRef.current = onViewportChange;
     deselectRef.current = onCanvasDeselect;
 
+    const releasePan = useCallback(() => {
+        if (panSurfaceRef.current) releaseCanvasPointer(panSurfaceRef.current, panOwnerRef.current);
+        panSurfaceRef.current = null;
+        releaseBodyCursor(panOwnerRef.current);
+    }, []);
+
     const cancel = useCallback(() => {
         setSpace(false);
         setControl(false);
@@ -91,17 +99,17 @@ export function InfiniteCanvas({
         if (frameRef.current) cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
         setPanning(false);
-        releaseBodyCursor(cursorOwnerRef.current);
-    }, []);
+        releasePan();
+    }, [releasePan]);
 
     useEffect(() => {
         const unsubscribe = subscribeWindowEvent("blur", cancel);
         return () => {
             unsubscribe();
             if (frameRef.current) cancelAnimationFrame(frameRef.current);
-            releaseBodyCursor(cursorOwnerRef.current);
+            releasePan();
         };
-    }, [cancel]);
+    }, [cancel, releasePan]);
 
     useEffect(() => {
         const element = containerRef.current;
@@ -133,7 +141,7 @@ export function InfiniteCanvas({
         if (!cancelled && !pan.moved && pan.background) deselectRef.current?.();
         pan.active = false;
         setPanning(false);
-        releaseBodyCursor(cursorOwnerRef.current);
+        releasePan();
     };
     const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
         if (panRef.current.active && event.pointerId !== panRef.current.pointerId) return;
@@ -141,12 +149,15 @@ export function InfiniteCanvas({
         const background = !(event.target instanceof Element && event.target.closest(NODE_SELECTOR));
         const pointerTool = event.ctrlKey ? invertTool(tool) : activeTool;
         if (event.button === 1 || (event.button === 0 && pointerTool === "pan")) {
+            if (!acquireCanvasPointer(event.currentTarget, panOwnerRef.current, event.pointerId)) return;
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
+            panSurfaceRef.current = event.currentTarget;
             panRef.current = { active: true, pointerId: event.pointerId, x: event.clientX, y: event.clientY, initialX: viewport.x, initialY: viewport.y, moved: false, background };
             setPanning(true);
-            acquireBodyCursor(cursorOwnerRef.current);
+            acquireBodyCursor(panOwnerRef.current);
         } else if (event.button === 0 && background) {
+            if (!canOwnCanvasPointer(event.currentTarget, panOwnerRef.current, event.pointerId)) return;
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
             onCanvasPointerDown?.(event);

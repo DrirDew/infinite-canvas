@@ -22,7 +22,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onResizeStart, onConnectionSelected, onConnectionMenu };
     const viewport = useCanvasViewport({ commands, containerRef, onContainerResize, onViewportInput, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration });
     const { toCanvas } = viewport;
-    const { selectionRect, canStart, claimNode, claimConnection, startMarquee, cancelSelection } = useCanvasPointerLifecycle({ commands, toCanvas, onNodeClick, onConnectionEnd });
+    const { selectionRect, canStart, claimNode, claimConnection, startMarquee, cancelSelection } = useCanvasPointerLifecycle({ commands, containerRef, toCanvas, onNodeClick, onConnectionEnd });
     const selectNode = useCallback((event: Pick<PointerEvent, "shiftKey" | "metaKey" | "ctrlKey">, nodeId: string) => {
         const ids = new Set(commandsRef.current.getSelection().nodeIds);
         if (event.shiftKey || event.metaKey || event.ctrlKey) {

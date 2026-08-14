@@ -94,7 +94,7 @@ const editor = useCanvasEditor({
 - `use-canvas-viewport.ts`：容器尺寸、坐标转换、缩放、复位和节点聚焦动画。
 - `use-canvas-interactions.ts`：组合视口能力，并把画布、节点、缩放和连线事件转换为 Core 命令。
 - `internal/use-canvas-pointer-lifecycle.ts`：按交互类型管理框选、节点拖动、连线的 pointer ownership 与全局生命周期。
-- `internal/window-events.ts` / `internal/body-cursor.ts`：复用全局窗口监听，并管理多实例平移光标所有权。
+- `internal/window-events.ts` / `internal/body-cursor.ts` / `internal/pointer-ownership.ts`：复用全局窗口监听，并隔离画布实例的平移光标与指针所有权。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
 - `connection-layer.tsx` / `selection-box.tsx`：不限制世界坐标范围的连线、连线预览和框选渲染。
 - `minimap.tsx`：可自定义节点内容、样式、世界边距和最小可见尺寸的独立小地图。

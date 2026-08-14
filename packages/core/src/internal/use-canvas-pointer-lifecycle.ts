@@ -1,27 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { normalizeRect } from "../geometry.js";
 import type { CanvasCommands, CanvasConnectionDropResult, CanvasRect, Position } from "../types.js";
+import { acquireCanvasPointer, canOwnCanvasPointer, releaseCanvasPointer } from "./pointer-ownership.js";
 import { subscribeWindowEvent } from "./window-events.js";
 
 type PointerOwner = { id: number; kind: "marquee" | "node" | "connection" };
 type Marquee = { start: Position; initialNodeIds: string[] };
 
-export function useCanvasPointerLifecycle<TMetadata>({ commands, toCanvas, onNodeClick, onConnectionEnd }: { commands: CanvasCommands<TMetadata>; toCanvas: (clientX: number, clientY: number) => Position; onNodeClick?: (nodeId: string) => void; onConnectionEnd?: (result: CanvasConnectionDropResult) => void }) {
+export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, toCanvas, onNodeClick, onConnectionEnd }: { commands: CanvasCommands<TMetadata>; containerRef: RefObject<HTMLDivElement | null>; toCanvas: (clientX: number, clientY: number) => Position; onNodeClick?: (nodeId: string) => void; onConnectionEnd?: (result: CanvasConnectionDropResult) => void }) {
     const [selectionRect, setSelectionRect] = useState<CanvasRect | null>(null);
     const commandsRef = useRef(commands);
     const callbacksRef = useRef({ onNodeClick, onConnectionEnd });
+    const tokenRef = useRef({});
+    const surfaceRef = useRef<Element | null>(null);
     const ownerRef = useRef<PointerOwner | null>(null);
     const marqueeRef = useRef<Marquee | null>(null);
     const frameRef = useRef<number | null>(null);
     commandsRef.current = commands;
     callbacksRef.current = { onNodeClick, onConnectionEnd };
 
-    const canStart = useCallback((pointerId: number) => !ownerRef.current || ownerRef.current.id === pointerId, []);
+    const canStart = useCallback((pointerId: number) => {
+        const surface = containerRef.current;
+        return (!ownerRef.current || ownerRef.current.id === pointerId) && (!surface || canOwnCanvasPointer(surface, tokenRef.current, pointerId));
+    }, [containerRef]);
     const claim = useCallback((pointerId: number, kind: PointerOwner["kind"]) => {
-        if (!canStart(pointerId)) return false;
+        const surface = containerRef.current;
+        if (!canStart(pointerId) || (surface && !acquireCanvasPointer(surface, tokenRef.current, pointerId))) return false;
+        surfaceRef.current = surface;
         ownerRef.current = { id: pointerId, kind };
         return true;
-    }, [canStart]);
+    }, [canStart, containerRef]);
     const claimNode = useCallback((pointerId: number) => claim(pointerId, "node"), [claim]);
     const claimConnection = useCallback((pointerId: number) => claim(pointerId, "connection"), [claim]);
     const startMarquee = useCallback((pointerId: number, start: Position, initialNodeIds: string[]) => {
@@ -42,6 +50,8 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, toCanvas, onNod
         };
         const clear = () => {
             clearFrame();
+            if (surfaceRef.current) releaseCanvasPointer(surfaceRef.current, tokenRef.current);
+            surfaceRef.current = null;
             ownerRef.current = null;
             marqueeRef.current = null;
             setSelectionRect(null);
@@ -89,6 +99,7 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, toCanvas, onNod
         return () => {
             unsubscribe.forEach((dispose) => dispose());
             clearFrame();
+            if (surfaceRef.current) releaseCanvasPointer(surfaceRef.current, tokenRef.current);
         };
     }, [toCanvas]);
 
