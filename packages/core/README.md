@@ -1,105 +1,180 @@
 # @infinite-canvas/core
 
-可独立嵌入 React 应用的无限画布核心，提供画布文档、选择、撤销重做、视口、主题和几何工具，不包含 AI、插件、持久化或官方 Web 业务。
+可独立嵌入 React 应用的无限画布引擎，提供文档、选择、历史、视口、几何、指针交互和基础渲染，不包含 AI、插件宿主、持久化或官方 Web 业务。
 
-包提供三个入口：根入口包含全部 API；`@infinite-canvas/core/headless` 只导出文档、几何、选择器、快捷键、主题和配置；`@infinite-canvas/core/react` 只导出 Hooks 与基础渲染组件。非 React 工具或服务可使用 headless 入口，避免加载 React 模块。发布产物使用 NodeNext ESM 和显式 `.js` 内部引用，可由现代 bundler 或原生 Node ESM 直接解析。
+## 安装与入口
 
-Core 的公开边界包括文档与实例状态、基础编辑命令、指针与视口交互、剪贴板、快捷键识别和基础渲染。节点 `type` 是接入应用定义的普通字符串；需要参与分组引擎的节点使用 `role: "group"`，子节点通过顶层 `groupId` 归属分组。泛型 `metadata` 不受 Core 字段约束，可由接入应用自由定义。项目存储、系统剪贴板媒体、ID 生成、节点业务内容、AI、Agent 与插件宿主由接入应用负责。
-
-实例返回的 `selectedNodeIds`、`CanvasSelection.nodeIds` 和框选结果使用 `ReadonlySet`，接入应用通过选择命令修改状态，不直接写入 Core 内部集合。纯查询、几何、基础渲染和批量新增接口接受 readonly 节点与连线数组，不可变 store 快照无需复制。重复选择和相同视口值不会触发 React 状态或外部回调；`setDocument` 仍会强制发布实例重置。节点更新会比较最终引擎字段与 metadata 引用，语义无变化的 patch 不发布快照或增加历史。
-
-包以 MIT 协议发布，只将 React 18+ 声明为 peer dependency；npm 产物包含 README、许可证以及根入口、`headless`、`react` 三个声明完整的公开入口。
-
-```tsx
-import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, getCanvasDocumentIssues, useCanvas, useCanvasEditor, useCanvasInteractions, type CanvasTheme } from "@infinite-canvas/core";
-
-const customTheme: CanvasTheme = { ...canvasThemes.light, canvas: { ...canvasThemes.light.canvas, background: "#f8fafc" } };
-
-const canvas = useCanvas({
-    document: { nodes: [], connections: [] },
-    viewport: { x: 0, y: 0, k: 1 },
-    onDocumentChange: saveDocument,
-    onSelectionChange: syncInspectorSelection,
-    onInteractionChange: syncInteractionStatus,
-    resolveConnection: optionalConnectionPolicy,
-    canGroupNode: (node, group) => group.type !== "locked-group",
-    historyLimit: 100,
-    groupPadding: 24,
-});
-const interactions = useCanvasInteractions({
-    commands: canvas.commands,
-    containerRef: ref,
-    minZoom: 0.1,
-    maxZoom: 4,
-    focusDuration: 300,
-    onViewportInput: closeTransientOverlays,
-    onConnectionEnd: (result) => result.connection && canvas.commands.addConnection({ id: createConnectionId(), ...result.connection }),
-});
-
-canvas.commands.addNode(node);
-canvas.commands.startNodeDrag([node.id], pointer);
-canvas.commands.moveNodeDrag(nextPointer);
-canvas.commands.endNodeDrag(nextPointer);
-canvas.commands.startConnection({ nodeId: node.id, handleType: "source" }, position);
-const result = canvas.commands.endConnection(targetPosition);
-if (result?.connection) canvas.commands.addConnection({ id, ...result.connection });
-canvas.commands.copySelection();
-canvas.commands.pasteClipboard({ position, createNodeId, createConnectionId });
-canvas.commands.cancelPreview();
-canvas.commands.undo();
-
-const issues = getCanvasDocumentIssues(externalDocument, optionalConnectionPolicy);
-if (!issues.length) canvas.commands.setDocument(externalDocument); // 同步清空选择与历史，并触发 onDocumentChange
-interactions.focusNode(node.id);
-interactions.setZoom(1.5);
-interactions.resetViewport();
-
-// 也可以一次组合两个 Hook，嵌套配置用于区分状态回调与交互输入回调。
-const editor = useCanvasEditor({
-    canvas: { document, onDocumentChange: saveDocument },
-    interactions: { containerRef: ref, onViewportInput: closeTransientOverlays },
-});
-
-<InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" gridSize={40} minZoom={0.1} maxZoom={4} ariaLabel="Workflow editor" renderBackground={({ mode }) => mode === "blank" ? <CustomBackground /> : null} onViewportChange={interactions.onViewportChange} onCanvasPointerDown={interactions.onCanvasPointerDown}>
-    {canvas.document.nodes.map((node) => (
-        <CanvasNodeShell key={node.id} node={node} onPointerDown={(event) => interactions.onNodePointerDown(event, node.id)} onPointerDownCapture={(event) => interactions.onNodePointerDownCapture(event, node.id)}>
-            {renderNode(node)}
-            <CanvasNodeResizeHandles node={node} scale={canvas.viewport.k} minWidth={24} minHeight={24} onResizeStart={interactions.onNodeResizeStart} onResize={interactions.onNodeResize} onResizeEnd={interactions.onNodeResizeEnd} onResizeCancel={interactions.onNodeResizeCancel} />
-            <CanvasNodeConnectionHandles nodeId={node.id} visible theme={canvasThemes.light} onConnectStart={interactions.onConnectionStart} />
-        </CanvasNodeShell>
-    ))}
-    {interactions.selectionRect ? <CanvasSelectionBox rect={interactions.selectionRect} scale={canvas.viewport.k} theme={canvasThemes.light} /> : null}
-</InfiniteCanvas>;
+```bash
+bun add @infinite-canvas/core react
 ```
 
-视口属于画布实例状态，不进入文档撤销历史。`useCanvasInteractions` 提供容器尺寸、坐标转换、画布中心点、中心缩放、复位和节点聚焦动画，并允许配置缩放范围、聚焦覆盖率、最大缩放和动画时长；`onViewportInput` 只通知平移、滚轮和小地图等外部视口输入，返回的 `onViewportChange` 则用于连接这些渲染入口。`InfiniteCanvas` 可配置相同缩放范围与背景网格间距，并通过 `className`、`style`、`tabIndex` 和 `ariaLabel` 接入宿主布局与可访问名称；`backgroundStyle` 和 `renderBackground` 可覆盖背景容器或渲染自定义背景，`contentClassName` 和 `contentStyle` 可定制世界内容层。回调会收到当前视口、主题、模式和网格尺寸，背景层始终保持点击穿透。基础画布、背景、内容、连线、框选、小地图和未知节点均提供稳定的 `data-*` 语义标记，便于宿主 CSS、自动化测试和调试。空格和 Control 工具切换只作用于当前聚焦实例，平移由 Pointer Capture 管理；多个画布同时存在时不会互相清理键盘状态或全局抓取光标。画布、节点、缩放控制点和连线端口统一使用 Pointer Events，并由启动交互的 `pointerId` 独占平移、框选、拖动、连线、缩放和小地图导航，其他触点不会结束当前操作。节点拖动、缩放、分组吸附、连线预览和画布剪贴板由 `useCanvas` 的稳定命令管理，连续节点预览和一次粘贴分别只生成一条文档历史；缩放的 `pointercancel`、窗口失焦或控制点卸载会通过 `cancelNodeResize` 恢复预览起点，低层预览也可通过 `cancelPreview` 取消，undo/redo 会先取消尚未提交的预览。文档、视口、选择和交互状态分别可通过回调接入外部存储、检查器或状态面板。新增节点和连线命令会过滤重复 ID、无效分组、悬空端点、自连线、分组连线及策略拒绝的连线；粘贴复用相同校验，不会让接入方返回的空或冲突 ID 污染文档；节点更新会拒绝空或重复 ID，并在重命名、角色和类型变化时同步维护分组与关联连线；`transaction` 作为低层原子更新入口由接入方自行保证文档结构。Core 默认按源/目标端口确定连线方向，接入应用可通过 `resolveConnection` 注入节点类型规则，通过 `canGroupNode` 统一约束拖拽、新增、更新、粘贴和外部文档校验中的节点分组组合，并通过 `historyLimit`、`dragThreshold`、`groupPadding`、`connectionHandleRadius` 和 `connectionNodePadding` 调整实例行为；默认值统一导出为 `canvasDefaults`。`CanvasConnectionLayer` 的 `resolvePath` 可让普通连线与活动预览统一使用直线、折线或自定义路由，`resolveStyle`、`previewStyle` 和 `hitStrokeWidth` 可分别定制持久连线、预览和命中范围。Core 不生成节点或连线 ID，连线与粘贴均由接入应用提供 ID。跨平台快捷键通过 `resolveCanvasShortcut` 识别，系统剪贴板媒体读取和持久化仍由接入应用负责。
+Core 只要求 React 18+，不强制依赖 `react-dom`。包以 MIT 协议发布，使用 NodeNext ESM，并提供源码映射和声明映射。
 
-仓库内运行 `bun run dev:examples` 可查看文档快照回调、自定义节点内容、未知节点占位和多实例隔离示例。
+| 入口 | 内容 |
+| --- | --- |
+| `@infinite-canvas/core` | 全部公开 API |
+| `@infinite-canvas/core/headless` | 文档、几何、选择器、快捷键、主题和默认配置，不加载 React |
+| `@infinite-canvas/core/react` | Hooks 与基础渲染组件 |
 
-`CanvasConnectionLayer`、`CanvasSelectionBox` 和 `CanvasMinimap` 均支持 `className`、`style` 接入宿主布局。框选层额外开放 `rectProps`；小地图可配置 `worldPadding`、节点和视口最小可见尺寸，并用 `nodeStyle`、`renderNode`、`viewportStyle` 扩展缩略节点和视口外观。
+## 快速开始
 
-`CanvasNodeResizeHandles` 可配置控制点命中尺寸并通过 `renderHandle` 渲染四角视觉；`CanvasNodeConnectionHandles` 可配置命中尺寸、节点偏移、默认圆点尺寸或自定义源/目标端口内容。所有默认尺寸均可从 `canvasDefaults` 读取，便于宿主组件保持一致。
+```tsx
+import {
+    CanvasConnectionLayer,
+    CanvasNodeConnectionHandles,
+    CanvasNodeResizeHandles,
+    CanvasNodeShell,
+    CanvasSelectionBox,
+    InfiniteCanvas,
+    canvasThemes,
+    useCanvas,
+    useCanvasInteractions,
+} from "@infinite-canvas/core";
+import { useRef } from "react";
+
+function Editor() {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const canvas = useCanvas({
+        document: { nodes: [], connections: [] },
+        viewport: { x: 0, y: 0, k: 1 },
+        onDocumentChange: saveDocument,
+    });
+    const interactions = useCanvasInteractions({
+        commands: canvas.commands,
+        containerRef,
+        onConnectionEnd: (result) => {
+            if (result.connection) canvas.commands.addConnection({ id: createId(), ...result.connection });
+        },
+    });
+
+    return (
+        <InfiniteCanvas
+            containerRef={containerRef}
+            viewport={canvas.viewport}
+            theme={canvasThemes.light}
+            tool="select"
+            onViewportChange={interactions.onViewportChange}
+            onCanvasPointerDown={interactions.onCanvasPointerDown}
+            onCanvasDeselect={canvas.commands.clearSelection}
+        >
+            <CanvasConnectionLayer
+                nodes={canvas.document.nodes}
+                connections={canvas.document.connections}
+                interaction={canvas.connectionInteraction}
+                selectedConnectionId={canvas.selectedConnectionId}
+                theme={canvasThemes.light}
+                onConnectionSelect={interactions.onConnectionSelect}
+            />
+            {canvas.document.nodes.map((node) => (
+                <CanvasNodeShell
+                    key={node.id}
+                    node={node}
+                    onPointerDown={(event) => interactions.onNodePointerDown(event, node.id)}
+                    onPointerDownCapture={(event) => interactions.onNodePointerDownCapture(event, node.id)}
+                >
+                    {renderNode(node)}
+                    <CanvasNodeResizeHandles node={node} scale={canvas.viewport.k} onResizeStart={interactions.onNodeResizeStart} onResize={interactions.onNodeResize} onResizeEnd={interactions.onNodeResizeEnd} onResizeCancel={interactions.onNodeResizeCancel} />
+                    <CanvasNodeConnectionHandles nodeId={node.id} visible theme={canvasThemes.light} onConnectStart={interactions.onConnectionStart} />
+                </CanvasNodeShell>
+            ))}
+            {interactions.selectionRect ? <CanvasSelectionBox rect={interactions.selectionRect} scale={canvas.viewport.k} theme={canvasThemes.light} /> : null}
+        </InfiniteCanvas>
+    );
+}
+```
+
+也可以用 `useCanvasEditor({ canvas, interactions })` 一次组合两个 Hook。嵌套配置用于区分实例状态回调与视口输入回调。
+
+## 文档模型
+
+`CanvasDocument<TMetadata>` 只包含节点和连线。文档是撤销重做的完整快照，视口、选择和临时交互状态不进入历史。
+
+- 节点 `type` 是宿主定义的普通字符串。
+- 分组节点使用 `role: "group"`，子节点通过顶层 `groupId` 归属分组。
+- `metadata` 完全由宿主定义，不承载 Core 引擎字段。
+- Core 不生成节点或连线 ID。
+- 节点与连线查询、几何和批量新增 API 接受 readonly 数组。
+- 选择结果使用 `ReadonlySet<string>`，修改选择必须调用命令。
+
+外部文档可先通过 `getCanvasDocumentIssues(document, resolveConnection, canGroupNode)` 校验。`setDocument` 用于加载新文档，并清空当前选择、交互和撤销重做历史。
+
+## 命令与历史
+
+`useCanvas` 返回稳定的 `commands` 对象。主要命令分为：
+
+- 文档：`setDocument`、`addNode(s)`、`updateNode`、`removeNodes`、`addConnection(s)`、`removeConnections`。
+- 选择：`selectNodes`、`selectNodesInRect`、`selectConnection`、`clearSelection`。
+- 交互：节点拖动与缩放、连线开始/移动/结束/取消。
+- 剪贴板：`copySelection`、`pasteClipboard`，不访问系统剪贴板。
+- 历史：`undo`、`redo`、`preview`、`commitPreview`、`cancelPreview`。
+- 原子修改：`transaction(updater)`，一次修改多个节点和连线只产生一条历史。
+- 快照读取：`getDocument`、`getViewport`、`getSelection`、`getInteraction`、`getHistoryDocuments`。
+
+连续拖动和缩放只在结束时提交一条历史。粘贴、批量生成和切图等宿主业务应使用 `transaction` 或对应批量命令。
+
+## 策略与回调
+
+`useCanvas` 支持以下接入点：
+
+- `onDocumentChange`：保存最新文档快照。
+- `onViewportChange`、`onSelectionChange`、`onInteractionChange`：同步外部检查器或状态面板。
+- `resolveConnection`：注入节点类型、端口方向和禁连规则。
+- `canGroupNode`：统一约束拖拽、新增、更新、缩放、粘贴和文档校验中的分组关系。
+- `historyLimit`、`dragThreshold`、`groupPadding`、`connectionHandleRadius`、`connectionNodePadding`：调整实例行为。
+
+默认参数统一由 `canvasDefaults` 导出。重复选择、等值视口和语义不变的节点更新不会发布重复状态或产生空历史。
+
+## 视口与指针交互
+
+`useCanvasInteractions` 组合 `useCanvasViewport`，提供容器测量、坐标转换、框选、节点拖动、连线、中心缩放、复位和节点聚焦动画。
+
+- `onViewportInput` 只接收平移、滚轮和小地图等手动输入。
+- `onViewportChange` 用于连接 `InfiniteCanvas` 和 `CanvasMinimap`。
+- `minZoom`、`maxZoom`、`focusCoverage`、`focusMaxZoom`、`focusDuration` 可按实例配置。
+- 平移、框选、拖动、缩放、连线和小地图导航按启动 `pointerId` 隔离。
+- 同一画布表面的平移与编辑交互互斥，多实例的键盘状态、历史、剪贴板、指针和 body 光标互不影响。
+- Space 和 Control 工具切换只作用于当前聚焦画布，输入控件保留原生键盘行为。
+
+跨平台快捷键通过 `resolveCanvasShortcut` 识别。系统剪贴板媒体读取、快捷键副作用和业务弹窗仍由宿主处理。
+
+## 基础渲染与扩展
+
+| 组件 | 能力与扩展点 |
+| --- | --- |
+| `InfiniteCanvas` | 画布表面、网格、平移和滚轮缩放；支持容器、背景、世界内容层样式及自定义背景 |
+| `CanvasNodeShell` | 节点世界坐标定位，透传标准 div 属性 |
+| `CanvasNodeResizeHandles` | 四角缩放，可配置最小尺寸、命中尺寸和自定义控制点 |
+| `CanvasNodeConnectionHandles` | 源/目标端口，可配置命中尺寸、偏移、指示器和自定义内容 |
+| `CanvasConnectionLayer` | 持久连线和活动预览，可定制路径、样式、命中宽度与 SVG 容器 |
+| `CanvasSelectionBox` | 缩放无关的框选描边，可覆盖容器样式和 rect 属性 |
+| `CanvasMinimap` | 世界边界和视口导航，可定制布局、节点内容、节点样式和视口样式 |
+| `CanvasUnknownNode` | 未注册节点的安全占位，可替换标题、描述和图标 |
+
+`InfiniteCanvas.renderBackground` 会收到当前 `viewport`、`theme`、`mode` 和 `gridSize`。Core 始终保持背景点击穿透，并保护世界内容层的视口 transform 不被自定义样式覆盖。
+
+基础画布、背景、内容、连线、连线预览、框选、小地图和未知节点提供稳定的 `data-*` 标记，便于宿主 CSS、自动化测试和调试。
+
+## Core 边界
+
+Core 负责画布文档、实例状态、历史、视口、几何、基础交互和基础渲染。以下能力由宿主负责：
+
+- 项目持久化和数据迁移。
+- ID 生成和系统剪贴板媒体。
+- 节点业务内容、工具栏、弹窗和国际化。
+- AI、Agent、生成任务和素材清理。
+- 插件发现、权限、沙箱和运行时。
 
 ## 源码职责
 
-- `model.ts` / `commands.ts` / `options.ts`：分别定义画布数据模型、实例命令和 Hook 配置；`types.ts` 保持统一公开类型入口。
-- `defaults.ts`：公开且可复用的行为、视口、缩放控制、连线命中和小地图默认参数。
-- `headless.ts` / `react.ts`：无 React 能力与 React 运行时能力的独立包入口。
-- `tsconfig.json`：按 NodeNext 输出可直接发布的 ESM、源码映射和类型声明映射。
-- `document/validation.ts`、`mutations.ts`、`clipboard.ts`：无 React 依赖的文档校验、修改、选择清理和剪贴板变换；`document.ts` 保持统一公开入口。
-- `selectors.ts`：分组数量、上下游节点、图遍历与关联高亮等纯派生查询。
-- `use-canvas.ts`：只组合 React 实例状态、最新配置引用和稳定命令对象。
-- `internal/canvas-state.ts` / `canvas-command-runtime.ts` / `create-canvas-commands.ts`：分别维护实例临时结构、状态发布与历史预览运行时，并组合领域命令。
-- `use-canvas-editor.ts`：一次组合实例状态与交互编排的高层 Hook。
-- `use-canvas-viewport.ts`：容器尺寸、坐标转换、缩放、复位和节点聚焦动画。
-- `use-canvas-interactions.ts`：组合视口能力，并把画布、节点、缩放和连线事件转换为 Core 命令。
-- `internal/use-canvas-pointer-lifecycle.ts`：按交互类型管理框选、节点拖动、连线的 pointer ownership 与全局生命周期。
-- `internal/window-events.ts` / `internal/body-cursor.ts` / `internal/pointer-ownership.ts`：复用全局窗口监听，并隔离画布实例的平移光标与指针所有权。
-- `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
-- `connection-layer.tsx` / `selection-box.tsx`：不限制世界坐标范围的连线、连线预览和框选渲染。
-- `minimap.tsx`：可自定义节点内容、样式、世界边距和最小可见尺寸的独立小地图。
-- `node.tsx`：节点定位外壳、四角缩放控制、连接端口和未知节点占位。
-- `shortcuts.ts`：跨平台画布快捷键识别。
-- `geometry/viewport.ts`、`geometry/nodes.ts`、`geometry/connections.ts`：按视口、节点分组和连线职责拆分的纯几何工具；`geometry.ts` 保持统一公开入口。
-- `theme.ts`：画布主题 token。
-- `CanvasTheme` 是使用普通字符串颜色的结构契约，宿主可从默认主题扩展或完整实现自定义主题。
+- `model.ts` / `commands.ts` / `options.ts`：数据模型、命令和 Hook 配置；`types.ts` 是统一类型入口。
+- `document/`：文档校验、修改、选择清理和剪贴板变换；`document.ts` 是公共 barrel。
+- `geometry/`：视口、节点/分组和连线几何；`geometry.ts` 是公共 barrel。
+- `selectors.ts` / `shortcuts.ts` / `theme.ts` / `defaults.ts`：纯查询、快捷键、主题和默认参数。
+- `use-canvas.ts` / `use-canvas-editor.ts`：实例状态与高层组合。
+- `use-canvas-viewport.ts` / `use-canvas-interactions.ts`：视口能力与 React 事件编排。
+- `internal/canvas-command-runtime.ts` / `create-canvas-commands.ts`：状态发布、历史预览运行时和领域命令。
+- `internal/use-canvas-pointer-lifecycle.ts` / `pointer-ownership.ts` / `window-events.ts`：指针生命周期、实例所有权和共享全局事件。
+- `infinite-canvas.tsx` / `node.tsx` / `connection-layer.tsx` / `selection-box.tsx` / `minimap.tsx`：基础渲染。
+- `headless.ts` / `react.ts` / `index.ts`：分环境公开入口。
+
+仓库内运行 `bun run dev:examples` 可查看两个独立画布实例、文档快照、选择、拖动、缩放、连线、剪贴板、撤销重做和未知节点占位。
