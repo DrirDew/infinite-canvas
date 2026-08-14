@@ -22,6 +22,8 @@ import {
     CanvasSelectionBox,
     canvasThemes,
     fitNodeSize,
+    countCanvasGroupChildren,
+    getCanvasRelations,
     InfiniteCanvas,
     nodeSizeFromRatio,
     nodesInViewport,
@@ -428,30 +430,8 @@ function InfiniteCanvasPage() {
     const previewNode = previewNodeId ? nodeById.get(previewNodeId) || null : null;
     const hasMultipleSelectedNodes = selectedNodeIds.size > 1;
     const activeNodeId = hasMultipleSelectedNodes ? null : hoveredNodeId || (selectedNodeIds.size === 1 ? Array.from(selectedNodeIds)[0] : null);
-    const groupChildCountById = useMemo(() => {
-        const map = new Map<string, number>();
-        nodes.forEach((node) => {
-            const groupId = node.metadata?.groupId;
-            if (groupId) map.set(groupId, (map.get(groupId) || 0) + 1);
-        });
-        return map;
-    }, [nodes]);
-    const relatedHighlight = useMemo(() => {
-        const nodeIds = new Set<string>();
-        const connectionIds = new Set<string>();
-
-        if (!activeNodeId) return { nodeIds, connectionIds };
-
-        nodeIds.add(activeNodeId);
-        connections.forEach((connection) => {
-            if (connection.fromNodeId !== activeNodeId && connection.toNodeId !== activeNodeId) return;
-            connectionIds.add(connection.id);
-            nodeIds.add(connection.fromNodeId);
-            nodeIds.add(connection.toNodeId);
-        });
-
-        return { nodeIds, connectionIds };
-    }, [activeNodeId, connections]);
+    const groupChildCountById = useMemo(() => countCanvasGroupChildren(nodes), [nodes]);
+    const relatedHighlight = useMemo(() => getCanvasRelations(activeNodeId, connections), [activeNodeId, connections]);
 
     const configInputsById = useMemo(() => {
         const map = new Map<string, NodeGenerationInput[]>();
