@@ -1,5 +1,5 @@
 import { canvasDefaults } from "./defaults";
-import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, CanvasRect, CanvasResizeCorner, CanvasSize, ConnectionHandle, Position, ViewportTransform } from "./types";
+import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasGroupResolver, CanvasNode, CanvasRect, CanvasResizeCorner, CanvasSize, ConnectionHandle, Position, ViewportTransform } from "./types";
 
 export const CANVAS_MIN_ZOOM = canvasDefaults.minZoom;
 export const CANVAS_MAX_ZOOM = canvasDefaults.maxZoom;
@@ -72,7 +72,7 @@ export function nodeBounds<T>(nodes: CanvasNode<T>[]) {
 
 export const isGroupNode = <T,>(node: CanvasNode<T>) => node.role === "group";
 
-export function findGroupDropTarget<T>(movedIds: Set<string>, nodes: CanvasNode<T>[]) {
+export function findGroupDropTarget<T>(movedIds: Set<string>, nodes: CanvasNode<T>[], canGroupNode?: CanvasGroupResolver<T>) {
     if (nodes.some((node) => movedIds.has(node.id) && isGroupNode(node))) return null;
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return null;
@@ -82,6 +82,7 @@ export function findGroupDropTarget<T>(movedIds: Set<string>, nodes: CanvasNode<
                 isGroupNode(group) &&
                 !movedIds.has(group.id) &&
                 moving.some((node) => {
+                    if (canGroupNode && !canGroupNode(node, group)) return false;
                     const x = node.position.x + node.width / 2;
                     const y = node.position.y + node.height / 2;
                     return x >= group.position.x && x <= group.position.x + group.width && y >= group.position.y && y <= group.position.y + group.height;
@@ -108,10 +109,10 @@ export function snapNodesIntoGroup<T>(movedIds: Set<string>, nodes: CanvasNode<T
     );
 }
 
-export function findContainingGroupId<T>(node: CanvasNode<T>, nodes: CanvasNode<T>[]) {
+export function findContainingGroupId<T>(node: CanvasNode<T>, nodes: CanvasNode<T>[], canGroupNode?: CanvasGroupResolver<T>) {
     const x = node.position.x + node.width / 2;
     const y = node.position.y + node.height / 2;
-    return [...nodes].reverse().find((group) => isGroupNode(group) && group.id !== node.id && x >= group.position.x && x <= group.position.x + group.width && y >= group.position.y && y <= group.position.y + group.height)?.id;
+    return [...nodes].reverse().find((group) => isGroupNode(group) && group.id !== node.id && (!canGroupNode || canGroupNode(node, group)) && x >= group.position.x && x <= group.position.x + group.width && y >= group.position.y && y <= group.position.y + group.height)?.id;
 }
 
 export function getConnectionTargetAnchor<T>(node: CanvasNode<T>, current: ConnectionHandle) {

@@ -40,6 +40,7 @@ export type CanvasConnection = {
     toNodeId: string;
 };
 export type CanvasConnectionResolver<TMetadata = unknown> = (first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>, firstHandleType: "source" | "target") => Omit<CanvasConnection, "id"> | null;
+export type CanvasGroupResolver<TMetadata = unknown> = (node: CanvasNode<TMetadata>, group: CanvasNode<TMetadata>) => boolean;
 export type ConnectionHandle = {
     nodeId: string;
     handleType: "source" | "target";
@@ -110,6 +111,7 @@ export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
     onDocumentChange?: (document: CanvasDocument<TMetadata>) => void;
     onViewportChange?: (viewport: ViewportTransform) => void;
     resolveConnection?: CanvasConnectionResolver<TMetadata>;
+    canGroupNode?: CanvasGroupResolver<TMetadata>;
 };
 export type UseCanvasResult<TMetadata = unknown> = {
     document: CanvasDocument<TMetadata>;

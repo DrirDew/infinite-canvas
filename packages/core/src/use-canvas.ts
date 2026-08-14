@@ -21,6 +21,7 @@ export function useCanvas<TMetadata = unknown>({
     onDocumentChange,
     onViewportChange,
     resolveConnection,
+    canGroupNode,
     historyLimit = canvasDefaults.historyLimit,
     dragThreshold = canvasDefaults.dragThreshold,
     groupPadding = canvasDefaults.groupPadding,
@@ -44,10 +45,12 @@ export function useCanvas<TMetadata = unknown>({
     const onChangeRef = useRef(onDocumentChange);
     const onViewportChangeRef = useRef(onViewportChange);
     const connectionResolverRef = useRef(resolveConnection);
+    const groupResolverRef = useRef(canGroupNode);
     const behaviorRef = useRef(behavior);
     onChangeRef.current = onDocumentChange;
     onViewportChangeRef.current = onViewportChange;
     connectionResolverRef.current = resolveConnection;
+    groupResolverRef.current = canGroupNode;
     behaviorRef.current = behavior;
 
     const commands = useMemo(() => {
@@ -136,13 +139,13 @@ export function useCanvas<TMetadata = unknown>({
                 const position = drag.positions.get(node.id);
                 return position ? { ...node, position: { x: position.x + dx, y: position.y + dy } } : node;
             });
-            const target = findGroupDropTarget(movedIds, nodes);
+            const target = findGroupDropTarget(movedIds, nodes, groupResolverRef.current);
             if (finalize) {
                 nodes = target
                     ? snapNodesIntoGroup(movedIds, nodes, target, behaviorRef.current.groupPadding)
                     : nodes.map((node) => {
                           if (!movedIds.has(node.id) || isGroupNode(node)) return node;
-                          const groupId = findContainingGroupId(node, nodes);
+                          const groupId = findContainingGroupId(node, nodes, groupResolverRef.current);
                           return node.groupId === groupId ? node : { ...node, groupId };
                       });
             }
