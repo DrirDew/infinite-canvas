@@ -1,4 +1,4 @@
-import { useMemo, type MouseEvent, type SVGAttributes } from "react";
+import { useMemo, type CSSProperties, type MouseEvent, type SVGAttributes } from "react";
 import { canvasDefaults } from "./defaults.js";
 import { getConnectionPath } from "./geometry.js";
 import type { CanvasTheme } from "./theme.js";
@@ -17,16 +17,18 @@ export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     resolveStyle?: (connection: CanvasConnection, active: boolean) => CanvasConnectionStyle;
     previewStyle?: CanvasConnectionStyle;
     hitStrokeWidth?: number;
+    className?: string;
+    style?: CSSProperties;
     onConnectionSelect?: (connection: CanvasConnection) => void;
     onConnectionContextMenu?: (event: MouseEvent<SVGPathElement>, connection: CanvasConnection) => void;
 };
 
-export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, resolvePath = getConnectionPath, resolveStyle, previewStyle, hitStrokeWidth = canvasDefaults.connectionStrokeHitWidth, onConnectionSelect, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
+export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, resolvePath = getConnectionPath, resolveStyle, previewStyle, hitStrokeWidth = canvasDefaults.connectionStrokeHitWidth, className, style, onConnectionSelect, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
     const byId = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     const source = interaction ? byId.get(interaction.handle.nodeId) : undefined;
     const target = interaction?.targetNodeId ? byId.get(interaction.targetNodeId) : undefined;
     return (
-        <svg style={{ position: "absolute", left: 0, top: 0, width: 1, height: 1, overflow: "visible", pointerEvents: "none", transform: "translateZ(0)", zIndex: 0 }}>
+        <svg className={className} style={{ position: "absolute", left: 0, top: 0, width: 1, height: 1, overflow: "visible", pointerEvents: "none", transform: "translateZ(0)", zIndex: 0, ...style }}>
             {connections.map((connection) => {
                 const from = byId.get(connection.fromNodeId);
                 const to = byId.get(connection.toNodeId);

@@ -15,7 +15,9 @@ test("renders core connection, selection, and minimap layers", () => {
     expect(canvasHtml).toContain("background:rebeccapurple");
     expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} selectedConnectionId="ab" theme={canvasThemes.light} />)).toContain('data-connection-id="ab"');
     expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} resolvePath={() => "M 0 0 L 1 1"} />)).toContain('d="M 0 0 L 1 1"');
-    expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} hitStrokeWidth={24} resolveStyle={() => ({ stroke: "red", strokeWidth: 5, strokeDasharray: "2 2" })} />)).toContain('stroke="red" stroke-width="5" stroke-dasharray="2 2"');
+    const connectionHtml = renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} hitStrokeWidth={24} className="custom-connections" style={{ zIndex: 2 }} resolveStyle={() => ({ stroke: "red", strokeWidth: 5, strokeDasharray: "2 2" })} />);
+    expect(connectionHtml).toContain('class="custom-connections"');
+    expect(connectionHtml).toContain('stroke="red" stroke-width="5" stroke-dasharray="2 2"');
     expect(renderToString(<CanvasSelectionBox rect={{ x: 10, y: 20, width: 30, height: 40 }} scale={2} theme={canvasThemes.light} />)).toContain('stroke-dasharray="3 2"');
     expect(renderToString(<CanvasSelectionBox rect={{ x: 10, y: 20, width: 30, height: 40 }} scale={2} theme={canvasThemes.light} className="custom-selection" rectProps={{ stroke: "red", strokeDasharray: "none" }} />)).toContain('class="custom-selection"');
     expect(renderToString(<CanvasMinimap nodes={nodes} viewport={{ x: 0, y: 0, k: 1 }} viewportSize={{ width: 800, height: 600 }} theme={canvasThemes.light} onViewportChange={() => {}} />)).toContain('data-node-id="a"');

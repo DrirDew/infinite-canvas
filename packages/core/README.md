@@ -76,7 +76,7 @@ const editor = useCanvasEditor({
 
 仓库内运行 `bun run dev:examples` 可查看文档快照回调、自定义节点内容、未知节点占位和多实例隔离示例。
 
-`CanvasSelectionBox` 保持随缩放稳定的默认描边，同时允许通过 `className`、`style` 和 `rectProps` 覆盖容器与矩形 SVG 属性。`CanvasMinimap` 可配置 `worldPadding`、节点和视口最小可见尺寸，通过 `className`、`style` 接入应用布局，并用 `nodeStyle`、`renderNode`、`viewportStyle` 扩展缩略节点和视口外观。
+`CanvasConnectionLayer`、`CanvasSelectionBox` 和 `CanvasMinimap` 均支持 `className`、`style` 接入宿主布局。框选层额外开放 `rectProps`；小地图可配置 `worldPadding`、节点和视口最小可见尺寸，并用 `nodeStyle`、`renderNode`、`viewportStyle` 扩展缩略节点和视口外观。
 
 `CanvasNodeResizeHandles` 可配置控制点命中尺寸并通过 `renderHandle` 渲染四角视觉；`CanvasNodeConnectionHandles` 可配置命中尺寸、节点偏移、默认圆点尺寸或自定义源/目标端口内容。所有默认尺寸均可从 `canvasDefaults` 读取，便于宿主组件保持一致。
 
