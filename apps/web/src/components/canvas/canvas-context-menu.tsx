@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { ContextMenuState } from "@/types/canvas";
 

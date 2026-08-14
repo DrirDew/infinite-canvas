@@ -4,7 +4,7 @@
 
 内置节点只有文本、图片、视频、音频、生成配置、组六种;其余节点(Markdown、SVG、HTML、3D 全景等)都是插件。
 
-作者只写节点 UI 与逻辑,**类型、JSX、宿主 React、构建全部由 [`@infinite-canvas/plugin-sdk`](../packages/plugin-sdk/README.md) 提供**,写 TSX 全程有代码提示;产物仍是宿主加载器现有契约的 ESM(React external、宿主单例)。
+作者只写节点 UI 与逻辑,**类型、JSX、宿主 React、构建全部由 [`@basketikun/plugin-sdk`](../packages/plugin-sdk/README.md) 提供**,写 TSX 全程有代码提示;产物仍是宿主加载器现有契约的 ESM(React external、宿主单例)。
 
 ## 目录约定
 
@@ -67,8 +67,8 @@ VITE_DEV_PLUGINS=/plugins/markdown.js,/plugins/svg.js
 默认导出 `definePlugin({...})`(对象形式,**无需再 `const { React } = runtime`**):
 
 ```tsx
-import { definePlugin, useState } from "@infinite-canvas/plugin-sdk";
-import type { CanvasNodeContentProps } from "@infinite-canvas/plugin-sdk";
+import { definePlugin, useState } from "@basketikun/plugin-sdk";
+import type { CanvasNodeContentProps } from "@basketikun/plugin-sdk";
 
 function Content({ ctx }: CanvasNodeContentProps) {
     const [n, setN] = useState(0);

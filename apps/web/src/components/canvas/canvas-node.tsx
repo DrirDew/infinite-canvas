@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ChevronRight, Copy, Download, Group, Image as ImageIcon, Music2, Puzzle, RefreshCw, Star, Trash2, Video } from "lucide-react";
-import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasUnknownNode, canvasThemes } from "@infinite-canvas/core";
+import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasUnknownNode, canvasThemes } from "@basketikun/infinite-canvas";
 import { formatBytes } from "@/lib/image-utils";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { buildNodeContext } from "@/lib/canvas/plugin-node-context";

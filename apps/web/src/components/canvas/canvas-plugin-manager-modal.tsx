@@ -3,7 +3,7 @@ import { App, Button, Input, Modal, Popconfirm, Switch, Tabs } from "antd";
 import { AlertTriangle, Download, Puzzle, RefreshCw, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import { installPluginFromUrl, setPluginEnabled, uninstallPlugin, updatePlugin } from "@/lib/canvas/plugin-loader";
 import { fetchOfficialPlugins, hasUpgrade, type OfficialPluginEntry } from "@/lib/canvas/plugin-registry";
 import { useThemeStore } from "@/stores/use-theme-store";

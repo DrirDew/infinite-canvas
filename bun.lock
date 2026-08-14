@@ -32,9 +32,9 @@
       },
     },
     "apps/examples": {
-      "name": "@infinite-canvas/examples",
+      "name": "@basketikun/examples",
       "dependencies": {
-        "@infinite-canvas/core": "workspace:*",
+        "@basketikun/infinite-canvas": "workspace:*",
         "react": "19.2.5",
         "react-dom": "19.2.5",
       },
@@ -47,14 +47,14 @@
       },
     },
     "apps/web": {
-      "name": "@infinite-canvas/web",
+      "name": "@basketikun/web",
       "version": "0.1.0",
       "dependencies": {
         "@ant-design/icons": "^6.1.1",
         "@ant-design/pro-components": "3.0.0-beta.3",
         "@codemirror/lang-javascript": "^6.2.5",
         "@codemirror/lang-json": "^6.0.2",
-        "@infinite-canvas/core": "workspace:*",
+        "@basketikun/infinite-canvas": "workspace:*",
         "@tanstack/react-query": "^5.100.9",
         "@uiw/react-codemirror": "^4.25.9",
         "antd": "^6.4.2",
@@ -119,7 +119,7 @@
       },
     },
     "packages/core": {
-      "name": "@infinite-canvas/core",
+      "name": "@basketikun/infinite-canvas",
       "version": "0.1.0",
       "devDependencies": {
         "@types/react": "19.1.12",
@@ -131,7 +131,7 @@
       },
     },
     "packages/plugin-sdk": {
-      "name": "@infinite-canvas/plugin-sdk",
+      "name": "@basketikun/plugin-sdk",
       "version": "0.1.0",
       "devDependencies": {
         "@types/react": "19.1.12",
@@ -146,7 +146,7 @@
       "name": "canvas-official-plugins",
       "version": "1.0.0",
       "devDependencies": {
-        "@infinite-canvas/plugin-sdk": "workspace:*",
+        "@basketikun/plugin-sdk": "workspace:*",
         "esbuild": "^0.25.0",
       },
     },
@@ -154,7 +154,7 @@
       "name": "canvas-plugin-html",
       "version": "1.2.0",
       "devDependencies": {
-        "@infinite-canvas/plugin-sdk": "workspace:*",
+        "@basketikun/plugin-sdk": "workspace:*",
         "@types/react": "19.1.12",
         "typescript": "^5",
       },
@@ -163,7 +163,7 @@
       "name": "canvas-plugin-markdown",
       "version": "1.1.0",
       "devDependencies": {
-        "@infinite-canvas/plugin-sdk": "workspace:*",
+        "@basketikun/plugin-sdk": "workspace:*",
         "@types/react": "19.1.12",
         "typescript": "^5",
       },
@@ -172,7 +172,7 @@
       "name": "canvas-plugin-panorama",
       "version": "1.1.0",
       "devDependencies": {
-        "@infinite-canvas/plugin-sdk": "workspace:*",
+        "@basketikun/plugin-sdk": "workspace:*",
         "@types/react": "19.1.12",
         "typescript": "^5",
       },
@@ -181,7 +181,7 @@
       "name": "canvas-plugin-svg",
       "version": "1.1.0",
       "devDependencies": {
-        "@infinite-canvas/plugin-sdk": "workspace:*",
+        "@basketikun/plugin-sdk": "workspace:*",
         "@types/react": "19.1.12",
         "typescript": "^5",
       },
@@ -190,7 +190,7 @@
       "name": "canvas-plugin-template",
       "version": "1.0.0",
       "devDependencies": {
-        "@infinite-canvas/plugin-sdk": "workspace:*",
+        "@basketikun/plugin-sdk": "workspace:*",
         "@types/react": "19.1.12",
         "typescript": "^5",
       },
@@ -465,13 +465,13 @@
 
     "@img/sharp-win32-x64": ["@img/sharp-win32-x64@0.34.5", "https://registry.npmmirror.com/@img/sharp-win32-x64/-/sharp-win32-x64-0.34.5.tgz", { "os": "win32", "cpu": "x64" }, "sha512-+29YMsqY2/9eFEiW93eqWnuLcWcufowXewwSNIT6UwZdUUCrM3oFjMWH/Z6/TMmb4hlFenmfAVbpWeup2jryCw=="],
 
-    "@infinite-canvas/core": ["@infinite-canvas/core@workspace:packages/core"],
+    "@basketikun/infinite-canvas": ["@basketikun/infinite-canvas@workspace:packages/core"],
 
-    "@infinite-canvas/examples": ["@infinite-canvas/examples@workspace:apps/examples"],
+    "@basketikun/examples": ["@basketikun/examples@workspace:apps/examples"],
 
-    "@infinite-canvas/plugin-sdk": ["@infinite-canvas/plugin-sdk@workspace:packages/plugin-sdk"],
+    "@basketikun/plugin-sdk": ["@basketikun/plugin-sdk@workspace:packages/plugin-sdk"],
 
-    "@infinite-canvas/web": ["@infinite-canvas/web@workspace:apps/web"],
+    "@basketikun/web": ["@basketikun/web@workspace:apps/web"],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "https://registry.npmmirror.com/@jridgewell/gen-mapping/-/gen-mapping-0.3.13.tgz", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 
@@ -2315,15 +2315,15 @@
 
     "@emotion/serialize/@emotion/unitless": ["@emotion/unitless@0.10.0", "https://registry.npmmirror.com/@emotion/unitless/-/unitless-0.10.0.tgz", {}, "sha512-dFoMUuQA20zvtVTuxZww6OHoJYgrzfKM1t52mVySDJnMSEa08ruEvdYQbhvyu6soU+NeLVd3yKfTfT0NeV6qGg=="],
 
-    "@infinite-canvas/examples/react": ["react@19.2.5", "https://registry.npmmirror.com/react/-/react-19.2.5.tgz", {}, "sha512-llUJLzz1zTUBrskt2pwZgLq59AemifIftw4aB7JxOqf1HY2FDaGDxgwpAPVzHU1kdWabH7FauP4i1oEeer2WCA=="],
+    "@basketikun/examples/react": ["react@19.2.5", "https://registry.npmmirror.com/react/-/react-19.2.5.tgz", {}, "sha512-llUJLzz1zTUBrskt2pwZgLq59AemifIftw4aB7JxOqf1HY2FDaGDxgwpAPVzHU1kdWabH7FauP4i1oEeer2WCA=="],
 
-    "@infinite-canvas/examples/react-dom": ["react-dom@19.2.5", "https://registry.npmmirror.com/react-dom/-/react-dom-19.2.5.tgz", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.5" } }, "sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag=="],
+    "@basketikun/examples/react-dom": ["react-dom@19.2.5", "https://registry.npmmirror.com/react-dom/-/react-dom-19.2.5.tgz", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.5" } }, "sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag=="],
 
-    "@infinite-canvas/web/@types/node": ["@types/node@20.19.43", "https://registry.npmmirror.com/@types/node/-/node-20.19.43.tgz", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA=="],
+    "@basketikun/web/@types/node": ["@types/node@20.19.43", "https://registry.npmmirror.com/@types/node/-/node-20.19.43.tgz", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA=="],
 
-    "@infinite-canvas/web/react": ["react@19.2.5", "https://registry.npmmirror.com/react/-/react-19.2.5.tgz", {}, "sha512-llUJLzz1zTUBrskt2pwZgLq59AemifIftw4aB7JxOqf1HY2FDaGDxgwpAPVzHU1kdWabH7FauP4i1oEeer2WCA=="],
+    "@basketikun/web/react": ["react@19.2.5", "https://registry.npmmirror.com/react/-/react-19.2.5.tgz", {}, "sha512-llUJLzz1zTUBrskt2pwZgLq59AemifIftw4aB7JxOqf1HY2FDaGDxgwpAPVzHU1kdWabH7FauP4i1oEeer2WCA=="],
 
-    "@infinite-canvas/web/react-dom": ["react-dom@19.2.5", "https://registry.npmmirror.com/react-dom/-/react-dom-19.2.5.tgz", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.5" } }, "sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag=="],
+    "@basketikun/web/react-dom": ["react-dom@19.2.5", "https://registry.npmmirror.com/react-dom/-/react-dom-19.2.5.tgz", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.5" } }, "sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag=="],
 
     "@mdx-js/mdx/@types/hast": ["@types/hast@3.0.5", "https://registry.npmmirror.com/@types/hast/-/hast-3.0.5.tgz", { "dependencies": { "@types/unist": "*" } }, "sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g=="],
 

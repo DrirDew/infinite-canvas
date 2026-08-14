@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 
 import type { CanvasAgentOp } from "@/lib/canvas/canvas-agent-ops";
-import type { CanvasTheme } from "@infinite-canvas/core";
+import type { CanvasTheme } from "@basketikun/infinite-canvas";
 import type { CanvasConnection, CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
 import type { CanvasResourceKind } from "@/lib/canvas/canvas-resource-references";
 

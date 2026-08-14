@@ -1,6 +1,6 @@
 import { createPluginStorage, emitCanvasEvent, onCanvasEvent } from "@/lib/canvas/canvas-event-bus";
 import { getNodePluginId } from "@/lib/canvas/node-registry";
-import type { CanvasTheme } from "@infinite-canvas/core";
+import type { CanvasTheme } from "@basketikun/infinite-canvas";
 import type { CanvasNodeData } from "@/types/canvas";
 import type { CanvasNodeContext, CanvasPluginHost } from "@/types/canvas-plugin";
 

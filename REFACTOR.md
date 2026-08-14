@@ -11,10 +11,10 @@
 
 项目重构为 monorepo，主要由以下部分组成：
 
-- `@infinite-canvas/core`：可独立发布和嵌入的 React 画布引擎。
+- `@basketikun/infinite-canvas`：可独立发布和嵌入的 React 画布引擎。
 - `apps/web`：基于 core 构建的完整 AI 创作应用，也是唯一的插件宿主。
 - `apps/examples`：只引入 core 的最小演示项目。
-- `@infinite-canvas/plugin-sdk`：面向 Web 应用插件的开发契约，不属于 core。
+- `@basketikun/plugin-sdk`：面向 Web 应用插件的开发契约，不属于 core。
 
 Core 只提供画布能力和扩展切入点，不实现插件、业务、持久化或 AI。Web 负责产品能力，并用 Cordis 管理应用插件。
 
@@ -27,8 +27,8 @@ infinite-canvas/
 │   ├── docs/                # 文档站
 │   └── examples/            # Core 最小演示项目
 ├── packages/
-│   ├── core/                # @infinite-canvas/core
-│   ├── plugin-sdk/          # @infinite-canvas/plugin-sdk
+│   ├── core/                # @basketikun/infinite-canvas
+│   ├── plugin-sdk/          # @basketikun/plugin-sdk
 │   └── canvas-agent/        # @basketikun/canvas-agent
 ├── plugins/
 │   ├── user/                # 插件模板和示例
@@ -41,7 +41,7 @@ infinite-canvas/
 
 ```mermaid
 flowchart LR
-    Consumer[第三方 React 应用] --> Core[@infinite-canvas/core]
+    Consumer[第三方 React 应用] --> Core[@basketikun/infinite-canvas]
     Example[Core Example] --> Core
     Web[官方 Web 应用] --> Core
     Web --> Runtime[Cordis 插件运行时]
@@ -51,7 +51,7 @@ flowchart LR
     Extensions --> Web
     Extensions --> Adapter[画布适配]
     Adapter --> Core
-    SDK[@infinite-canvas/plugin-sdk] --> System
+    SDK[@basketikun/plugin-sdk] --> System
     SDK --> User
 ```
 
@@ -178,7 +178,7 @@ Core 不提供持久化。第三方使用方自行选择存储方式；官方 We
 
 1. **Monorepo 基座（已完成）**：Web 与文档站移入 `apps/`，Canvas Agent 与 Plugin SDK 移入 `packages/`，插件移入 `plugins/user`，统一使用根 Bun workspace 和 `bun.lock`。
 2. **拆 Core（进行中）**：先迁移画布文档类型、坐标与几何等纯逻辑，再迁移实例状态和基础渲染；Core 内不得引用 `apps/web` 的别名、业务 store、i18n、Ant Design 或持久化。
-3. **建立 Examples（已完成）**：新增 `apps/examples`，只依赖 `@infinite-canvas/core`，用单画布产品示例验证公开入口与宿主组合；多实例隔离由 Core 测试覆盖。
+3. **建立 Examples（已完成）**：新增 `apps/examples`，只依赖 `@basketikun/infinite-canvas`，用单画布产品示例验证公开入口与宿主组合；多实例隔离由 Core 测试覆盖。
 4. **Web 接回 Core**：Web 通过 Core 公开 API 组合项目、生成任务、素材、Agent 与插件适配，不直接访问 Core 内部 store。
 5. **替换插件运行时**：删除旧 loader/runtime 后再接入 Cordis，不保留两套运行时并行。
 

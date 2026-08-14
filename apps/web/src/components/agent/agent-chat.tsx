@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, useSpring, useTransform } from "motion/react";
 import { useTranslation } from "react-i18next";
 
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import { summarizeCanvasAgentOps } from "@/lib/canvas/canvas-agent-ops";
 import { useAgentStore, type AgentChatItem, type AgentPendingApproval, type AgentPendingToolCall, type AgentTokenUsage } from "@/stores/use-agent-store";
 import { AgentApprovalCard, AgentChatMessage, AgentCommandGroup, AgentPendingToolCard, AgentToolCard, AgentWorkingMessage } from "./agent-chat-message";

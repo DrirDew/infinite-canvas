@@ -3,7 +3,7 @@ import { ConfigProvider, Switch } from "antd";
 import { useTranslation } from "react-i18next";
 
 import i18n from "@/i18n";
-import { type CanvasTheme } from "@infinite-canvas/core";
+import { type CanvasTheme } from "@basketikun/infinite-canvas";
 import type { AiConfig } from "@/stores/use-config-store";
 
 const qualityOptions = [

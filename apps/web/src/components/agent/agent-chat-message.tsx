@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import i18n from "@/i18n";
 import { useCopyText } from "@/hooks/use-copy-text";
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import { useAgentStore, type AgentCanvasReference, type AgentPendingApproval, type AgentSkillReference } from "@/stores/use-agent-store";
 import { resolveAgentMessageAssetUrl, revealAgentLocalFile } from "@/services/api/canvas-agent";
 import { AgentCanvasReferencePreview, canvasReferenceIcon, canvasReferenceKindLabel } from "./agent-canvas-reference-preview";

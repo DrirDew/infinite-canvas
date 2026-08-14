@@ -6,7 +6,7 @@ import { Bot, History, MessageSquare, PanelRightClose, PlugZap, Plus, Sparkles, 
 import { useTranslation } from "react-i18next";
 
 import i18n from "@/i18n";
-import { canvasThemes, fitNodeSize } from "@infinite-canvas/core";
+import { canvasThemes, fitNodeSize } from "@basketikun/infinite-canvas";
 import { upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
 import { imageMetadata } from "@/lib/canvas/canvas-node-factory";
 import { resolveCanvasReferenceImages } from "@/lib/canvas/canvas-resource-references";

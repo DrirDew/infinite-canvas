@@ -4,7 +4,7 @@ import { seedanceReferenceLabel } from "@/lib/seedance-video";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { imageToDataUrl } from "@/services/image-storage";
-import { getCanvasDownstreamNodes, getCanvasUpstreamNodes } from "@infinite-canvas/core";
+import { getCanvasDownstreamNodes, getCanvasUpstreamNodes } from "@basketikun/infinite-canvas";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/types/canvas";
 
 export type CanvasResourceKind = "image" | "video" | "audio" | "text";

@@ -1,20 +1,20 @@
-# @infinite-canvas/core
+# @basketikun/infinite-canvas
 
 可独立嵌入 React 应用的无限画布引擎，提供文档、选择、历史、视口、几何、指针交互和基础渲染，不包含 AI、插件宿主、持久化或官方 Web 业务。
 
 ## 安装与入口
 
 ```bash
-bun add @infinite-canvas/core react
+bun add @basketikun/infinite-canvas react
 ```
 
 Core 只要求 React 18+，不强制依赖 `react-dom`。包以 MIT 协议发布，使用 NodeNext ESM，并提供源码映射和声明映射。
 
 | 入口 | 内容 |
 | --- | --- |
-| `@infinite-canvas/core` | 全部公开 API |
-| `@infinite-canvas/core/headless` | 文档、几何、选择器、快捷键、主题和默认配置，不加载 React，也不在声明中依赖浏览器 DOM 类型 |
-| `@infinite-canvas/core/react` | Hooks 与基础渲染组件 |
+| `@basketikun/infinite-canvas` | 全部公开 API |
+| `@basketikun/infinite-canvas/headless` | 文档、几何、选择器、快捷键、主题和默认配置，不加载 React，也不在声明中依赖浏览器 DOM 类型 |
+| `@basketikun/infinite-canvas/react` | Hooks 与基础渲染组件 |
 
 ## 快速开始
 
@@ -29,7 +29,7 @@ import {
     canvasThemes,
     useCanvas,
     useCanvasInteractions,
-} from "@infinite-canvas/core";
+} from "@basketikun/infinite-canvas";
 import { useRef } from "react";
 
 function Editor() {

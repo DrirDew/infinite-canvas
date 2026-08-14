@@ -4,7 +4,7 @@ import { BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import { useThemeStore } from "@/stores/use-theme-store";
 
 export function CanvasPromptLibrary({ onSelect }: { onSelect: (prompt: string) => void }) {

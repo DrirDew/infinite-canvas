@@ -32,7 +32,7 @@ import {
     useCanvasInteractions,
     type CanvasBackgroundMode,
     type CanvasDocument,
-} from "@infinite-canvas/core";
+} from "@basketikun/infinite-canvas";
 import { App, Button, Modal } from "antd";
 import { NODE_DEFAULT_SIZE, getNodeSpec } from "@/constant/canvas";
 import { CanvasConfigComposer } from "@/components/canvas/canvas-config-composer";

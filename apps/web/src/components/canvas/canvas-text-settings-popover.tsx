@@ -5,7 +5,7 @@ import { Button } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { reasoningEffortLabel, TextSettingsPanel } from "@/components/text-settings-panel";
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { AiConfig, ReasoningEffort } from "@/stores/use-config-store";
 

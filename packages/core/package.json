@@ -1,5 +1,5 @@
 {
-    "name": "@infinite-canvas/core",
+    "name": "@basketikun/infinite-canvas",
     "version": "0.1.0",
     "description": "Embeddable React infinite canvas engine",
     "keywords": ["canvas", "infinite-canvas", "react", "diagram", "node-editor"],

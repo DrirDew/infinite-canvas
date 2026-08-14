@@ -10,7 +10,7 @@
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
-        "@infinite-canvas/plugin-sdk": "workspace:*",
+        "@basketikun/plugin-sdk": "workspace:*",
         "@types/react": "19.1.12",
         "typescript": "^5"
     }

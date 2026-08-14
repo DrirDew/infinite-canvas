@@ -1,5 +1,5 @@
 {
-  "name": "@infinite-canvas/examples",
+  "name": "@basketikun/examples",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,7 +7,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@infinite-canvas/core": "workspace:*",
+    "@basketikun/infinite-canvas": "workspace:*",
     "react": "19.2.5",
     "react-dom": "19.2.5"
   },

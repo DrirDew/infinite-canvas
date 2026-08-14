@@ -5,7 +5,7 @@ import { Image } from "antd";
 import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
 
 import i18n from "@/i18n";
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import { isImeComposing, isPlainEnterKey } from "@/lib/keyboard-event";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";

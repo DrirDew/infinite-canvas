@@ -5,7 +5,7 @@ import { BookOpen, Check, ChevronRight, Download, Eye, FileText, Image as ImageI
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
-import { canvasThemes, type CanvasTheme } from "@infinite-canvas/core";
+import { canvasThemes, type CanvasTheme } from "@basketikun/infinite-canvas";
 import { exportCanvasNodes } from "@/lib/canvas/canvas-export";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { cn } from "@/lib/utils";

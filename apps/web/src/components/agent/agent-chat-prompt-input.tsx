@@ -3,7 +3,7 @@ import { Popover } from "antd";
 import { Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import { buildCanvasResourceReferences, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { isImeComposing, isPlainEnterKey } from "@/lib/keyboard-event";
 import type { AgentSkillSummary } from "@/services/api/canvas-agent";

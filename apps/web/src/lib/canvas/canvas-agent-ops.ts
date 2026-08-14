@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { normalizeConnection, removeDocumentConnections, removeDocumentNodes } from "@infinite-canvas/core";
+import { normalizeConnection, removeDocumentConnections, removeDocumentNodes } from "@basketikun/infinite-canvas";
 
 import i18n from "@/i18n";
 import { resolveCanvasConnection } from "@/lib/canvas/canvas-connection";

@@ -44,7 +44,7 @@ export default defineConfig({
     resolve: {
         alias: {
             "@": resolve(webDir, "src"),
-            "@infinite-canvas/core": resolve(webDir, "../../packages/core/src/index.ts"),
+            "@basketikun/infinite-canvas": resolve(webDir, "../../packages/core/src/index.ts"),
         },
     },
     define: {

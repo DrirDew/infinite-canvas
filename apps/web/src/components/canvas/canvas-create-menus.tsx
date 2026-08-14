@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { ImageIcon, List, Music2, Settings2, Video, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
 import { CanvasNodeType, type ConnectionHandle, type Position } from "@/types/canvas";

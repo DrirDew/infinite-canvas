@@ -1,4 +1,4 @@
-import type { CanvasConnectionResolver } from "@infinite-canvas/core";
+import type { CanvasConnectionResolver } from "@basketikun/infinite-canvas";
 import { CanvasNodeType, type CanvasNodeMetadata } from "@/types/canvas";
 
 export const resolveCanvasConnection: CanvasConnectionResolver<CanvasNodeMetadata> = (first, second, firstHandleType) => {

@@ -8,7 +8,7 @@
         "build": "node build.mjs"
     },
     "devDependencies": {
-        "@infinite-canvas/plugin-sdk": "workspace:*",
+        "@basketikun/plugin-sdk": "workspace:*",
         "esbuild": "^0.25.0"
     }
 }

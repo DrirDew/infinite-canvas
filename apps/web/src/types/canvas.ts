@@ -1,4 +1,4 @@
-import type { CanvasConnection, CanvasNode, ConnectionHandle, Position, ViewportTransform } from "@infinite-canvas/core";
+import type { CanvasConnection, CanvasNode, ConnectionHandle, Position, ViewportTransform } from "@basketikun/infinite-canvas";
 
 export enum CanvasNodeType {
     Image = "image",

@@ -1,4 +1,4 @@
-import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, useCanvas, useCanvasInteractions, type CanvasDocument } from "@infinite-canvas/core";
+import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, useCanvas, useCanvasInteractions, type CanvasDocument } from "@basketikun/infinite-canvas";
 import { useRef } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";

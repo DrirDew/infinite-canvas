@@ -3,7 +3,7 @@ import { Button, Checkbox } from "antd";
 import { FolderOpen, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes } from "@basketikun/infinite-canvas";
 import type { AgentThreadSummary } from "@/stores/use-agent-store";
 
 export function AgentHistoryView({
