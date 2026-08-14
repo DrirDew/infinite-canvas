@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject, type WheelEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject, type WheelEvent } from "react";
 import { canvasDefaults } from "./defaults";
 import { zoomViewportAtPoint } from "./geometry";
 import type { CanvasBackgroundMode, CanvasTheme } from "./theme";
@@ -6,6 +6,8 @@ import type { CanvasTool, ViewportTransform } from "./types";
 
 const DEFAULT_IGNORE_SELECTOR = "[data-canvas-no-zoom]";
 const NODE_SELECTOR = "[data-node-id],[data-connection-id]";
+const cursorOwners = new Set<object>();
+let previousBodyCursor = "";
 type PanState = {
     active: boolean;
     x: number;
@@ -26,6 +28,10 @@ export type InfiniteCanvasProps = {
     minZoom?: number;
     maxZoom?: number;
     ignoreSelector?: string;
+    className?: string;
+    style?: CSSProperties;
+    tabIndex?: number;
+    ariaLabel?: string;
     onViewportChange: (viewport: ViewportTransform) => void;
     onCanvasPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
     onCanvasDeselect?: () => void;
@@ -45,6 +51,10 @@ export function InfiniteCanvas({
     minZoom = canvasDefaults.minZoom,
     maxZoom = canvasDefaults.maxZoom,
     ignoreSelector = DEFAULT_IGNORE_SELECTOR,
+    className,
+    style,
+    tabIndex = 0,
+    ariaLabel = "Infinite canvas",
     onViewportChange,
     onCanvasPointerDown,
     onCanvasDeselect,
@@ -54,6 +64,7 @@ export function InfiniteCanvas({
     children,
 }: InfiniteCanvasProps) {
     const panRef = useRef<PanState>({ active: false, x: 0, y: 0, initialX: 0, initialY: 0, moved: false, background: false });
+    const cursorOwnerRef = useRef({});
     const frameRef = useRef<number | null>(null);
     const nextViewportRef = useRef<ViewportTransform | null>(null);
     const viewportRef = useRef(viewport);
@@ -66,72 +77,25 @@ export function InfiniteCanvas({
     viewportChangeRef.current = onViewportChange;
     deselectRef.current = onCanvasDeselect;
 
-    useEffect(() => {
-        const down = (event: KeyboardEvent) => {
-            if (event.key === "Control") setControl(true);
-            if (event.code !== "Space" || isEditable(event.target)) return;
-            event.preventDefault();
-            setSpace(true);
-        };
-        const up = (event: KeyboardEvent) => {
-            if (event.key === "Control") setControl(false);
-            if (event.code !== "Space" || isEditable(event.target)) return;
-            event.preventDefault();
-            setSpace(false);
-        };
-        const blur = () => {
-            setSpace(false);
-            setControl(false);
-            panRef.current.active = false;
-            nextViewportRef.current = null;
-            if (frameRef.current) cancelAnimationFrame(frameRef.current);
-            frameRef.current = null;
-            setPanning(false);
-            document.body.style.cursor = "";
-        };
-        window.addEventListener("keydown", down);
-        window.addEventListener("keyup", up);
-        window.addEventListener("blur", blur);
-        return () => {
-            window.removeEventListener("keydown", down);
-            window.removeEventListener("keyup", up);
-            window.removeEventListener("blur", blur);
-            document.body.style.cursor = "";
-        };
+    const cancel = useCallback(() => {
+        setSpace(false);
+        setControl(false);
+        panRef.current.active = false;
+        nextViewportRef.current = null;
+        if (frameRef.current) cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+        setPanning(false);
+        releaseBodyCursor(cursorOwnerRef.current);
     }, []);
 
     useEffect(() => {
-        const move = (event: globalThis.PointerEvent) => {
-            const pan = panRef.current;
-            if (!pan.active) return;
-            const dx = event.clientX - pan.x;
-            const dy = event.clientY - pan.y;
-            pan.moved ||= Math.abs(dx) > 3 || Math.abs(dy) > 3;
-            nextViewportRef.current = { x: pan.initialX + dx, y: pan.initialY + dy, k: viewportRef.current.k };
-            if (frameRef.current) return;
-            frameRef.current = requestAnimationFrame(() => {
-                frameRef.current = null;
-                if (nextViewportRef.current) viewportChangeRef.current(nextViewportRef.current);
-            });
-        };
-        const up = () => {
-            const pan = panRef.current;
-            if (!pan.active) return;
-            if (!pan.moved && pan.background) deselectRef.current?.();
-            pan.active = false;
-            setPanning(false);
-            document.body.style.cursor = "";
-        };
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", up);
-        window.addEventListener("pointercancel", up);
+        window.addEventListener("blur", cancel);
         return () => {
-            window.removeEventListener("pointermove", move);
-            window.removeEventListener("pointerup", up);
-            window.removeEventListener("pointercancel", up);
+            window.removeEventListener("blur", cancel);
             if (frameRef.current) cancelAnimationFrame(frameRef.current);
+            releaseBodyCursor(cursorOwnerRef.current);
         };
-    }, []);
+    }, [cancel]);
 
     useEffect(() => {
         const element = containerRef.current;
@@ -144,6 +108,27 @@ export function InfiniteCanvas({
     }, [containerRef, ignoreSelector]);
 
     const activeTool = control || space ? invertTool(tool) : tool;
+    const move = (event: PointerEvent<HTMLDivElement>) => {
+        const pan = panRef.current;
+        if (!pan.active) return;
+        const dx = event.clientX - pan.x;
+        const dy = event.clientY - pan.y;
+        pan.moved ||= Math.abs(dx) > 3 || Math.abs(dy) > 3;
+        nextViewportRef.current = { x: pan.initialX + dx, y: pan.initialY + dy, k: viewportRef.current.k };
+        if (frameRef.current) return;
+        frameRef.current = requestAnimationFrame(() => {
+            frameRef.current = null;
+            if (nextViewportRef.current) viewportChangeRef.current(nextViewportRef.current);
+        });
+    };
+    const end = (cancelled = false) => {
+        const pan = panRef.current;
+        if (!pan.active) return;
+        if (!cancelled && !pan.moved && pan.background) deselectRef.current?.();
+        pan.active = false;
+        setPanning(false);
+        releaseBodyCursor(cursorOwnerRef.current);
+    };
     const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
         if (ignored(event.target, ignoreSelector) || (event.target instanceof Element && event.target.closest("[data-connection-create-menu]"))) return;
         const background = !(event.target instanceof Element && event.target.closest(NODE_SELECTOR));
@@ -153,7 +138,7 @@ export function InfiniteCanvas({
             event.currentTarget.setPointerCapture(event.pointerId);
             panRef.current = { active: true, x: event.clientX, y: event.clientY, initialX: viewport.x, initialY: viewport.y, moved: false, background };
             setPanning(true);
-            document.body.style.cursor = "grabbing";
+            acquireBodyCursor(cursorOwnerRef.current);
         } else if (event.button === 0 && background) {
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
@@ -178,8 +163,32 @@ export function InfiniteCanvas({
     return (
         <div
             ref={containerRef}
-            style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", userSelect: "none", touchAction: "none", background: theme.canvas.background, cursor: panning ? "grabbing" : activeTool === "pan" ? "grab" : undefined }}
+            className={className}
+            tabIndex={tabIndex}
+            aria-label={ariaLabel}
+            style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", userSelect: "none", touchAction: "none", outline: "none", background: theme.canvas.background, cursor: panning ? "grabbing" : activeTool === "pan" ? "grab" : undefined, ...style }}
+            onPointerDownCapture={(event) => {
+                if (!isEditable(event.target)) event.currentTarget.focus({ preventScroll: true });
+            }}
             onPointerDown={pointerDown}
+            onPointerMove={move}
+            onPointerUp={() => end()}
+            onPointerCancel={() => end(true)}
+            onKeyDown={(event) => {
+                if (event.key === "Control") setControl(true);
+                if (event.code !== "Space" || isEditable(event.target)) return;
+                event.preventDefault();
+                setSpace(true);
+            }}
+            onKeyUp={(event) => {
+                if (event.key === "Control") setControl(false);
+                if (event.code !== "Space" || isEditable(event.target)) return;
+                event.preventDefault();
+                setSpace(false);
+            }}
+            onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) cancel();
+            }}
             onDoubleClick={(event) => {
                 if (!ignored(event.target, ignoreSelector) && !(event.target instanceof Element && event.target.closest(NODE_SELECTOR))) onCanvasDoubleClick?.(event);
             }}
@@ -198,4 +207,13 @@ export function InfiniteCanvas({
 
 const invertTool = (tool: CanvasTool): CanvasTool => (tool === "select" ? "pan" : "select");
 const ignored = (target: EventTarget | null, selector: string) => target instanceof Element && Boolean(target.closest(selector));
-const isEditable = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof Element && Boolean(target.closest("[contenteditable='true']")));
+const isEditable = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest("input,textarea,select,button,a,[contenteditable='true'],[role='textbox']"));
+const acquireBodyCursor = (owner: object) => {
+    if (!cursorOwners.size) previousBodyCursor = document.body.style.cursor;
+    cursorOwners.add(owner);
+    document.body.style.cursor = "grabbing";
+};
+const releaseBodyCursor = (owner: object) => {
+    if (!cursorOwners.delete(owner) || cursorOwners.size) return;
+    document.body.style.cursor = previousBodyCursor;
+};

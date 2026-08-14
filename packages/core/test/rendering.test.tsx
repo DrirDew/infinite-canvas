@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
+import { createRef } from "react";
 import { renderToString } from "react-dom/server";
-import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, CanvasUnknownNode, canvasThemes, type CanvasNode } from "../src";
+import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, CanvasUnknownNode, InfiniteCanvas, canvasThemes, type CanvasNode } from "../src";
 
 const nodes: CanvasNode[] = [
     { id: "a", type: "test", title: "A", position: { x: 0, y: 0 }, width: 100, height: 100 },
@@ -8,6 +9,7 @@ const nodes: CanvasNode[] = [
 ];
 
 test("renders core connection, selection, and minimap layers", () => {
+    expect(renderToString(<InfiniteCanvas containerRef={createRef<HTMLDivElement>()} viewport={{ x: 0, y: 0, k: 1 }} theme={canvasThemes.light} tool="select" className="custom-canvas" ariaLabel="Editor" onViewportChange={() => {}} />)).toContain('tabindex="0" aria-label="Editor"');
     expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} selectedConnectionId="ab" theme={canvasThemes.light} />)).toContain('data-connection-id="ab"');
     expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} resolvePath={() => "M 0 0 L 1 1"} />)).toContain('d="M 0 0 L 1 1"');
     expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} hitStrokeWidth={24} resolveStyle={() => ({ stroke: "red", strokeWidth: 5, strokeDasharray: "2 2" })} />)).toContain('stroke="red" stroke-width="5" stroke-dasharray="2 2"');

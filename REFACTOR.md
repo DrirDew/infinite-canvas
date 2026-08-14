@@ -330,6 +330,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - `CanvasSelectionBox` 提供稳定 Props 类型，并开放容器样式与矩形 SVG 属性覆盖。
 - `CanvasMinimap` 开放世界边距、节点与视口最小可见尺寸和容器类名，默认布局保持不变。
 - 空文档与有节点文档的小地图统一使用 `worldPadding`，首次新增节点前后不再切换到固定世界范围。
+- `InfiniteCanvas` 将空格/Control 工具切换限制在聚焦实例，平移改由 Pointer Capture 驱动，并按实例所有权管理全局抓取光标。
 - Core npm 包补齐仓库、文档、问题反馈、关键词与随包 MIT 许可证元数据。
 - `setDocument` 与其他文档命令统一触发 `onDocumentChange`，同时继续清空当前选择、交互和历史。
 - Core 节点更新拒绝空或重复 ID；节点重命名、分组角色和类型变化会同步维护子节点归属、连线端点与注入策略约束。
