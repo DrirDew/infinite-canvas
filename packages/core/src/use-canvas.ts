@@ -188,14 +188,19 @@ export function useCanvas<TMetadata = unknown>({
             addConnection: (connection: CanvasConnection) => transaction((document) => addDocumentConnections(document, [connection])),
             addConnections: (connections: CanvasConnection[]) => transaction((document) => addDocumentConnections(document, connections)),
             removeConnections: (ids: Iterable<string>) => transaction((document) => removeDocumentConnections(document, ids)),
-            selectNodes: (ids: Iterable<string>) => updateSelection({ nodeIds: new Set(ids), connectionId: null }),
+            selectNodes(ids: Iterable<string>) {
+                const available = new Set(documentRef.current.nodes.map((node) => node.id));
+                updateSelection({ nodeIds: new Set([...ids].filter((id) => available.has(id))), connectionId: null });
+            },
             selectNodesInRect(rect, initialIds: Iterable<string> = []) {
-                const nodeIds = new Set(initialIds);
-                nodesInRect(documentRef.current.nodes, rect).forEach((node) => nodeIds.add(node.id));
+                const nodes = documentRef.current.nodes;
+                const available = new Set(nodes.map((node) => node.id));
+                const nodeIds = new Set([...initialIds].filter((id) => available.has(id)));
+                nodesInRect(nodes, rect).forEach((node) => nodeIds.add(node.id));
                 updateSelection({ nodeIds, connectionId: null });
                 return nodeIds;
             },
-            selectConnection: (connectionId: string | null) => updateSelection({ nodeIds: new Set(), connectionId }),
+            selectConnection: (connectionId: string | null) => updateSelection({ nodeIds: new Set(), connectionId: connectionId && documentRef.current.connections.some((connection) => connection.id === connectionId) ? connectionId : null }),
             clearSelection: () => updateSelection(emptySelection()),
             startNodeDrag(ids: Iterable<string>, pointer: Position) {
                 commitPreview();

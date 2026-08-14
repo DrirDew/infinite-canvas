@@ -101,6 +101,15 @@ test("viewport and rectangle selection stay inside each instance", () => {
     expect([...second.commands.getSelection().nodeIds]).toEqual([]);
 });
 
+test("selection commands discard missing document ids", () => {
+    const canvas = createCanvas({ nodes: [node("a")], connections: [] });
+    canvas.commands.selectNodes(["a", "missing"]);
+    expect([...canvas.commands.getSelection().nodeIds]).toEqual(["a"]);
+    canvas.commands.selectConnection("missing");
+    expect(canvas.commands.getSelection().connectionId).toBeNull();
+    expect([...canvas.commands.selectNodesInRect({ x: 1000, y: 1000, width: 10, height: 10 }, ["a", "missing"])]).toEqual(["a"]);
+});
+
 test("drag previews commit once, snap into groups, and cancel safely", () => {
     const canvas = createCanvas({
         nodes: [node("a"), { ...node("group"), type: "group", role: "group", position: { x: 300, y: 0 }, width: 400, height: 300 }],
