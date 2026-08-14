@@ -1,4 +1,4 @@
-import { useMemo, useRef, type CSSProperties, type PointerEvent } from "react";
+import { useMemo, useRef, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { nodeBounds } from "./geometry.js";
 import type { CanvasTheme } from "./theme.js";
 import type { CanvasNode, CanvasSize, ViewportTransform } from "./types.js";
@@ -10,6 +10,9 @@ export type CanvasMinimapProps<TMetadata = unknown> = {
     theme: CanvasTheme;
     onViewportChange: (viewport: ViewportTransform) => void;
     nodeColor?: (node: CanvasNode<TMetadata>) => string;
+    nodeStyle?: (node: CanvasNode<TMetadata>) => CSSProperties;
+    renderNode?: (node: CanvasNode<TMetadata>) => ReactNode;
+    viewportStyle?: CSSProperties;
     width?: number;
     height?: number;
     worldPadding?: number;
@@ -19,7 +22,7 @@ export type CanvasMinimapProps<TMetadata = unknown> = {
     style?: CSSProperties;
 };
 
-export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme, onViewportChange, nodeColor, width = 240, height = 160, worldPadding = 500, minNodeSize = 2, minViewportSize = 4, className, style }: CanvasMinimapProps<TMetadata>) {
+export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme, onViewportChange, nodeColor, nodeStyle, renderNode, viewportStyle, width = 240, height = 160, worldPadding = 500, minNodeSize = 2, minViewportSize = 4, className, style }: CanvasMinimapProps<TMetadata>) {
     const ref = useRef<HTMLDivElement>(null);
     const dragging = useRef(false);
     const layout = useMemo(() => {
@@ -62,9 +65,9 @@ export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme,
             >
                 {nodes.map((node) => {
                     const position = toMap(node.position.x, node.position.y);
-                    return <div key={node.id} data-node-id={node.id} style={{ position: "absolute", left: position.x, top: position.y, width: Math.max(node.width * layout.scale, minNodeSize), height: Math.max(node.height * layout.scale, minNodeSize), borderRadius: 1, opacity: 0.8, background: nodeColor?.(node) || theme.node.muted }} />;
+                    return <div key={node.id} data-node-id={node.id} style={{ position: "absolute", left: position.x, top: position.y, width: Math.max(node.width * layout.scale, minNodeSize), height: Math.max(node.height * layout.scale, minNodeSize), borderRadius: 1, opacity: 0.8, background: nodeColor?.(node) || theme.node.muted, ...nodeStyle?.(node) }}>{renderNode?.(node)}</div>;
                 })}
-                <div style={{ position: "absolute", pointerEvents: "none", left: viewportStart.x, top: viewportStart.y, width: Math.max(viewportEnd.x - viewportStart.x, minViewportSize), height: Math.max(viewportEnd.y - viewportStart.y, minViewportSize), border: `1px solid ${theme.node.activeStroke}`, background: `${theme.node.activeStroke}18` }} />
+                <div style={{ position: "absolute", pointerEvents: "none", left: viewportStart.x, top: viewportStart.y, width: Math.max(viewportEnd.x - viewportStart.x, minViewportSize), height: Math.max(viewportEnd.y - viewportStart.y, minViewportSize), border: `1px solid ${theme.node.activeStroke}`, background: `${theme.node.activeStroke}18`, ...viewportStyle }} />
             </div>
         </div>
     );

@@ -19,7 +19,7 @@ test("renders core connection, selection, and minimap layers", () => {
     expect(renderToString(<CanvasSelectionBox rect={{ x: 10, y: 20, width: 30, height: 40 }} scale={2} theme={canvasThemes.light} />)).toContain('stroke-dasharray="3 2"');
     expect(renderToString(<CanvasSelectionBox rect={{ x: 10, y: 20, width: 30, height: 40 }} scale={2} theme={canvasThemes.light} className="custom-selection" rectProps={{ stroke: "red", strokeDasharray: "none" }} />)).toContain('class="custom-selection"');
     expect(renderToString(<CanvasMinimap nodes={nodes} viewport={{ x: 0, y: 0, k: 1 }} viewportSize={{ width: 800, height: 600 }} theme={canvasThemes.light} onViewportChange={() => {}} />)).toContain('data-node-id="a"');
-    expect(renderToString(<CanvasMinimap nodes={nodes} viewport={{ x: 0, y: 0, k: 1 }} viewportSize={{ width: 800, height: 600 }} theme={canvasThemes.light} onViewportChange={() => {}} worldPadding={100} minNodeSize={6} className="custom-minimap" />)).toContain('class="custom-minimap"');
+    expect(renderToString(<CanvasMinimap nodes={nodes} viewport={{ x: 0, y: 0, k: 1 }} viewportSize={{ width: 800, height: 600 }} theme={canvasThemes.light} onViewportChange={() => {}} worldPadding={100} minNodeSize={6} className="custom-minimap" nodeStyle={() => ({ borderRadius: 8 })} renderNode={(node) => <span data-minimap-content={node.id} />} />)).toContain('data-minimap-content="a"');
     expect(renderToString(<CanvasMinimap nodes={[]} viewport={{ x: 0, y: 0, k: 1 }} viewportSize={{ width: 800, height: 600 }} theme={canvasThemes.light} onViewportChange={() => {}} worldPadding={100} />)).toContain("width:640px");
 });
 

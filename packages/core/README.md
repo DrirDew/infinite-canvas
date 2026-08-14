@@ -76,7 +76,7 @@ const editor = useCanvasEditor({
 
 仓库内运行 `bun run dev:examples` 可查看文档快照回调、自定义节点内容、未知节点占位和多实例隔离示例。
 
-`CanvasSelectionBox` 保持随缩放稳定的默认描边，同时允许通过 `className`、`style` 和 `rectProps` 覆盖容器与矩形 SVG 属性。`CanvasMinimap` 可配置 `worldPadding`、节点和视口最小可见尺寸，并通过 `className`、`style` 接入应用布局。
+`CanvasSelectionBox` 保持随缩放稳定的默认描边，同时允许通过 `className`、`style` 和 `rectProps` 覆盖容器与矩形 SVG 属性。`CanvasMinimap` 可配置 `worldPadding`、节点和视口最小可见尺寸，通过 `className`、`style` 接入应用布局，并用 `nodeStyle`、`renderNode`、`viewportStyle` 扩展缩略节点和视口外观。
 
 `CanvasNodeResizeHandles` 可配置控制点命中尺寸并通过 `renderHandle` 渲染四角视觉；`CanvasNodeConnectionHandles` 可配置命中尺寸、节点偏移、默认圆点尺寸或自定义源/目标端口内容。
 
@@ -96,7 +96,7 @@ const editor = useCanvasEditor({
 - `internal/window-events.ts`：按事件类型复用单个 window 监听，并向各画布实例分发全局生命周期事件。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
 - `connection-layer.tsx` / `selection-box.tsx`：不限制世界坐标范围的连线、连线预览和框选渲染。
-- `minimap.tsx`：可自定义节点颜色、世界边距和最小可见尺寸的独立小地图。
+- `minimap.tsx`：可自定义节点内容、样式、世界边距和最小可见尺寸的独立小地图。
 - `node.tsx`：节点定位外壳、四角缩放控制、连接端口和未知节点占位。
 - `shortcuts.ts`：跨平台画布快捷键识别。
 - `geometry/viewport.ts`、`geometry/nodes.ts`、`geometry/connections.ts`：按视口、节点分组和连线职责拆分的纯几何工具；`geometry.ts` 保持统一公开入口。
