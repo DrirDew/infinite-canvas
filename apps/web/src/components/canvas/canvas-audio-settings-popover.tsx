@@ -5,7 +5,7 @@ import { Button } from "antd";
 
 import { AudioSettingsPanel } from "@/components/audio-settings-panel";
 import { audioFormatLabel, audioSpeedLabel, audioVoiceLabel } from "@/lib/audio-generation";
-import { canvasThemes } from "@/lib/canvas-theme";
+import { canvasThemes } from "@infinite-canvas/core";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { AiConfig } from "@/stores/use-config-store";
 

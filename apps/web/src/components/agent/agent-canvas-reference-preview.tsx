@@ -2,7 +2,7 @@ import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import i18n from "@/i18n";
-import { canvasThemes } from "@/lib/canvas-theme";
+import { canvasThemes } from "@infinite-canvas/core";
 import type { AgentCanvasReference } from "@/stores/use-agent-store";
 
 export function AgentCanvasReferencePreview({ reference, previewUrl, previewText, theme }: { reference: AgentCanvasReference; previewUrl?: string; previewText?: string; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {

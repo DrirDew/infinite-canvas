@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { boolConfig, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceDurationOptions, seedancePixelLabel, seedanceRatioOptions, seedanceResolutionOptions } from "@/lib/seedance-video";
-import { type CanvasTheme } from "@/lib/canvas-theme";
+import { type CanvasTheme } from "@infinite-canvas/core";
 import { type AiConfig } from "@/stores/use-config-store";
 
 const resolutionOptions = [

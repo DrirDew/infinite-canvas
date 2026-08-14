@@ -1,7 +1,7 @@
 import { Button, Tooltip } from "antd";
 import { ChevronDown } from "lucide-react";
 
-import { canvasThemes } from "@/lib/canvas-theme";
+import { canvasThemes } from "@infinite-canvas/core";
 
 export function AgentScrollToBottom({
     theme,

@@ -5,7 +5,7 @@ import { CheckCircle2, ChevronDown, CircleAlert, CircleDot, Copy, Trash2, Triang
 import { useTranslation } from "react-i18next";
 
 import i18n from "@/i18n";
-import { canvasThemes } from "@/lib/canvas-theme";
+import { canvasThemes } from "@infinite-canvas/core";
 import type { AgentEventLog } from "@/stores/use-agent-store";
 import { formatLogJson, formatLogText, type AgentLogContext } from "./agent-event-formatters";
 import { AgentScrollToBottom } from "./agent-scroll-to-bottom";

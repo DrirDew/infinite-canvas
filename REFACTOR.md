@@ -286,7 +286,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - AI 生成结果已通过 `updateNode` 或 `transaction` 添加、更新节点和连线，多节点初始化继续保持原子提交。
 - Agent 操作转换为 Core 命令。
 - Web 插件节点定义通过适配层交给 Core。
-- Web 统一从 Core 引用画布主题，删除重复的 `canvas-theme.ts`。
+- Web 已统一从 Core 引用画布主题，并删除重复的 `apps/web/src/lib/canvas-theme.ts`。
 
 ### 10.6 扩充 Examples
 

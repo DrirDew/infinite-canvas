@@ -4,8 +4,7 @@ import { persist, type PersistStorage, type StorageValue } from "zustand/middlew
 import { nanoid } from "nanoid";
 import i18n from "@/i18n";
 import { localForageStorage } from "@/lib/localforage-storage";
-import type { CanvasBackgroundMode } from "@/lib/canvas-theme";
-import type { CanvasDocument } from "@infinite-canvas/core";
+import type { CanvasBackgroundMode, CanvasDocument } from "@infinite-canvas/core";
 import type { CanvasAssistantSession, CanvasNodeMetadata, ViewportTransform } from "@/types/canvas";
 
 export type CanvasProject = {

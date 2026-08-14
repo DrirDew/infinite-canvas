@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 import { LocalAgentPanel } from "./local-agent-panel";
-import { canvasThemes } from "@/lib/canvas-theme";
+import { canvasThemes } from "@infinite-canvas/core";
 import { CANVAS_AGENT_PANEL_MOTION_MS, useAgentStore } from "@/stores/use-agent-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 

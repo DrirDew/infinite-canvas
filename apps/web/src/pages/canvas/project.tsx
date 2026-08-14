@@ -13,7 +13,6 @@ import { uploadImage } from "@/services/image-storage";
 import { uploadMediaFile } from "@/services/file-storage";
 import { nanoid } from "nanoid";
 import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
-import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "@/lib/canvas/canvas-image-data";
@@ -21,6 +20,7 @@ import {
     CanvasConnectionLayer,
     CanvasMinimap,
     CanvasSelectionBox,
+    canvasThemes,
     fitNodeSize,
     InfiniteCanvas,
     nodeSizeFromRatio,
@@ -29,6 +29,7 @@ import {
     resolveCanvasShortcut,
     screenToCanvas as screenPointToCanvas,
     useCanvas,
+    type CanvasBackgroundMode,
     type CanvasDocument,
 } from "@infinite-canvas/core";
 import { App, Button, Modal } from "antd";
