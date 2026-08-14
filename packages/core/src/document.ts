@@ -43,15 +43,26 @@ export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>,
     return added.length ? { ...document, nodes: [...document.nodes, ...added] } : document;
 }
 
-export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata>, id: string, patch: CanvasNodePatch<TMetadata>) {
+export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata>, id: string, patch: CanvasNodePatch<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>) {
     const index = document.nodes.findIndex((node) => node.id === id);
     if (index < 0) return document;
     const node = document.nodes[index];
-    const next = typeof patch === "function" ? patch(node) : { ...node, ...patch };
+    let next = typeof patch === "function" ? patch(node) : { ...node, ...patch };
     if (next === node) return document;
-    const nodes = [...document.nodes];
-    nodes[index] = next;
-    return { ...document, nodes };
+    if (!next.id || (next.id !== id && document.nodes.some((item) => item.id === next.id))) return document;
+    const nodes = document.nodes.map((item, itemIndex) => {
+        if (itemIndex === index) return next;
+        if (item.groupId !== id) return item;
+        return { ...item, groupId: next.role === "group" ? next.id : undefined };
+    });
+    const groupId = next.groupId && next.groupId !== next.id && nodes.some((item) => item.id === next.groupId && item.role === "group") ? next.groupId : undefined;
+    if (groupId !== next.groupId) nodes[index] = next = { ...next, groupId };
+    const connections = document.connections.flatMap((connection) => {
+        if (connection.fromNodeId !== id && connection.toNodeId !== id) return [connection];
+        const normalized = normalizeConnection(connection.fromNodeId === id ? next.id : connection.fromNodeId, connection.toNodeId === id ? next.id : connection.toNodeId, nodes, "source", resolver);
+        return normalized ? [{ ...connection, ...normalized }] : [];
+    });
+    return { ...document, nodes, connections };
 }
 
 export function removeDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>) {

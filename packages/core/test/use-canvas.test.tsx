@@ -60,6 +60,16 @@ test("add commands reject duplicate ids and invalid connections", () => {
     expect(canvas.commands.getDocument().connections).toEqual([connection("valid", "a", "b")]);
 });
 
+test("node updates reject duplicate ids and clean invalid relationships", () => {
+    const canvas = createCanvas({ nodes: [{ ...node("group"), role: "group" }, { ...node("child"), groupId: "group" }, node("other")], connections: [connection("edge", "child", "other")] });
+    canvas.commands.updateNode("child", { id: "other" });
+    expect(canvas.commands.getDocument().nodes[1].id).toBe("child");
+    canvas.commands.updateNode("group", { role: undefined });
+    expect(canvas.commands.getDocument().nodes[1].groupId).toBeUndefined();
+    canvas.commands.updateNode("child", { role: "group" });
+    expect(canvas.commands.getDocument().connections).toEqual([]);
+});
+
 test("removing nodes clears related connections, child groups, and selection", () => {
     const canvas = createCanvas({
         nodes: [node("group"), { ...node("child"), groupId: "group" }, node("other")],

@@ -194,7 +194,7 @@ export function useCanvas<TMetadata = unknown>({
             },
             addNode: (node: CanvasNode<TMetadata>) => transaction((document) => addDocumentNodes(document, [node])),
             addNodes: (nodes: CanvasNode<TMetadata>[]) => transaction((document) => addDocumentNodes(document, nodes)),
-            updateNode: (id: string, patch: CanvasNodePatch<TMetadata>) => transaction((document) => updateDocumentNode(document, id, patch)),
+            updateNode: (id: string, patch: CanvasNodePatch<TMetadata>) => transaction((document) => updateDocumentNode(document, id, patch, connectionResolverRef.current)),
             removeNodes: (ids: Iterable<string>) => transaction((document) => removeDocumentNodes(document, ids)),
             addConnection: (connection: CanvasConnection) => transaction((document) => addDocumentConnections(document, [connection], connectionResolverRef.current)),
             addConnections: (connections: CanvasConnection[]) => transaction((document) => addDocumentConnections(document, connections, connectionResolverRef.current)),
@@ -242,7 +242,7 @@ export function useCanvas<TMetadata = unknown>({
                 commitPreview();
                 updateInteraction({ ...DEFAULT_INTERACTION, isNodeResizing: true });
             },
-            resizeNode: (id: string, width: number, height: number, position?: Position) => preview((document) => updateDocumentNode(document, id, (node) => ({ ...node, width, height, position: position || node.position }))),
+            resizeNode: (id: string, width: number, height: number, position?: Position) => preview((document) => updateDocumentNode(document, id, (node) => ({ ...node, width, height, position: position || node.position }), connectionResolverRef.current)),
             endNodeResize() {
                 commitPreview();
                 updateInteraction(DEFAULT_INTERACTION);
