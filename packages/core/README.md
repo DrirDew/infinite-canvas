@@ -70,6 +70,8 @@ const editor = useCanvasEditor({
 
 仓库内运行 `bun run dev:examples` 可查看文档快照回调、自定义节点内容、未知节点占位和多实例隔离示例。
 
+`CanvasSelectionBox` 保持随缩放稳定的默认描边，同时允许通过 `className`、`style` 和 `rectProps` 覆盖容器与矩形 SVG 属性。
+
 ## 源码职责
 
 - `types.ts`：公开文档、节点、选择和命令类型。
