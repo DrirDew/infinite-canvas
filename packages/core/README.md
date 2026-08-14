@@ -39,7 +39,7 @@ canvas.commands.undo();
 </InfiniteCanvas>;
 ```
 
-视口属于画布实例状态，不进入文档撤销历史。节点拖动、缩放、分组吸附、连线预览和画布剪贴板由 `useCanvas` 的稳定命令管理，连续节点预览和一次粘贴分别只生成一条文档历史。Core 不生成节点或连线 ID，连线与粘贴均由接入应用提供 ID。跨平台快捷键通过 `resolveCanvasShortcut` 识别，系统剪贴板媒体读取和持久化仍由接入应用负责。
+视口属于画布实例状态，不进入文档撤销历史。`useCanvasInteractions` 提供容器尺寸、坐标转换和画布中心点。节点拖动、缩放、分组吸附、连线预览和画布剪贴板由 `useCanvas` 的稳定命令管理，连续节点预览和一次粘贴分别只生成一条文档历史。Core 不生成节点或连线 ID，连线与粘贴均由接入应用提供 ID。跨平台快捷键通过 `resolveCanvasShortcut` 识别，系统剪贴板媒体读取和持久化仍由接入应用负责。
 
 仓库内运行 `bun run dev:examples` 可查看文档快照回调、自定义节点内容、未知节点占位和多实例隔离示例。
 
@@ -48,7 +48,7 @@ canvas.commands.undo();
 - `types.ts`：公开文档、节点、选择和命令类型。
 - `document.ts`：无 React 依赖的文档修改、选择清理和剪贴板变换逻辑。
 - `use-canvas.ts`：实例状态、历史、事务和预览命令。
-- `use-canvas-interactions.ts`：框选、节点选择与拖动、连线移动和全局指针生命周期。
+- `use-canvas-interactions.ts`：容器尺寸、坐标转换、框选、节点选择与拖动、连线移动和全局指针生命周期。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
 - `connection-layer.tsx` / `selection-box.tsx`：连线、连线预览和框选渲染。
 - `minimap.tsx`：可自定义节点颜色的独立小地图。

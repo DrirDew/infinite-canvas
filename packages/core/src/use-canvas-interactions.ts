@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react";
 import { normalizeRect, screenToCanvas } from "./geometry";
-import type { BaseCanvasNodeMetadata, CanvasCommands, CanvasConnectionDropResult, CanvasRect, Position } from "./types";
+import type { BaseCanvasNodeMetadata, CanvasCommands, CanvasConnectionDropResult, CanvasRect, CanvasSize, Position } from "./types";
 
 export type UseCanvasInteractionsOptions<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
     commands: CanvasCommands<TMetadata>;
@@ -10,19 +10,39 @@ export type UseCanvasInteractionsOptions<TMetadata extends BaseCanvasNodeMetadat
     onNodeSelectionChange?: (nodeIds: Set<string>, nodeId: string) => void;
     onNodeClick?: (nodeId: string) => void;
     onConnectionEnd?: (result: CanvasConnectionDropResult) => void;
+    onContainerResize?: (size: CanvasSize) => void;
 };
 
 type Marquee = { start: Position; initialNodeIds: string[] };
 
-export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>({ commands, containerRef, onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd }: UseCanvasInteractionsOptions<TMetadata>) {
+export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>({ commands, containerRef, onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize }: UseCanvasInteractionsOptions<TMetadata>) {
     const [selectionRect, setSelectionRect] = useState<CanvasRect | null>(null);
+    const [containerSize, setContainerSize] = useState<CanvasSize>({ width: 0, height: 0 });
     const commandsRef = useRef(commands);
-    const callbacksRef = useRef({ onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd });
+    const callbacksRef = useRef({ onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize });
+    const containerSizeRef = useRef(containerSize);
     const marqueeRef = useRef<Marquee | null>(null);
     const pendingSelectionRef = useRef<{ nodeId: string; ids: Set<string> } | null>(null);
     const frameRef = useRef<number | null>(null);
     commandsRef.current = commands;
-    callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd };
+    callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onContainerResize };
+
+    useLayoutEffect(() => {
+        const element = containerRef.current;
+        if (!element) return;
+        const update = () => {
+            const { width, height } = element.getBoundingClientRect();
+            if (containerSizeRef.current.width === width && containerSizeRef.current.height === height) return;
+            const size = { width, height };
+            containerSizeRef.current = size;
+            setContainerSize(size);
+            callbacksRef.current.onContainerResize?.(size);
+        };
+        update();
+        const observer = new ResizeObserver(update);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [containerRef]);
 
     const toCanvas = useCallback(
         (clientX: number, clientY: number) => {
@@ -143,5 +163,5 @@ export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>(
         };
     }, [toCanvas]);
 
-    return { selectionRect, toCanvas, getCanvasCenter, cancelSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture };
+    return { containerSize, selectionRect, toCanvas, getCanvasCenter, cancelSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture };
 }

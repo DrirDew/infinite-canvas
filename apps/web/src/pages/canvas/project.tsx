@@ -24,6 +24,7 @@ import {
     fitNodeSize,
     InfiniteCanvas,
     nodeSizeFromRatio,
+    nodesInViewport,
     normalizeConnection,
     resolveCanvasShortcut,
     useCanvas,
@@ -177,7 +178,6 @@ function InfiniteCanvasPage() {
     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [canvasTool, setCanvasTool] = useState<"select" | "pan">("select");
-    const [size, setSize] = useState({ width: 1200, height: 720 });
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [pendingConnectionCreate, setPendingConnectionCreate] = useState<PendingConnectionCreate | null>(null);
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -333,25 +333,6 @@ function InfiniteCanvasPage() {
         pendingConnectionCreateRef.current = pendingConnectionCreate;
     }, [nodes, connections, selectedNodeIds, viewport, pendingConnectionCreate]);
 
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-
-        const updateSize = () => {
-            const rect = el.getBoundingClientRect();
-            setSize({ width: rect.width, height: rect.height });
-            if (!didInitialCenterRef.current) {
-                didInitialCenterRef.current = true;
-                setViewport({ x: rect.width / 2, y: rect.height / 2, k: 1 });
-            }
-        };
-
-        updateSize();
-        const resizeObserver = new ResizeObserver(updateSize);
-        resizeObserver.observe(el);
-        return () => resizeObserver.disconnect();
-    }, [setViewport]);
-
     const keepNodeToolbar = useCallback(
         (nodeId: string) => {
             if (canvasCommands.getInteraction().isNodeDragging || nodeImageSettingsOpen || !selectedNodeIdsRef.current.has(nodeId)) return;
@@ -385,9 +366,14 @@ function InfiniteCanvasPage() {
         canvasCommands.cancelConnection();
     }, [canvasCommands]);
 
-    const { selectionRect, toCanvas: screenToCanvas, getCanvasCenter, cancelSelection: cancelCanvasSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture } = useCanvasInteractions({
+    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, cancelSelection: cancelCanvasSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture } = useCanvasInteractions({
         commands: canvasCommands,
         containerRef,
+        onContainerResize: ({ width, height }) => {
+            if (didInitialCenterRef.current) return;
+            didInitialCenterRef.current = true;
+            setViewport({ x: width / 2, y: height / 2, k: 1 });
+        },
         onCanvasPointerDown: () => {
             setContextMenu(null);
             setNodeCreatePosition(null);
@@ -420,16 +406,7 @@ function InfiniteCanvasPage() {
     });
 
     const visibleNodes = useMemo(() => {
-        const padding = 280;
-        const rect = containerRef.current?.getBoundingClientRect();
-        const width = rect?.width || size.width;
-        const height = rect?.height || size.height;
-        const viewLeft = -viewport.x / viewport.k - padding;
-        const viewTop = -viewport.y / viewport.k - padding;
-        const viewRight = viewLeft + width / viewport.k + padding * 2;
-        const viewBottom = viewTop + height / viewport.k + padding * 2;
-
-        return nodes.filter((node) => node.position.x + node.width > viewLeft && node.position.x < viewRight && node.position.y + node.height > viewTop && node.position.y < viewBottom);
+        return nodesInViewport(nodes, viewport, size, 280);
     }, [nodes, size.height, size.width, viewport.k, viewport.x, viewport.y]);
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);

@@ -1,6 +1,7 @@
 export type Position = { x: number; y: number };
+export type CanvasSize = { width: number; height: number };
 export type ViewportTransform = Position & { k: number };
-export type CanvasRect = Position & { width: number; height: number };
+export type CanvasRect = Position & CanvasSize;
 export type CanvasTool = "select" | "pan";
 export type ViewportUpdater = ViewportTransform | ((viewport: ViewportTransform) => ViewportTransform);
 export type CanvasResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";

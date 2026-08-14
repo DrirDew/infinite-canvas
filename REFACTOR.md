@@ -289,6 +289,8 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - Web 已统一从 Core 引用画布主题，并删除重复的 `apps/web/src/lib/canvas-theme.ts`。
 - `useCanvasInteractions` 已接管框选、节点选择与拖动、连线移动和全局指针结束/取消监听；Web 只通过回调打开业务面板、创建连线 ID 或显示空白落点菜单。
 - 接入应用通过 `useCanvasInteractions` 获取屏幕坐标转换和画布中心点，不再重复读取容器边界与视口。
+- `useCanvasInteractions` 统一监听容器尺寸，Web 仅保留首次尺寸确定后的项目视口居中策略。
+- 可见节点裁剪改用 Core 的 `nodesInViewport`，Web 不再维护视口边界计算。
 
 ### 10.6 扩充 Examples
 

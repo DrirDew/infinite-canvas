@@ -1,4 +1,4 @@
-import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnectionDropTarget, type CanvasConnectionInteraction, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
+import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnectionDropTarget, type CanvasConnectionInteraction, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type CanvasSize, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
 
 export function screenToCanvas(clientX: number, clientY: number, viewport: ViewportTransform, origin: Pick<DOMRect, "left" | "top"> = { left: 0, top: 0 }): Position {
     return { x: (clientX - origin.left - viewport.x) / viewport.k, y: (clientY - origin.top - viewport.y) / viewport.k };
@@ -30,6 +30,10 @@ export function resizeNodeBounds(node: Pick<CanvasNode, "position" | "width" | "
 
 export function nodesInRect<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], rect: CanvasRect) {
     return nodes.filter((node) => rect.x < node.position.x + node.width && rect.x + rect.width > node.position.x && rect.y < node.position.y + node.height && rect.y + rect.height > node.position.y);
+}
+
+export function nodesInViewport<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], viewport: ViewportTransform, size: CanvasSize, padding = 0) {
+    return nodesInRect(nodes, { x: -viewport.x / viewport.k - padding, y: -viewport.y / viewport.k - padding, width: size.width / viewport.k + padding * 2, height: size.height / viewport.k + padding * 2 });
 }
 
 export function nodeBounds<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[]) {

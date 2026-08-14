@@ -1,11 +1,11 @@
 import { useMemo, useRef, type CSSProperties, type PointerEvent } from "react";
 import type { CanvasTheme } from "./theme";
-import type { BaseCanvasNodeMetadata, CanvasNode, ViewportTransform } from "./types";
+import type { BaseCanvasNodeMetadata, CanvasNode, CanvasSize, ViewportTransform } from "./types";
 
 export type CanvasMinimapProps<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
     nodes: CanvasNode<TMetadata>[];
     viewport: ViewportTransform;
-    viewportSize: { width: number; height: number };
+    viewportSize: CanvasSize;
     theme: CanvasTheme;
     onViewportChange: (viewport: ViewportTransform) => void;
     nodeColor?: (node: CanvasNode<TMetadata>) => string;
