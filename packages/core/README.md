@@ -177,6 +177,6 @@ Core 负责画布文档、实例状态、历史、视口、几何、基础交互
 - `infinite-canvas.tsx` / `node/` / `connection-layer.tsx` / `selection-box.tsx` / `minimap.tsx`：画布表面、节点外壳与控制、连线、框选和小地图基础渲染；`node.tsx` 保持统一入口。
 - `headless.ts` / `react.ts` / `index.ts`：分环境公开入口。
 
-仓库内运行 `bun run dev:examples` 可查看两个独立画布实例、文档快照、选择、拖动、缩放、连线、剪贴板、撤销重做和未知节点占位。
+仓库内运行 `bun run dev:examples` 可查看接近官方 Web 结构的单画布示例，包含宿主节点、选择、拖动、缩放、连线、小地图和撤销重做。
 
 包内的 `bun run test:types:headless` 使用不包含 DOM 和 React 全局类型的独立 TypeScript 配置验证 headless 消费者契约。
