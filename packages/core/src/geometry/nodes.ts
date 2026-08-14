@@ -33,7 +33,7 @@ export function nodeBounds<T>(nodes: CanvasNode<T>[]) {
 
 export const isGroupNode = <T,>(node: CanvasNode<T>) => node.role === "group";
 
-export function findGroupDropTarget<T>(movedIds: Set<string>, nodes: CanvasNode<T>[], canGroupNode?: CanvasGroupResolver<T>) {
+export function findGroupDropTarget<T>(movedIds: ReadonlySet<string>, nodes: CanvasNode<T>[], canGroupNode?: CanvasGroupResolver<T>) {
     if (nodes.some((node) => movedIds.has(node.id) && isGroupNode(node))) return null;
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return null;
@@ -52,7 +52,7 @@ export function findGroupDropTarget<T>(movedIds: Set<string>, nodes: CanvasNode<
     );
 }
 
-export function snapNodesIntoGroup<T>(movedIds: Set<string>, nodes: CanvasNode<T>[], group: CanvasNode<T>, padding = 24) {
+export function snapNodesIntoGroup<T>(movedIds: ReadonlySet<string>, nodes: CanvasNode<T>[], group: CanvasNode<T>, padding = 24) {
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return nodes;
     const bounds = nodeBounds(moving);

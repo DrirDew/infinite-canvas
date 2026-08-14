@@ -508,7 +508,7 @@ function InfiniteCanvasPage() {
     );
 
     const deleteNodes = useCallback(
-        (ids: Set<string>) => {
+        (ids: ReadonlySet<string>) => {
             if (!ids.size) return;
             const allIds = new Set(ids);
             canvasCommands.removeNodes(allIds);

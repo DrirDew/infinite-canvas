@@ -28,7 +28,7 @@ export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
 export type UseCanvasResult<TMetadata = unknown> = {
     document: CanvasDocument<TMetadata>;
     viewport: ViewportTransform;
-    selectedNodeIds: Set<string>;
+    selectedNodeIds: ReadonlySet<string>;
     selectedConnectionId: string | null;
     canUndo: boolean;
     canRedo: boolean;

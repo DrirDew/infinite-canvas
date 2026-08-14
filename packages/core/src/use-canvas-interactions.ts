@@ -7,7 +7,7 @@ import type { CanvasConnection, CanvasConnectionDropResult, CanvasRect, Position
 export type UseCanvasInteractionsOptions<TMetadata = unknown> = UseCanvasViewportOptions<TMetadata> & {
     onCanvasPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
     onNodePointerDown?: (nodeId: string) => void;
-    onNodeSelectionChange?: (nodeIds: Set<string>, nodeId: string) => void;
+    onNodeSelectionChange?: (nodeIds: ReadonlySet<string>, nodeId: string) => void;
     onNodeClick?: (nodeId: string) => void;
     onConnectionEnd?: (result: CanvasConnectionDropResult) => void;
     onResizeStart?: (nodeId: string) => void;

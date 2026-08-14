@@ -6,6 +6,8 @@
 
 Core 的公开边界包括文档与实例状态、基础编辑命令、指针与视口交互、剪贴板、快捷键识别和基础渲染。节点 `type` 是接入应用定义的普通字符串；需要参与分组引擎的节点使用 `role: "group"`，子节点通过顶层 `groupId` 归属分组。泛型 `metadata` 不受 Core 字段约束，可由接入应用自由定义。项目存储、系统剪贴板媒体、ID 生成、节点业务内容、AI、Agent 与插件宿主由接入应用负责。
 
+实例返回的 `selectedNodeIds`、`CanvasSelection.nodeIds` 和框选结果使用 `ReadonlySet`，接入应用通过选择命令修改状态，不直接写入 Core 内部集合。
+
 包以 MIT 协议发布，npm 产物包含 README、许可证以及 `core`、`headless`、`react` 三个声明完整的公开入口。
 
 ```tsx

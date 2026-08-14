@@ -13,11 +13,11 @@ type AgentBridgeParams = {
     title: string | undefined;
     nodes: CanvasNodeData[];
     connections: CanvasConnection[];
-    selectedNodeIds: Set<string>;
+    selectedNodeIds: ReadonlySet<string>;
     viewport: ViewportTransform;
     nodesRef: MutableRefObject<CanvasNodeData[]>;
     connectionsRef: MutableRefObject<CanvasConnection[]>;
-    selectedNodeIdsRef: MutableRefObject<Set<string>>;
+    selectedNodeIdsRef: MutableRefObject<ReadonlySet<string>>;
     viewportRef: MutableRefObject<ViewportTransform>;
     generateNodeRef: GenerateNodeRef;
     transaction: (updater: (document: { nodes: CanvasNodeData[]; connections: CanvasConnection[] }) => { nodes: CanvasNodeData[]; connections: CanvasConnection[] }) => unknown;

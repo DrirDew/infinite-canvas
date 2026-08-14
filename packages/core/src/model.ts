@@ -20,7 +20,7 @@ export type CanvasNode<TMetadata = unknown> = {
 export type CanvasConnection = { id: string; fromNodeId: string; toNodeId: string };
 export type CanvasDocument<TMetadata = unknown> = { nodes: CanvasNode<TMetadata>[]; connections: CanvasConnection[] };
 export type CanvasClipboard<TMetadata = unknown> = CanvasDocument<TMetadata>;
-export type CanvasSelection = { nodeIds: Set<string>; connectionId: string | null };
+export type CanvasSelection = { nodeIds: ReadonlySet<string>; connectionId: string | null };
 export type CanvasConnectionResolver<TMetadata = unknown> = (first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>, firstHandleType: "source" | "target") => Omit<CanvasConnection, "id"> | null;
 export type CanvasGroupResolver<TMetadata = unknown> = (node: CanvasNode<TMetadata>, group: CanvasNode<TMetadata>) => boolean;
 export type ConnectionHandle = { nodeId: string; handleType: "source" | "target" };

@@ -19,7 +19,7 @@ export type CanvasCommands<TMetadata = unknown> = {
     addConnections: (connections: CanvasConnection[]) => CanvasDocument<TMetadata>;
     removeConnections: (ids: Iterable<string>) => CanvasDocument<TMetadata>;
     selectNodes: (ids: Iterable<string>) => void;
-    selectNodesInRect: (rect: CanvasRect, initialIds?: Iterable<string>) => Set<string>;
+    selectNodesInRect: (rect: CanvasRect, initialIds?: Iterable<string>) => ReadonlySet<string>;
     selectConnection: (id: string | null) => void;
     clearSelection: () => void;
     startNodeDrag: (ids: Iterable<string>, pointer: Position) => void;
