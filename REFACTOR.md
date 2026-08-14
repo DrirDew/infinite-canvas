@@ -336,6 +336,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - `InfiniteCanvas` 将空格/Control 工具切换限制在聚焦实例，平移改由 Pointer Capture 驱动，并按实例所有权管理全局抓取光标。
 - Core 内部通过共享 window 事件分发器承载拖动、连线、缩放、失焦和视口动画清理，多实例不再重复注册相同原生监听。
 - 多实例平移的 body 光标所有权由内部生命周期模块集中管理，`InfiniteCanvas` 不再持有跨实例模块状态。
+- `InfiniteCanvas` 的键盘切换、平移、滚轮和表面 pointer ownership 迁入内部 Hook，组件只负责公开渲染层级。
 - `useCanvasInteractions` 将框选、节点拖动和连线的全局指针生命周期拆入内部 Hook，公开事件回调保持稳定。
 - 同一画布实例的平移、框选、节点拖动和连线共享表面级 pointer ownership，额外触点不能并行启动另一类交互。
 - Core 公共类型实现按数据模型、实例命令和 Hook 配置拆分，`types.ts` 与包级导出路径保持统一入口。
