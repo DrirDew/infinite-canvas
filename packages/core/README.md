@@ -37,7 +37,7 @@ interactions.resetViewport();
     {canvas.document.nodes.map((node) => (
         <CanvasNodeShell key={node.id} node={node} onMouseDown={(event) => interactions.onNodeMouseDown(event, node.id)} onMouseDownCapture={(event) => interactions.onNodeSelectCapture(event, node.id)}>
             {renderNode(node)}
-            <CanvasNodeResizeHandles node={node} scale={canvas.viewport.k} onResizeStart={interactions.onNodeResizeStart} onResize={interactions.onNodeResize} onResizeEnd={interactions.onNodeResizeEnd} />
+            <CanvasNodeResizeHandles node={node} scale={canvas.viewport.k} minWidth={24} minHeight={24} onResizeStart={interactions.onNodeResizeStart} onResize={interactions.onNodeResize} onResizeEnd={interactions.onNodeResizeEnd} />
             <CanvasNodeConnectionHandles nodeId={node.id} visible theme={canvasThemes.light} onConnectStart={interactions.onConnectionStart} />
         </CanvasNodeShell>
     ))}

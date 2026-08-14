@@ -302,6 +302,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - Core 将容器测量与视口动画拆为独立 `useCanvasViewport`，`useCanvasInteractions` 只组合并扩展编辑交互。
 - Core 连线方向只保留通用端口语义，Web 的 Config 禁连与方向规则通过 `resolveConnection` 策略注入。
 - Core 删除图片、文本、配置、视频和音频业务类型枚举，节点类型改为应用字符串，分组能力通过独立 `role: "group"` 表达。
+- Core 缩放最小尺寸改为通用可配置参数，Web 显式保留官方节点的 `220×160` 限制。
 
 ### 10.6 扩充 Examples
 

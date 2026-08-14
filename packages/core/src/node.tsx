@@ -14,6 +14,8 @@ export type CanvasNodeResizeHandlesProps<TMetadata extends BaseCanvasNodeMetadat
     scale: number;
     keepAspectRatio?: boolean;
     ratio?: number;
+    minWidth?: number;
+    minHeight?: number;
     onResizeStart?: (nodeId: string) => void;
     onResize: (nodeId: string, width: number, height: number, position: CanvasNode<TMetadata>["position"]) => void;
     onResizeEnd?: (nodeId: string) => void;
@@ -26,16 +28,16 @@ const resizeHandleStyles: Record<CanvasResizeCorner, CSSProperties> = {
     "bottom-right": { right: -14, bottom: -14, cursor: "nwse-resize" },
 };
 
-export function CanvasNodeResizeHandles<TMetadata extends BaseCanvasNodeMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), onResizeStart, onResize, onResizeEnd }: CanvasNodeResizeHandlesProps<TMetadata>) {
+export function CanvasNodeResizeHandles<TMetadata extends BaseCanvasNodeMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = 24, minHeight = 24, onResizeStart, onResize, onResizeEnd }: CanvasNodeResizeHandlesProps<TMetadata>) {
     const resize = useRef({ active: false, pointerId: 0, corner: "bottom-right" as CanvasResizeCorner, x: 0, y: 0, left: 0, top: 0, width: 0, height: 0, keepAspectRatio: false, ratio: 1 });
     const move = useCallback(
         (event: globalThis.PointerEvent) => {
             const current = resize.current;
             if (!current.active || event.pointerId !== current.pointerId) return;
-            const bounds = resizeNodeBounds({ position: { x: current.left, y: current.top }, width: current.width, height: current.height }, current.corner, { x: (event.clientX - current.x) / scale, y: (event.clientY - current.y) / scale }, current.keepAspectRatio, current.ratio);
+            const bounds = resizeNodeBounds({ position: { x: current.left, y: current.top }, width: current.width, height: current.height }, current.corner, { x: (event.clientX - current.x) / scale, y: (event.clientY - current.y) / scale }, current.keepAspectRatio, current.ratio, minWidth, minHeight);
             onResize(node.id, bounds.width, bounds.height, bounds.position);
         },
-        [node.id, onResize, scale],
+        [minHeight, minWidth, node.id, onResize, scale],
     );
     const end = useCallback(() => {
         if (!resize.current.active) return;

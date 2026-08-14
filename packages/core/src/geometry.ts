@@ -33,7 +33,7 @@ export function normalizeRect(start: Position, end: Position): CanvasRect {
     return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
 }
 
-export function resizeNodeBounds(node: Pick<CanvasNode, "position" | "width" | "height">, corner: CanvasResizeCorner, delta: Position, keepRatio = false, ratio = node.width / node.height, minWidth = 220, minHeight = 160) {
+export function resizeNodeBounds(node: Pick<CanvasNode, "position" | "width" | "height">, corner: CanvasResizeCorner, delta: Position, keepRatio = false, ratio = node.width / node.height, minWidth = 24, minHeight = 24) {
     const fromLeft = corner.includes("left");
     const fromTop = corner.includes("top");
     const right = node.position.x + node.width;

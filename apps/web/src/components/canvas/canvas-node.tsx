@@ -334,6 +334,8 @@ export const CanvasNode = React.memo(function CanvasNode({
                     scale={scale}
                     keepAspectRatio={(data.type === CanvasNodeType.Image && !data.metadata?.freeResize) || data.type === CanvasNodeType.Video || Boolean(definition?.keepAspectRatio?.(data))}
                     ratio={(data.metadata?.naturalWidth || data.width) / (data.metadata?.naturalHeight || data.height || 1)}
+                    minWidth={220}
+                    minHeight={160}
                     onResizeStart={onResizeStart}
                     onResize={onResize}
                     onResizeEnd={onResizeEnd}

@@ -43,6 +43,7 @@ describe("core geometry", () => {
         const node = { position: { x: 100, y: 100 }, width: 300, height: 200 };
         expect(resizeNodeBounds(node, "top-left", { x: 50, y: 20 })).toEqual({ position: { x: 150, y: 120 }, width: 250, height: 180 });
         expect(resizeNodeBounds(node, "bottom-right", { x: 100, y: 10 }, true, 1.5)).toEqual({ position: { x: 100, y: 100 }, width: 400, height: 400 / 1.5 });
+        expect(resizeNodeBounds(node, "bottom-right", { x: -500, y: -500 })).toEqual({ position: { x: 100, y: 100 }, width: 24, height: 24 });
     });
 
     test("finds valid connection targets and reports blocked nearby nodes", () => {
