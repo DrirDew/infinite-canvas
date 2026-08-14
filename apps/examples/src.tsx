@@ -1,13 +1,11 @@
-import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, normalizeRect, screenToCanvas, useCanvas, type CanvasDocument, type CanvasRect, type ViewportTransform } from "@infinite-canvas/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, screenToCanvas, useCanvas, useCanvasInteractions, type CanvasDocument, type ViewportTransform } from "@infinite-canvas/core";
+import { useCallback, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 
 function Demo({ title, accent, initial }: { title: string; accent: string; initial: ViewportTransform }) {
     const ref = useRef<HTMLDivElement>(null);
     const count = useRef(2);
-    const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
-    const [selectionRect, setSelectionRect] = useState<CanvasRect | null>(null);
     const { document, viewport, selectedNodeIds, connectionInteraction, canUndo, canRedo, commands } = useCanvas({ document: initialDocument(title), viewport: initial });
     const toCanvas = useCallback(
         (clientX: number, clientY: number) => {
@@ -17,38 +15,16 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
         [commands],
     );
 
-    useEffect(() => {
-        const move = (event: PointerEvent) => {
-            if (commands.getInteraction().connectionInteraction) {
-                commands.moveConnection(toCanvas(event.clientX, event.clientY));
-                return;
-            }
-            if (commands.getInteraction().isNodeDragging) {
-                commands.moveNodeDrag({ x: event.clientX, y: event.clientY });
-                return;
-            }
-            if (!selectionStartRef.current) return;
-            const rect = normalizeRect(selectionStartRef.current, toCanvas(event.clientX, event.clientY));
-            setSelectionRect(rect);
-            commands.selectNodesInRect(rect);
-        };
-        const up = (event: PointerEvent) => {
-            const result = commands.endConnection(toCanvas(event.clientX, event.clientY));
-            if (result?.connection) {
+    const interactions = useCanvasInteractions({
+        commands,
+        containerRef: ref,
+        onConnectionEnd: (result) => {
+            if (result.connection) {
                 const connection = result.connection;
                 if (!commands.getDocument().connections.some((item) => item.fromNodeId === connection.fromNodeId && item.toNodeId === connection.toNodeId)) commands.addConnection({ id: `${title}-connection-${Date.now()}`, ...connection });
             }
-            commands.endNodeDrag({ x: event.clientX, y: event.clientY });
-            selectionStartRef.current = null;
-            setSelectionRect(null);
-        };
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", up);
-        return () => {
-            window.removeEventListener("pointermove", move);
-            window.removeEventListener("pointerup", up);
-        };
-    }, [commands, title, toCanvas]);
+        },
+    });
 
     const add = () => {
         const index = ++count.current;
@@ -110,12 +86,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                     backgroundMode="dots"
                     onViewportChange={commands.setViewport}
                     onCanvasDeselect={commands.clearSelection}
-                    onCanvasMouseDown={(event) => {
-                        const start = toCanvas(event.clientX, event.clientY);
-                        commands.clearSelection();
-                        selectionStartRef.current = start;
-                        setSelectionRect(normalizeRect(start, start));
-                    }}
+                    onCanvasMouseDown={interactions.onCanvasMouseDown}
                 >
                     <CanvasConnectionLayer nodes={document.nodes} connections={document.connections} interaction={connectionInteraction} theme={canvasThemes.light} />
                     {document.nodes.map((node) => (
@@ -123,11 +94,8 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                             key={node.id}
                             node={node}
                             className="demo-node"
-                            onMouseDown={(event) => {
-                                event.stopPropagation();
-                                commands.selectNodes([node.id]);
-                                commands.startNodeDrag([node.id], { x: event.clientX, y: event.clientY });
-                            }}
+                            onMouseDown={(event) => interactions.onNodeMouseDown(event, node.id)}
+                            onMouseDownCapture={(event) => interactions.onNodeSelectCapture(event, node.id)}
                             style={{ borderColor: selectedNodeIds.has(node.id) ? accent : "#aaa399" }}
                         >
                             <CanvasNodeConnectionHandles
@@ -141,7 +109,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                             <small>拖动 · 缩放 · 连线 · 剪贴板</small>
                         </CanvasNodeShell>
                     ))}
-                    {selectionRect ? <CanvasSelectionBox rect={selectionRect} scale={viewport.k} theme={canvasThemes.light} /> : null}
+                    {interactions.selectionRect ? <CanvasSelectionBox rect={interactions.selectionRect} scale={viewport.k} theme={canvasThemes.light} /> : null}
                 </InfiniteCanvas>
                 <CanvasMinimap nodes={document.nodes} viewport={viewport} viewportSize={{ width: ref.current?.clientWidth || 800, height: ref.current?.clientHeight || 500 }} theme={canvasThemes.light} onViewportChange={commands.setViewport} nodeColor={() => accent} width={144} height={96} style={{ bottom: 12, left: 12 }} />
             </div>
@@ -161,7 +129,7 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 08</p>
+                <p>CORE / 09</p>
                 <h1>
                     一块画布，
                     <br />

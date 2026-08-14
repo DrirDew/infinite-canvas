@@ -287,6 +287,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - Agent 操作转换为 Core 命令。
 - Web 插件节点定义通过适配层交给 Core。
 - Web 已统一从 Core 引用画布主题，并删除重复的 `apps/web/src/lib/canvas-theme.ts`。
+- `useCanvasInteractions` 已接管框选、节点选择与拖动、连线移动和全局指针结束/取消监听；Web 只通过回调打开业务面板、创建连线 ID 或显示空白落点菜单。
 
 ### 10.6 扩充 Examples
 

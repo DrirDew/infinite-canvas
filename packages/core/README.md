@@ -3,12 +3,17 @@
 可独立嵌入 React 应用的无限画布核心，提供画布文档、选择、撤销重做、视口、主题和几何工具，不包含 AI、插件、持久化或官方 Web 业务。
 
 ```tsx
-import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, InfiniteCanvas, canvasThemes, useCanvas } from "@infinite-canvas/core";
+import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, useCanvas, useCanvasInteractions } from "@infinite-canvas/core";
 
 const canvas = useCanvas({
     document: { nodes: [], connections: [] },
     viewport: { x: 0, y: 0, k: 1 },
     onDocumentChange: saveDocument,
+});
+const interactions = useCanvasInteractions({
+    commands: canvas.commands,
+    containerRef: ref,
+    onConnectionEnd: (result) => result.connection && canvas.commands.addConnection({ id: createConnectionId(), ...result.connection }),
 });
 
 canvas.commands.addNode(node);
@@ -22,14 +27,15 @@ canvas.commands.copySelection();
 canvas.commands.pasteClipboard({ position, createNodeId, createConnectionId });
 canvas.commands.undo();
 
-<InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" onViewportChange={canvas.commands.setViewport}>
+<InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" onViewportChange={canvas.commands.setViewport} onCanvasMouseDown={interactions.onCanvasMouseDown}>
     {canvas.document.nodes.map((node) => (
-        <CanvasNodeShell key={node.id} node={node}>
+        <CanvasNodeShell key={node.id} node={node} onMouseDown={(event) => interactions.onNodeMouseDown(event, node.id)} onMouseDownCapture={(event) => interactions.onNodeSelectCapture(event, node.id)}>
             {renderNode(node)}
             <CanvasNodeResizeHandles node={node} scale={canvas.viewport.k} onResizeStart={canvas.commands.startNodeResize} onResize={canvas.commands.resizeNode} onResizeEnd={canvas.commands.endNodeResize} />
             <CanvasNodeConnectionHandles visible theme={canvasThemes.light} onConnectStart={(event, handleType) => canvas.commands.startConnection({ nodeId: node.id, handleType }, toCanvas(event.clientX, event.clientY))} />
         </CanvasNodeShell>
     ))}
+    {interactions.selectionRect ? <CanvasSelectionBox rect={interactions.selectionRect} scale={canvas.viewport.k} theme={canvasThemes.light} /> : null}
 </InfiniteCanvas>;
 ```
 
@@ -42,6 +48,7 @@ canvas.commands.undo();
 - `types.ts`：公开文档、节点、选择和命令类型。
 - `document.ts`：无 React 依赖的文档修改、选择清理和剪贴板变换逻辑。
 - `use-canvas.ts`：实例状态、历史、事务和预览命令。
+- `use-canvas-interactions.ts`：框选、节点选择与拖动、连线移动和全局指针生命周期。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
 - `connection-layer.tsx` / `selection-box.tsx`：连线、连线预览和框选渲染。
 - `minimap.tsx`：可自定义节点颜色的独立小地图。

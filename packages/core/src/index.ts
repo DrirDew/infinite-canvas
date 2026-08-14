@@ -8,3 +8,4 @@ export * from "./connection-layer";
 export * from "./selection-box";
 export * from "./minimap";
 export * from "./node";
+export * from "./use-canvas-interactions";
