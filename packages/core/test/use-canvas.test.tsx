@@ -71,6 +71,16 @@ test("node updates reject duplicate ids and clean invalid relationships", () => 
     expect(canvas.commands.getDocument().connections).toEqual([]);
 });
 
+test("node updates skip history when the effective value is unchanged", () => {
+    const canvas = createCanvas({ nodes: [node("a")], connections: [] });
+    const initial = canvas.commands.getDocument();
+    canvas.commands.updateNode("a", { title: "a" });
+    canvas.commands.updateNode("a", { groupId: "missing" });
+    canvas.commands.updateNode("a", (current) => ({ ...current, position: { ...current.position } }));
+    expect(canvas.commands.getDocument()).toBe(initial);
+    expect(canvas.commands.getHistoryDocuments()).toEqual([]);
+});
+
 test("removing nodes clears related connections, child groups, and selection", () => {
     const canvas = createCanvas({
         nodes: [node("group"), { ...node("child"), groupId: "group" }, node("other")],

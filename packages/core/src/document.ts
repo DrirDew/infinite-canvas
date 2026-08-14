@@ -66,12 +66,13 @@ export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata
     const group = next.groupId ? nodes.find((item) => item.id === next.groupId && item.role === "group") : undefined;
     const groupId = next.groupId && next.groupId !== next.id && group && (!groupResolver || groupResolver(next, group)) ? next.groupId : undefined;
     if (groupId !== next.groupId) nodes[index] = next = { ...next, groupId };
+    if (sameCanvasNode(node, next)) nodes[index] = next = node;
     const connections = document.connections.flatMap((connection) => {
         if (connection.fromNodeId !== id && connection.toNodeId !== id) return [connection];
         const normalized = normalizeConnection(connection.fromNodeId === id ? next.id : connection.fromNodeId, connection.toNodeId === id ? next.id : connection.toNodeId, nodes, "source", resolver);
-        return normalized ? [{ ...connection, ...normalized }] : [];
+        return normalized ? [normalized.fromNodeId === connection.fromNodeId && normalized.toNodeId === connection.toNodeId ? connection : { ...connection, ...normalized }] : [];
     });
-    return { ...document, nodes, connections };
+    return nodes.every((item, itemIndex) => item === document.nodes[itemIndex]) && connections.length === document.connections.length && connections.every((connection, connectionIndex) => connection === document.connections[connectionIndex]) ? document : { ...document, nodes, connections };
 }
 
 export function removeDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>) {
@@ -135,3 +136,5 @@ export function pasteCanvasClipboard<TMetadata>(clipboard: CanvasClipboard<TMeta
     });
     return { nodes, connections };
 }
+
+const sameCanvasNode = <TMetadata>(first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>) => first.id === second.id && first.type === second.type && first.role === second.role && first.groupId === second.groupId && first.title === second.title && first.position.x === second.position.x && first.position.y === second.position.y && first.width === second.width && first.height === second.height && first.metadata === second.metadata;
