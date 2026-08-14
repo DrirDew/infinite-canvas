@@ -48,13 +48,14 @@ export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme,
         onViewportChange({ x: viewportSize.width / 2 - world.x * viewport.k, y: viewportSize.height / 2 - world.y * viewport.k, k: viewport.k });
     };
     return (
-        <div className={className} style={{ position: "absolute", bottom: 96, left: 24, zIndex: 50, width, height, overflow: "hidden", borderRadius: 8, border: `1px solid ${theme.toolbar.border}`, boxShadow: "0 16px 40px rgba(0,0,0,.24)", backdropFilter: "blur(4px)", background: theme.toolbar.panel, ...style }}>
+        <div data-canvas-no-zoom className={className} style={{ position: "absolute", bottom: 96, left: 24, zIndex: 50, width, height, overflow: "hidden", borderRadius: 8, border: `1px solid ${theme.toolbar.border}`, boxShadow: "0 16px 40px rgba(0,0,0,.24)", backdropFilter: "blur(4px)", background: theme.toolbar.panel, ...style }}>
             <div
                 ref={ref}
                 style={{ position: "relative", width: "100%", height: "100%", cursor: "crosshair" }}
                 onPointerDown={(event) => {
                     if (dragging.current !== null && dragging.current !== event.pointerId) return;
                     event.preventDefault();
+                    event.stopPropagation();
                     event.currentTarget.setPointerCapture(event.pointerId);
                     dragging.current = event.pointerId;
                     update(event);
