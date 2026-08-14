@@ -35,11 +35,13 @@ export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMet
 
 export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, nodes: CanvasNode<TMetadata>[]) {
     const ids = new Set(document.nodes.map((node) => node.id));
-    const added = nodes.filter((node) => {
+    let added = nodes.filter((node) => {
         if (!node.id || ids.has(node.id)) return false;
         ids.add(node.id);
         return true;
     });
+    const available = new Map([...document.nodes, ...added].map((node) => [node.id, node]));
+    added = added.map((node) => (node.groupId && (node.groupId === node.id || available.get(node.groupId)?.role !== "group") ? { ...node, groupId: undefined } : node));
     return added.length ? { ...document, nodes: [...document.nodes, ...added] } : document;
 }
 

@@ -247,8 +247,19 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
         pasteClipboard(options: CanvasPasteOptions<TMetadata>) {
             const clipboard = clipboardRef.current;
             if (!clipboard?.nodes.length) return null;
-            const { nodes, connections } = pasteCanvasClipboard(clipboard, options);
-            transaction((document) => ({ nodes: [...document.nodes, ...nodes], connections: [...document.connections, ...connections] }));
+            const pasted = pasteCanvasClipboard(clipboard, options);
+            let nodes: CanvasNode<TMetadata>[] = [];
+            let connections: CanvasConnection[] = [];
+            transaction((document) => {
+                const withNodes = addDocumentNodes(document, pasted.nodes);
+                nodes = withNodes.nodes.slice(document.nodes.length);
+                if (!nodes.length) return document;
+                const ids = new Set(nodes.map((node) => node.id));
+                const withConnections = addDocumentConnections(withNodes, pasted.connections.filter((connection) => ids.has(connection.fromNodeId) && ids.has(connection.toNodeId)), connectionResolverRef.current);
+                connections = withConnections.connections.slice(document.connections.length);
+                return withConnections;
+            });
+            if (!nodes.length) return null;
             updateSelection({ nodeIds: new Set(nodes.map((node) => node.id)), connectionId: null });
             return { nodes, connections };
         },

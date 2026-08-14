@@ -48,7 +48,7 @@ test("adds, updates, and removes nodes and connections", () => {
 
 test("add commands reject duplicate ids and invalid connections", () => {
     const canvas = createCanvas({ nodes: [node("a"), { ...node("group"), role: "group" }], connections: [] });
-    canvas.commands.addNodes([node("a"), node("b"), node("b")]);
+    canvas.commands.addNodes([node("a"), { ...node("b"), groupId: "missing" }, node("b")]);
     canvas.commands.addConnections([
         connection("valid", "a", "b"),
         connection("valid", "b", "a"),
@@ -58,6 +58,7 @@ test("add commands reject duplicate ids and invalid connections", () => {
     ]);
     expect(canvas.commands.getDocument().nodes.map((item) => item.id)).toEqual(["a", "group", "b"]);
     expect(canvas.commands.getDocument().connections).toEqual([connection("valid", "a", "b")]);
+    expect(canvas.commands.getDocument().nodes[2].groupId).toBeUndefined();
 });
 
 test("node updates reject duplicate ids and clean invalid relationships", () => {
@@ -284,4 +285,19 @@ test("clipboard remaps groups and connections in one isolated transaction", () =
     expect(other.commands.getClipboard()).toBeNull();
     canvas.commands.undo();
     expect(canvas.commands.getDocument().nodes).toHaveLength(2);
+});
+
+test("clipboard paste rejects colliding generated ids", () => {
+    const canvas = createCanvas({ nodes: [node("a"), node("b")], connections: [connection("edge", "a", "b")] });
+    canvas.commands.selectNodes(["a", "b"]);
+    canvas.commands.copySelection();
+    expect(
+        canvas.commands.pasteClipboard({
+            position: { x: 500, y: 500 },
+            createNodeId: (current) => current.id,
+            createConnectionId: (current) => `copy-${current.id}`,
+        }),
+    ).toBeNull();
+    expect(canvas.commands.getDocument()).toEqual({ nodes: [node("a"), node("b")], connections: [connection("edge", "a", "b")] });
+    expect(canvas.commands.getHistoryDocuments()).toEqual([]);
 });
