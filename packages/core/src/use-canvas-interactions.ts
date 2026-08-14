@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { normalizeRect } from "./geometry";
 import { useCanvasViewport, type UseCanvasViewportOptions } from "./use-canvas-viewport";
-import type { BaseCanvasNodeMetadata, CanvasConnection, CanvasConnectionDropResult, CanvasRect, Position } from "./types";
+import type { CanvasConnection, CanvasConnectionDropResult, CanvasRect, Position } from "./types";
 
-export type UseCanvasInteractionsOptions<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = UseCanvasViewportOptions<TMetadata> & {
+export type UseCanvasInteractionsOptions<TMetadata = unknown> = UseCanvasViewportOptions<TMetadata> & {
     onCanvasPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
     onNodePointerDown?: (nodeId: string) => void;
     onNodeSelectionChange?: (nodeIds: Set<string>, nodeId: string) => void;
@@ -16,7 +16,7 @@ export type UseCanvasInteractionsOptions<TMetadata extends BaseCanvasNodeMetadat
 
 type Marquee = { start: Position; initialNodeIds: string[] };
 
-export function useCanvasInteractions<TMetadata extends BaseCanvasNodeMetadata>({ commands, containerRef, onContainerResize, onViewportChange, onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelect: onConnectionSelected, onConnectionContextMenu: onConnectionMenu }: UseCanvasInteractionsOptions<TMetadata>) {
+export function useCanvasInteractions<TMetadata>({ commands, containerRef, onContainerResize, onViewportChange, onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelect: onConnectionSelected, onConnectionContextMenu: onConnectionMenu }: UseCanvasInteractionsOptions<TMetadata>) {
     const [selectionRect, setSelectionRect] = useState<CanvasRect | null>(null);
     const commandsRef = useRef(commands);
     const callbacksRef = useRef({ onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelected, onConnectionMenu });

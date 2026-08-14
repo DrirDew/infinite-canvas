@@ -1,9 +1,9 @@
-import type { BaseCanvasNodeMetadata, CanvasConnection, CanvasNode } from "./types";
+import type { CanvasConnection, CanvasNode } from "./types";
 
-export function countCanvasGroupChildren<TMetadata extends BaseCanvasNodeMetadata>(nodes: CanvasNode<TMetadata>[]) {
+export function countCanvasGroupChildren<TMetadata>(nodes: CanvasNode<TMetadata>[]) {
     const counts = new Map<string, number>();
     nodes.forEach((node) => {
-        const groupId = node.metadata?.groupId;
+        const groupId = node.groupId;
         if (groupId) counts.set(groupId, (counts.get(groupId) || 0) + 1);
     });
     return counts;
@@ -23,17 +23,17 @@ export function getCanvasRelations(activeNodeId: string | null, connections: Can
     return { nodeIds, connectionIds };
 }
 
-export function getCanvasUpstreamNodes<TMetadata extends BaseCanvasNodeMetadata>(nodeId: string, nodes: CanvasNode<TMetadata>[], connections: CanvasConnection[]) {
+export function getCanvasUpstreamNodes<TMetadata>(nodeId: string, nodes: CanvasNode<TMetadata>[], connections: CanvasConnection[]) {
     const byId = new Map(nodes.map((node) => [node.id, node]));
     return connections.flatMap((connection) => (connection.toNodeId === nodeId && byId.has(connection.fromNodeId) ? [byId.get(connection.fromNodeId)!] : []));
 }
 
-export function getCanvasDownstreamNodes<TMetadata extends BaseCanvasNodeMetadata>(nodeId: string, nodes: CanvasNode<TMetadata>[], connections: CanvasConnection[]) {
+export function getCanvasDownstreamNodes<TMetadata>(nodeId: string, nodes: CanvasNode<TMetadata>[], connections: CanvasConnection[]) {
     const byId = new Map(nodes.map((node) => [node.id, node]));
     return connections.flatMap((connection) => (connection.fromNodeId === nodeId && byId.has(connection.toNodeId) ? [byId.get(connection.toNodeId)!] : []));
 }
 
-export function findCanvasUpstreamNode<TMetadata extends BaseCanvasNodeMetadata>(nodeId: string, nodes: CanvasNode<TMetadata>[], connections: CanvasConnection[], predicate: (node: CanvasNode<TMetadata>) => boolean) {
+export function findCanvasUpstreamNode<TMetadata>(nodeId: string, nodes: CanvasNode<TMetadata>[], connections: CanvasConnection[], predicate: (node: CanvasNode<TMetadata>) => boolean) {
     const byId = new Map(nodes.map((node) => [node.id, node]));
     const upstream = new Map<string, string[]>();
     connections.forEach((connection) => upstream.set(connection.toNodeId, [...(upstream.get(connection.toNodeId) || []), connection.fromNodeId]));

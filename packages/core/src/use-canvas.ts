@@ -1,21 +1,21 @@
 import { useMemo, useRef, useState } from "react";
 import { addDocumentConnections, addDocumentNodes, cleanCanvasSelection, createCanvasClipboard, pasteCanvasClipboard, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "./document";
 import { findConnectionDropTarget, findContainingGroupId, findGroupDropTarget, isGroupNode, nodesInRect, normalizeConnection, snapNodesIntoGroup } from "./geometry";
-import type { BaseCanvasNodeMetadata, CanvasClipboard, CanvasCommands, CanvasConnection, CanvasConnectionDropResult, CanvasDocument, CanvasDocumentUpdater, CanvasInteractionState, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection, ConnectionHandle, Position, UseCanvasOptions, UseCanvasResult, ViewportTransform, ViewportUpdater } from "./types";
+import type { CanvasClipboard, CanvasCommands, CanvasConnection, CanvasConnectionDropResult, CanvasDocument, CanvasDocumentUpdater, CanvasInteractionState, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection, ConnectionHandle, Position, UseCanvasOptions, UseCanvasResult, ViewportTransform, ViewportUpdater } from "./types";
 
-type CanvasHistory<TMetadata extends BaseCanvasNodeMetadata> = {
+type CanvasHistory<TMetadata> = {
     past: CanvasDocument<TMetadata>[];
     future: CanvasDocument<TMetadata>[];
 };
-type CanvasDrag<TMetadata extends BaseCanvasNodeMetadata> = { start: Position; document: CanvasDocument<TMetadata>; positions: Map<string, Position>; moved: boolean };
+type CanvasDrag<TMetadata> = { start: Position; document: CanvasDocument<TMetadata>; positions: Map<string, Position>; moved: boolean };
 
 const HISTORY_LIMIT = 50;
 const DEFAULT_VIEWPORT: ViewportTransform = { x: 0, y: 0, k: 1 };
 const DEFAULT_INTERACTION: CanvasInteractionState = { isNodeDragging: false, isNodeResizing: false, dropTargetGroupId: null, connectionInteraction: null };
 const emptySelection = (): CanvasSelection => ({ nodeIds: new Set(), connectionId: null });
-const emptyHistory = <TMetadata extends BaseCanvasNodeMetadata>(): CanvasHistory<TMetadata> => ({ past: [], future: [] });
+const emptyHistory = <TMetadata,>(): CanvasHistory<TMetadata> => ({ past: [], future: [] });
 
-export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata>({
+export function useCanvas<TMetadata = unknown>({
     document: initialDocument = { nodes: [], connections: [] },
     viewport: initialViewport = DEFAULT_VIEWPORT,
     onDocumentChange,
@@ -134,7 +134,7 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
                     : nodes.map((node) => {
                           if (!movedIds.has(node.id) || isGroupNode(node)) return node;
                           const groupId = findContainingGroupId(node, nodes);
-                          return node.metadata?.groupId === groupId ? node : { ...node, metadata: { ...node.metadata, groupId } };
+                          return node.groupId === groupId ? node : { ...node, groupId };
                       });
             }
             preview(() => ({ ...drag.document, nodes }));
@@ -183,7 +183,7 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
                 const selected = new Set(ids);
                 const moved = new Set(selected);
                 documentRef.current.nodes.forEach((node) => {
-                    if (node.metadata?.groupId && selected.has(node.metadata.groupId)) moved.add(node.id);
+                    if (node.groupId && selected.has(node.groupId)) moved.add(node.id);
                 });
                 const positions = new Map(documentRef.current.nodes.filter((node) => moved.has(node.id)).map((node) => [node.id, node.position] as const));
                 if (!positions.size) return;

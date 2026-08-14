@@ -60,7 +60,6 @@ export type CanvasNodeMetadata = {
     mimeType?: string;
     bytes?: number;
     durationMs?: number;
-    groupId?: string;
     // 插件可写入任意自定义字段
     [key: string]: unknown;
 };
@@ -68,6 +67,8 @@ export type CanvasNodeMetadata = {
 export type CanvasNodeData = {
     id: string;
     type: CanvasNodeTypeId;
+    role?: "group";
+    groupId?: string;
     title: string;
     position: Position;
     width: number;
@@ -119,7 +120,7 @@ export type CanvasTheme = {
 // ---------------------------------------------------------------------------
 
 export type CanvasAgentOp =
-    | { type: "add_node"; id?: string; nodeType?: CanvasNodeTypeId; title?: string; position?: { x: number; y: number }; x?: number; y?: number; width?: number; height?: number; metadata?: CanvasNodeMetadata }
+    | { type: "add_node"; id?: string; nodeType?: CanvasNodeTypeId; groupId?: string; title?: string; position?: { x: number; y: number }; x?: number; y?: number; width?: number; height?: number; metadata?: CanvasNodeMetadata }
     | { type: "update_node"; id: string; patch?: Partial<CanvasNodeData>; metadata?: CanvasNodeMetadata }
     | { type: "delete_node"; id?: string; ids?: string[]; nodeType?: CanvasNodeTypeId }
     | { type: "delete_connections"; id?: string; ids?: string[]; all?: boolean }

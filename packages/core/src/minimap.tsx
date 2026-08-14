@@ -1,9 +1,9 @@
 import { useMemo, useRef, type CSSProperties, type PointerEvent } from "react";
 import { nodeBounds } from "./geometry";
 import type { CanvasTheme } from "./theme";
-import type { BaseCanvasNodeMetadata, CanvasNode, CanvasSize, ViewportTransform } from "./types";
+import type { CanvasNode, CanvasSize, ViewportTransform } from "./types";
 
-export type CanvasMinimapProps<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type CanvasMinimapProps<TMetadata = unknown> = {
     nodes: CanvasNode<TMetadata>[];
     viewport: ViewportTransform;
     viewportSize: CanvasSize;
@@ -15,7 +15,7 @@ export type CanvasMinimapProps<TMetadata extends BaseCanvasNodeMetadata = BaseCa
     style?: CSSProperties;
 };
 
-export function CanvasMinimap<TMetadata extends BaseCanvasNodeMetadata>({ nodes, viewport, viewportSize, theme, onViewportChange, nodeColor, width = 240, height = 160, style }: CanvasMinimapProps<TMetadata>) {
+export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme, onViewportChange, nodeColor, width = 240, height = 160, style }: CanvasMinimapProps<TMetadata>) {
     const ref = useRef<HTMLDivElement>(null);
     const dragging = useRef(false);
     const layout = useMemo(() => {

@@ -7,7 +7,7 @@ import { getNodeSpec, isRegisteredNodeType } from "@/lib/canvas/node-registry";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type CanvasNodeTypeId, type ViewportTransform } from "@/types/canvas";
 
 export type CanvasAgentOp =
-    | { type: "add_node"; id?: string; nodeType?: CanvasNodeTypeId; title?: string; position?: { x: number; y: number }; x?: number; y?: number; width?: number; height?: number; metadata?: CanvasNodeMetadata }
+    | { type: "add_node"; id?: string; nodeType?: CanvasNodeTypeId; groupId?: string; title?: string; position?: { x: number; y: number }; x?: number; y?: number; width?: number; height?: number; metadata?: CanvasNodeMetadata }
     | { type: "update_node"; id: string; patch?: Partial<CanvasNodeData>; metadata?: CanvasNodeMetadata }
     | { type: "delete_node"; id?: string; ids?: string[]; nodeType?: CanvasNodeTypeId }
     | { type: "delete_connections"; id?: string; ids?: string[]; all?: boolean }
@@ -51,6 +51,7 @@ export function applyCanvasAgentOps(snapshot: CanvasAgentSnapshot, ops?: CanvasA
                 id: op.id || `${nodeType}-${Date.now()}-${index}`,
                 type: nodeType,
                 role: nodeType === CanvasNodeType.Group ? "group" : undefined,
+                groupId: op.groupId,
                 title: op.title || spec.title,
                 position: op.position || { x: op.x ?? index * 36, y: op.y ?? index * 36 },
                 width: op.width || spec.width,

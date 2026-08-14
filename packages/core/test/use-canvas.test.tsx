@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { renderToString } from "react-dom/server";
 import { useCanvas, type CanvasConnection, type CanvasConnectionResolver, type CanvasDocument, type CanvasNode } from "../src";
 
-type Metadata = { groupId?: string; value?: number };
+type Metadata = { value?: number };
 const node = (id: string, metadata?: Metadata): CanvasNode<Metadata> => ({
     id,
     type: "test",
@@ -46,13 +46,13 @@ test("adds, updates, and removes nodes and connections", () => {
 
 test("removing nodes clears related connections, child groups, and selection", () => {
     const canvas = createCanvas({
-        nodes: [node("group"), node("child", { groupId: "group" }), node("other")],
+        nodes: [node("group"), { ...node("child"), groupId: "group" }, node("other")],
         connections: [connection("edge", "group", "other")],
     });
     canvas.commands.selectNodes(["group", "child"]);
     canvas.commands.removeNodes(["group"]);
     expect(canvas.commands.getDocument()).toEqual({
-        nodes: [node("child", { groupId: undefined }), node("other")],
+        nodes: [node("child"), node("other")],
         connections: [],
     });
     expect([...canvas.commands.getSelection().nodeIds]).toEqual(["child"]);
@@ -107,7 +107,7 @@ test("drag previews commit once, snap into groups, and cancel safely", () => {
     canvas.commands.startNodeDrag(["a"], { x: 0, y: 0 });
     canvas.commands.moveNodeDrag({ x: 300, y: 0 });
     canvas.commands.endNodeDrag({ x: 300, y: 0 });
-    expect(canvas.commands.getDocument().nodes[0]).toEqual({ ...node("a", { groupId: "group" }), position: { x: 324, y: 24 } });
+    expect(canvas.commands.getDocument().nodes[0]).toEqual({ ...node("a"), groupId: "group", position: { x: 324, y: 24 } });
     expect(canvas.commands.getHistoryDocuments()).toHaveLength(1);
     canvas.commands.startNodeDrag(["a"], { x: 0, y: 0 });
     canvas.commands.moveNodeDrag({ x: 100, y: 0 });
@@ -116,7 +116,7 @@ test("drag previews commit once, snap into groups, and cancel safely", () => {
 });
 
 test("dragging groups moves children and resizing creates one history entry", () => {
-    const canvas = createCanvas({ nodes: [{ ...node("group"), type: "group", role: "group" }, node("child", { groupId: "group" })], connections: [] });
+    const canvas = createCanvas({ nodes: [{ ...node("group"), type: "group", role: "group" }, { ...node("child"), groupId: "group" }], connections: [] });
     canvas.commands.startNodeDrag(["group"], { x: 0, y: 0 });
     canvas.commands.endNodeDrag({ x: 100, y: 50 });
     expect(canvas.commands.getDocument().nodes.map(({ position }) => position)).toEqual([
@@ -150,7 +150,7 @@ test("connection interaction resolves targets without generating ids", () => {
 
 test("clipboard remaps groups and connections in one isolated transaction", () => {
     const canvas = createCanvas({
-        nodes: [{ ...node("group"), type: "group", role: "group", width: 300, height: 300 }, { ...node("child", { groupId: "group" }), position: { x: 50, y: 50 } }],
+        nodes: [{ ...node("group"), type: "group", role: "group", width: 300, height: 300 }, { ...node("child"), groupId: "group", position: { x: 50, y: 50 } }],
         connections: [connection("edge", "group", "child")],
     });
     const other = createCanvas();
@@ -162,9 +162,9 @@ test("clipboard remaps groups and connections in one isolated transaction", () =
         createConnectionId: (current) => `copy-${current.id}`,
         mapNode: (current) => ({ ...current, title: `${current.title} Copy` }),
     });
-    expect(pasted?.nodes.map(({ id, metadata, position }) => ({ id, metadata, position }))).toEqual([
-        { id: "copy-group", metadata: undefined, position: { x: 850, y: 850 } },
-        { id: "copy-child", metadata: { groupId: "copy-group" }, position: { x: 900, y: 900 } },
+    expect(pasted?.nodes.map(({ id, metadata, groupId, position }) => ({ id, metadata, groupId, position }))).toEqual([
+        { id: "copy-group", metadata: undefined, groupId: undefined, position: { x: 850, y: 850 } },
+        { id: "copy-child", metadata: undefined, groupId: "copy-group", position: { x: 900, y: 900 } },
     ]);
     expect(pasted?.connections).toEqual([connection("copy-edge", "copy-group", "copy-child")]);
     expect([...canvas.commands.getSelection().nodeIds]).toEqual(["copy-group", "copy-child"]);

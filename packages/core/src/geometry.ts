@@ -1,4 +1,4 @@
-import type { BaseCanvasNodeMetadata, CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, CanvasRect, CanvasResizeCorner, CanvasSize, ConnectionHandle, Position, ViewportTransform } from "./types";
+import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, CanvasRect, CanvasResizeCorner, CanvasSize, ConnectionHandle, Position, ViewportTransform } from "./types";
 
 export const CANVAS_MIN_ZOOM = 0.05;
 export const CANVAS_MAX_ZOOM = 5;
@@ -24,7 +24,7 @@ export function zoomViewportAtPoint(viewport: ViewportTransform, point: Position
     return { x: point.x - ((point.x - viewport.x) / viewport.k) * k, y: point.y - ((point.y - viewport.y) / viewport.k) * k, k };
 }
 
-export function fitViewportToNode<T extends BaseCanvasNodeMetadata>(node: CanvasNode<T>, size: CanvasSize): ViewportTransform {
+export function fitViewportToNode<T>(node: CanvasNode<T>, size: CanvasSize): ViewportTransform {
     const k = Math.min(Math.max(Math.min((size.width * 0.6) / node.width, (size.height * 0.6) / node.height), CANVAS_MIN_ZOOM), 1);
     return { x: size.width / 2 - (node.position.x + node.width / 2) * k, y: size.height / 2 - (node.position.y + node.height / 2) * k, k };
 }
@@ -49,15 +49,15 @@ export function resizeNodeBounds(node: Pick<CanvasNode, "position" | "width" | "
     return { width, height, position: { x: fromLeft ? right - width : node.position.x, y: fromTop ? bottom - height : node.position.y } };
 }
 
-export function nodesInRect<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], rect: CanvasRect) {
+export function nodesInRect<T>(nodes: CanvasNode<T>[], rect: CanvasRect) {
     return nodes.filter((node) => rect.x < node.position.x + node.width && rect.x + rect.width > node.position.x && rect.y < node.position.y + node.height && rect.y + rect.height > node.position.y);
 }
 
-export function nodesInViewport<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], viewport: ViewportTransform, size: CanvasSize, padding = 0) {
+export function nodesInViewport<T>(nodes: CanvasNode<T>[], viewport: ViewportTransform, size: CanvasSize, padding = 0) {
     return nodesInRect(nodes, { x: -viewport.x / viewport.k - padding, y: -viewport.y / viewport.k - padding, width: size.width / viewport.k + padding * 2, height: size.height / viewport.k + padding * 2 });
 }
 
-export function nodeBounds<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[]) {
+export function nodeBounds<T>(nodes: CanvasNode<T>[]) {
     return nodes.reduce(
         (acc, node) => ({
             left: Math.min(acc.left, node.position.x),
@@ -69,9 +69,9 @@ export function nodeBounds<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T
     );
 }
 
-export const isGroupNode = <T extends BaseCanvasNodeMetadata>(node: CanvasNode<T>) => node.role === "group";
+export const isGroupNode = <T,>(node: CanvasNode<T>) => node.role === "group";
 
-export function findGroupDropTarget<T extends BaseCanvasNodeMetadata>(movedIds: Set<string>, nodes: CanvasNode<T>[]) {
+export function findGroupDropTarget<T>(movedIds: Set<string>, nodes: CanvasNode<T>[]) {
     if (nodes.some((node) => movedIds.has(node.id) && isGroupNode(node))) return null;
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return null;
@@ -89,7 +89,7 @@ export function findGroupDropTarget<T extends BaseCanvasNodeMetadata>(movedIds: 
     );
 }
 
-export function snapNodesIntoGroup<T extends BaseCanvasNodeMetadata>(movedIds: Set<string>, nodes: CanvasNode<T>[], group: CanvasNode<T>) {
+export function snapNodesIntoGroup<T>(movedIds: Set<string>, nodes: CanvasNode<T>[], group: CanvasNode<T>) {
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return nodes;
     const bounds = nodeBounds(moving);
@@ -102,32 +102,32 @@ export function snapNodesIntoGroup<T extends BaseCanvasNodeMetadata>(movedIds: S
             : {
                   ...node,
                   position: { x: node.position.x + dx, y: node.position.y + dy },
-                  metadata: { ...node.metadata, groupId: group.id } as T,
+                  groupId: group.id,
               },
     );
 }
 
-export function findContainingGroupId<T extends BaseCanvasNodeMetadata>(node: CanvasNode<T>, nodes: CanvasNode<T>[]) {
+export function findContainingGroupId<T>(node: CanvasNode<T>, nodes: CanvasNode<T>[]) {
     const x = node.position.x + node.width / 2;
     const y = node.position.y + node.height / 2;
     return [...nodes].reverse().find((group) => isGroupNode(group) && group.id !== node.id && x >= group.position.x && x <= group.position.x + group.width && y >= group.position.y && y <= group.position.y + group.height)?.id;
 }
 
-export function getConnectionTargetAnchor<T extends BaseCanvasNodeMetadata>(node: CanvasNode<T>, current: ConnectionHandle) {
+export function getConnectionTargetAnchor<T>(node: CanvasNode<T>, current: ConnectionHandle) {
     return {
         x: current.handleType === "source" ? node.position.x : node.position.x + node.width,
         y: node.position.y + node.height / 2,
     };
 }
 
-export function getConnectionPath<T extends BaseCanvasNodeMetadata>(source: CanvasNode<T>, target?: CanvasNode<T>, interaction?: CanvasConnectionInteraction) {
+export function getConnectionPath<T>(source: CanvasNode<T>, target?: CanvasNode<T>, interaction?: CanvasConnectionInteraction) {
     const start = interaction?.handle.handleType === "target" ? (target ? { x: target.position.x + target.width, y: target.position.y + target.height / 2 } : interaction.pointer) : { x: source.position.x + source.width, y: source.position.y + source.height / 2 };
     const end = interaction?.handle.handleType === "target" ? { x: source.position.x, y: source.position.y + source.height / 2 } : target ? { x: target.position.x, y: target.position.y + target.height / 2 } : interaction?.pointer || start;
     const curvature = interaction ? Math.abs(end.x - start.x) * 0.5 : Math.max(Math.abs(end.x - start.x) * 0.5, 50);
     return `M ${start.x} ${start.y} C ${start.x + curvature} ${start.y}, ${end.x - curvature} ${end.y}, ${end.x} ${end.y}`;
 }
 
-export function findConnectionDropTarget<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, resolver?: CanvasConnectionResolver<T>, handleRadius = 40, nodePadding = 32): CanvasConnectionDropTarget {
+export function findConnectionDropTarget<T>(nodes: CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, resolver?: CanvasConnectionResolver<T>, handleRadius = 40, nodePadding = 32): CanvasConnectionDropTarget {
     const radius = handleRadius / Math.max(scale, 0.05);
     const padding = nodePadding / Math.max(scale, 0.05);
     let isNearNode = false;
@@ -152,7 +152,7 @@ export function findConnectionDropTarget<T extends BaseCanvasNodeMetadata>(nodes
     return { nodeId, isNearNode };
 }
 
-export function normalizeConnection<T extends BaseCanvasNodeMetadata>(firstNodeId: string, secondNodeId: string, nodes: CanvasNode<T>[], firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
+export function normalizeConnection<T>(firstNodeId: string, secondNodeId: string, nodes: CanvasNode<T>[], firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
     const first = nodes.find((node) => node.id === firstNodeId);
     const second = nodes.find((node) => node.id === secondNodeId);
     if (!first || !second || first.id === second.id || isGroupNode(first) || isGroupNode(second)) return null;

@@ -1,9 +1,9 @@
 import { useMemo, type MouseEvent } from "react";
 import { getConnectionPath } from "./geometry";
 import type { CanvasTheme } from "./theme";
-import type { BaseCanvasNodeMetadata, CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "./types";
+import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "./types";
 
-export type CanvasConnectionLayerProps<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     nodes: CanvasNode<TMetadata>[];
     connections: CanvasConnection[];
     interaction?: CanvasConnectionInteraction | null;
@@ -14,7 +14,7 @@ export type CanvasConnectionLayerProps<TMetadata extends BaseCanvasNodeMetadata 
     onConnectionContextMenu?: (event: MouseEvent<SVGPathElement>, connection: CanvasConnection) => void;
 };
 
-export function CanvasConnectionLayer<TMetadata extends BaseCanvasNodeMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, onConnectionSelect, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
+export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, onConnectionSelect, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
     const byId = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     const source = interaction ? byId.get(interaction.handle.nodeId) : undefined;
     const target = interaction?.targetNodeId ? byId.get(interaction.targetNodeId) : undefined;

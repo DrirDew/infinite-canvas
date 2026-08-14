@@ -9,11 +9,11 @@ export type CanvasNodeDragResult = { moved: boolean; clickedNodeId: string | nul
 
 export type CanvasNodeTypeId = string;
 export type CanvasNodeRole = "group";
-export type BaseCanvasNodeMetadata = { groupId?: string };
-export type CanvasNode<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type CanvasNode<TMetadata = unknown> = {
     id: string;
     type: CanvasNodeTypeId;
     role?: CanvasNodeRole;
+    groupId?: string;
     title: string;
     position: Position;
     width: number;
@@ -25,7 +25,7 @@ export type CanvasConnection = {
     fromNodeId: string;
     toNodeId: string;
 };
-export type CanvasConnectionResolver<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = (first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>, firstHandleType: "source" | "target") => Omit<CanvasConnection, "id"> | null;
+export type CanvasConnectionResolver<TMetadata = unknown> = (first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>, firstHandleType: "source" | "target") => Omit<CanvasConnection, "id"> | null;
 export type ConnectionHandle = {
     nodeId: string;
     handleType: "source" | "target";
@@ -34,12 +34,12 @@ export type CanvasConnectionInteraction = { handle: ConnectionHandle; pointer: P
 export type CanvasConnectionDropTarget = { nodeId: string | null; isNearNode: boolean };
 export type CanvasConnectionDropResult = CanvasConnectionDropTarget & { handle: ConnectionHandle; position: Position; connection: Omit<CanvasConnection, "id"> | null };
 export type CanvasInteractionState = { isNodeDragging: boolean; isNodeResizing: boolean; dropTargetGroupId: string | null; connectionInteraction: CanvasConnectionInteraction | null };
-export type CanvasDocument<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type CanvasDocument<TMetadata = unknown> = {
     nodes: CanvasNode<TMetadata>[];
     connections: CanvasConnection[];
 };
-export type CanvasClipboard<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = CanvasDocument<TMetadata>;
-export type CanvasPasteOptions<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type CanvasClipboard<TMetadata = unknown> = CanvasDocument<TMetadata>;
+export type CanvasPasteOptions<TMetadata = unknown> = {
     position: Position;
     createNodeId: (node: CanvasNode<TMetadata>, index: number) => string;
     createConnectionId: (connection: CanvasConnection, index: number) => string;
@@ -50,9 +50,9 @@ export type CanvasSelection = {
     nodeIds: Set<string>;
     connectionId: string | null;
 };
-export type CanvasNodePatch<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = Partial<CanvasNode<TMetadata>> | ((node: CanvasNode<TMetadata>) => CanvasNode<TMetadata>);
-export type CanvasDocumentUpdater<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = (document: CanvasDocument<TMetadata>) => CanvasDocument<TMetadata>;
-export type CanvasCommands<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type CanvasNodePatch<TMetadata = unknown> = Partial<CanvasNode<TMetadata>> | ((node: CanvasNode<TMetadata>) => CanvasNode<TMetadata>);
+export type CanvasDocumentUpdater<TMetadata = unknown> = (document: CanvasDocument<TMetadata>) => CanvasDocument<TMetadata>;
+export type CanvasCommands<TMetadata = unknown> = {
     setDocument: (document: CanvasDocument<TMetadata>) => void;
     addNode: (node: CanvasNode<TMetadata>) => CanvasDocument<TMetadata>;
     addNodes: (nodes: CanvasNode<TMetadata>[]) => CanvasDocument<TMetadata>;
@@ -90,14 +90,14 @@ export type CanvasCommands<TMetadata extends BaseCanvasNodeMetadata = BaseCanvas
     preview: (updater: CanvasDocumentUpdater<TMetadata>) => CanvasDocument<TMetadata>;
     commitPreview: () => void;
 };
-export type UseCanvasOptions<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type UseCanvasOptions<TMetadata = unknown> = {
     document?: CanvasDocument<TMetadata>;
     viewport?: ViewportTransform;
     onDocumentChange?: (document: CanvasDocument<TMetadata>) => void;
     onViewportChange?: (viewport: ViewportTransform) => void;
     resolveConnection?: CanvasConnectionResolver<TMetadata>;
 };
-export type UseCanvasResult<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type UseCanvasResult<TMetadata = unknown> = {
     document: CanvasDocument<TMetadata>;
     viewport: ViewportTransform;
     selectedNodeIds: Set<string>;

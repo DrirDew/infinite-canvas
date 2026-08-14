@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, type CSSProperties, type HTMLAttributes, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { resizeNodeBounds } from "./geometry";
-import type { BaseCanvasNodeMetadata, CanvasNode, CanvasResizeCorner } from "./types";
+import type { CanvasNode, CanvasResizeCorner } from "./types";
 import type { CanvasTheme } from "./theme";
 
-export type CanvasNodeShellProps<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = HTMLAttributes<HTMLDivElement> & { node: CanvasNode<TMetadata> };
+export type CanvasNodeShellProps<TMetadata = unknown> = HTMLAttributes<HTMLDivElement> & { node: CanvasNode<TMetadata> };
 
-export function CanvasNodeShell<TMetadata extends BaseCanvasNodeMetadata>({ node, style, ...props }: CanvasNodeShellProps<TMetadata>) {
+export function CanvasNodeShell<TMetadata>({ node, style, ...props }: CanvasNodeShellProps<TMetadata>) {
     return <div {...props} data-node-id={node.id} style={{ ...style, position: "absolute", transform: `translate(${node.position.x}px,${node.position.y}px)`, width: node.width, height: node.height, contain: "layout style" }} />;
 }
 
-export type CanvasNodeResizeHandlesProps<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type CanvasNodeResizeHandlesProps<TMetadata = unknown> = {
     node: CanvasNode<TMetadata>;
     scale: number;
     keepAspectRatio?: boolean;
@@ -28,7 +28,7 @@ const resizeHandleStyles: Record<CanvasResizeCorner, CSSProperties> = {
     "bottom-right": { right: -14, bottom: -14, cursor: "nwse-resize" },
 };
 
-export function CanvasNodeResizeHandles<TMetadata extends BaseCanvasNodeMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = 24, minHeight = 24, onResizeStart, onResize, onResizeEnd }: CanvasNodeResizeHandlesProps<TMetadata>) {
+export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = 24, minHeight = 24, onResizeStart, onResize, onResizeEnd }: CanvasNodeResizeHandlesProps<TMetadata>) {
     const resize = useRef({ active: false, pointerId: 0, corner: "bottom-right" as CanvasResizeCorner, x: 0, y: 0, left: 0, top: 0, width: 0, height: 0, keepAspectRatio: false, ratio: 1 });
     const move = useCallback(
         (event: globalThis.PointerEvent) => {

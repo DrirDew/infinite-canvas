@@ -1,4 +1,4 @@
-import type { BaseCanvasNodeMetadata, CanvasConnection, CanvasNode, ConnectionHandle, Position, ViewportTransform } from "@infinite-canvas/core";
+import type { CanvasConnection, CanvasNode, ConnectionHandle, Position, ViewportTransform } from "@infinite-canvas/core";
 
 export enum CanvasNodeType {
     Image = "image",
@@ -27,7 +27,7 @@ export type CanvasNodeImage = {
     mimeType: string;
 };
 
-export type CanvasNodeMetadata = BaseCanvasNodeMetadata & {
+export type CanvasNodeMetadata = {
     content?: string;
     composerContent?: string;
     prompt?: string;

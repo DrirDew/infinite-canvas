@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { centerViewport, fitViewportToNode, screenToCanvas, zoomViewport } from "./geometry";
-import type { BaseCanvasNodeMetadata, CanvasCommands, CanvasSize, ViewportTransform } from "./types";
+import type { CanvasCommands, CanvasSize, ViewportTransform } from "./types";
 
-export type UseCanvasViewportOptions<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+export type UseCanvasViewportOptions<TMetadata = unknown> = {
     commands: CanvasCommands<TMetadata>;
     containerRef: RefObject<HTMLDivElement | null>;
     onContainerResize?: (size: CanvasSize) => void;
     onViewportChange?: (viewport: ViewportTransform) => void;
 };
 
-export function useCanvasViewport<TMetadata extends BaseCanvasNodeMetadata>({ commands, containerRef, onContainerResize, onViewportChange }: UseCanvasViewportOptions<TMetadata>) {
+export function useCanvasViewport<TMetadata>({ commands, containerRef, onContainerResize, onViewportChange }: UseCanvasViewportOptions<TMetadata>) {
     const [containerSize, setContainerSize] = useState<CanvasSize>({ width: 0, height: 0 });
     const commandsRef = useRef(commands);
     const callbacksRef = useRef({ onContainerResize, onViewportChange });
