@@ -1,4 +1,4 @@
-import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, useCanvas, useCanvasInteractions, type CanvasDocument, type ViewportTransform } from "@infinite-canvas/core";
+import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, CanvasUnknownNode, InfiniteCanvas, canvasThemes, useCanvas, useCanvasInteractions, type CanvasDocument, type ViewportTransform } from "@infinite-canvas/core";
 import { useRef } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
@@ -6,7 +6,9 @@ import "./style.css";
 function Demo({ title, accent, initial }: { title: string; accent: string; initial: ViewportTransform }) {
     const ref = useRef<HTMLDivElement>(null);
     const count = useRef(2);
-    const { document, viewport, selectedNodeIds, connectionInteraction, canUndo, canRedo, commands } = useCanvas({ document: initialDocument(title), viewport: initial });
+    const snapshot = useRef<CanvasDocument>(null!);
+    snapshot.current ||= initialDocument(title);
+    const { document, viewport, selectedNodeIds, connectionInteraction, canUndo, canRedo, commands } = useCanvas({ document: snapshot.current, viewport: initial, onDocumentChange: (next) => (snapshot.current = next) });
     const interactions = useCanvasInteractions({
         commands,
         containerRef: ref,
@@ -67,7 +69,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                         重做
                     </button>
                 </nav>
-                <output>{Math.round(viewport.k * 100)}%</output>
+                <output>SNAPSHOT {snapshot.current.nodes.length} · {Math.round(viewport.k * 100)}%</output>
             </header>
             <div className="stage">
                 <InfiniteCanvas
@@ -96,9 +98,15 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                                 onConnectStart={(event, handleType) => commands.startConnection({ nodeId: node.id, handleType }, interactions.toCanvas(event.clientX, event.clientY))}
                             />
                             <CanvasNodeResizeHandles node={node} scale={viewport.k} onResizeStart={commands.startNodeResize} onResize={commands.resizeNode} onResizeEnd={commands.endNodeResize} />
-                            <i style={{ background: accent }} />
-                            独立实例<strong>{node.title.replace(`${title}-`, "")}</strong>
-                            <small>拖动 · 缩放 · 连线 · 剪贴板</small>
+                            {node.type === "missing" ? (
+                                <CanvasUnknownNode type={node.type} theme={canvasThemes.light} title="未注册节点" description="由 Core 提供安全占位" />
+                            ) : (
+                                <>
+                                    <i style={{ background: accent }} />
+                                    独立实例<strong>{node.title.replace(`${title}-`, "")}</strong>
+                                    <small>拖动 · 缩放 · 连线 · 剪贴板</small>
+                                </>
+                            )}
                         </CanvasNodeShell>
                     ))}
                     {interactions.selectionRect ? <CanvasSelectionBox rect={interactions.selectionRect} scale={viewport.k} theme={canvasThemes.light} /> : null}
@@ -112,7 +120,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
 const initialDocument = (title: string): CanvasDocument => ({
     nodes: [
         { id: `${title}-1`, type: "demo", title: `${title}-1`, position: { x: 70, y: 60 }, width: 180, height: 112 },
-        { id: `${title}-2`, type: "demo", title: `${title}-2`, position: { x: 340, y: 220 }, width: 180, height: 112 },
+        { id: `${title}-2`, type: "missing", title: `${title}-2`, position: { x: 340, y: 220 }, width: 180, height: 112 },
     ],
     connections: [],
 });
@@ -121,14 +129,14 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 10</p>
+                <p>CORE / 11</p>
                 <h1>
                     一块画布，
                     <br />
                     任意产品。
                 </h1>
                 <aside>
-                    这个应用只组合 <code>@infinite-canvas/core</code>。两个实例的文档、交互、连线、剪贴板和撤销历史完全隔离。
+                    这个应用只组合 <code>@infinite-canvas/core</code>。两个实例的文档快照、交互、连线、剪贴板和撤销历史完全隔离，并展示未知节点占位。
                 </aside>
             </div>
             <div className="grid">
