@@ -30,7 +30,7 @@ interactions.focusNode(node.id);
 interactions.setZoom(1.5);
 interactions.resetViewport();
 
-<InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" onViewportChange={canvas.commands.setViewport} onCanvasMouseDown={interactions.onCanvasMouseDown}>
+<InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" onViewportChange={interactions.onViewportChange} onCanvasMouseDown={interactions.onCanvasMouseDown}>
     {canvas.document.nodes.map((node) => (
         <CanvasNodeShell key={node.id} node={node} onMouseDown={(event) => interactions.onNodeMouseDown(event, node.id)} onMouseDownCapture={(event) => interactions.onNodeSelectCapture(event, node.id)}>
             {renderNode(node)}

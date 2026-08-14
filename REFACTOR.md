@@ -293,6 +293,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - 可见节点裁剪改用 Core 的 `nodesInViewport`，Web 不再维护视口边界计算。
 - 画布复位、中心缩放、节点适配视口及聚焦动画迁入 `useCanvasInteractions`，Web 仅在调用后关闭业务菜单。
 - 节点缩放开始/预览/结束与连线端口起点统一由 `useCanvasInteractions` 转换为 Core 命令，Web 只保留缩放开始时关闭业务展开态。
+- 画布平移、滚轮缩放和小地图导航统一通过 Core 视口入口，新的手动视口输入会取消未结束的聚焦动画。
 
 ### 10.6 扩充 Examples
 

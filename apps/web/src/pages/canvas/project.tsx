@@ -365,10 +365,11 @@ function InfiniteCanvasPage() {
         canvasCommands.cancelConnection();
     }, [canvasCommands]);
 
-    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture, onConnectionStart: handleConnectStart, onNodeResizeStart: handleNodeResizeStart, onNodeResize: handleNodeResize, onNodeResizeEnd: handleNodeResizeEnd } = useCanvasInteractions({
+    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onViewportChange: handleViewportChange, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture, onConnectionStart: handleConnectStart, onNodeResizeStart: handleNodeResizeStart, onNodeResize: handleNodeResize, onNodeResizeEnd: handleNodeResizeEnd } = useCanvasInteractions({
         commands: canvasCommands,
         containerRef,
         onResizeStart: () => setExpandedImageNodeId(null),
+        onViewportChange: () => setContextMenu(null),
         onContainerResize: ({ width, height }) => {
             if (didInitialCenterRef.current) return;
             didInitialCenterRef.current = true;
@@ -1999,10 +2000,7 @@ function InfiniteCanvasPage() {
                     tool={canvasTool}
                     ignoreSelector="[data-canvas-no-zoom],.ant-modal,.ant-popover,.ant-dropdown,.ant-select-dropdown,.ant-picker-dropdown"
                     backgroundMode={backgroundMode}
-                    onViewportChange={(next) => {
-                        setViewport(next);
-                        setContextMenu(null);
-                    }}
+                    onViewportChange={handleViewportChange}
                     onCanvasMouseDown={onCanvasMouseDown}
                     onCanvasDeselect={deselectCanvas}
                     onCanvasDoubleClick={(event) => {
@@ -2139,7 +2137,7 @@ function InfiniteCanvasPage() {
                     onShowImageInfoChange={setShowImageInfo}
                 />
 
-                {isMiniMapOpen ? <CanvasMinimap nodes={nodes} viewport={viewport} viewportSize={size} theme={theme} onViewportChange={setViewport} nodeColor={(node) => getNodeDefinition(node.type)?.minimapColor || theme.node.muted} /> : null}
+                {isMiniMapOpen ? <CanvasMinimap nodes={nodes} viewport={viewport} viewportSize={size} theme={theme} onViewportChange={handleViewportChange} nodeColor={(node) => getNodeDefinition(node.type)?.minimapColor || theme.node.muted} /> : null}
 
                 <CanvasZoomControls scale={viewport.k} onScaleChange={setZoomScale} onReset={resetViewport} isMiniMapOpen={isMiniMapOpen} onToggleMiniMap={() => setIsMiniMapOpen((value) => !value)} />
 

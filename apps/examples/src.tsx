@@ -82,7 +82,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                     theme={canvasThemes.light}
                     tool="select"
                     backgroundMode="dots"
-                    onViewportChange={commands.setViewport}
+                    onViewportChange={interactions.onViewportChange}
                     onCanvasDeselect={commands.clearSelection}
                     onCanvasMouseDown={interactions.onCanvasMouseDown}
                 >
@@ -116,7 +116,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                     ))}
                     {interactions.selectionRect ? <CanvasSelectionBox rect={interactions.selectionRect} scale={viewport.k} theme={canvasThemes.light} /> : null}
                 </InfiniteCanvas>
-                <CanvasMinimap nodes={document.nodes} viewport={viewport} viewportSize={interactions.containerSize} theme={canvasThemes.light} onViewportChange={commands.setViewport} nodeColor={() => accent} width={144} height={96} style={{ bottom: 12, left: 12 }} />
+                <CanvasMinimap nodes={document.nodes} viewport={viewport} viewportSize={interactions.containerSize} theme={canvasThemes.light} onViewportChange={interactions.onViewportChange} nodeColor={() => accent} width={144} height={96} style={{ bottom: 12, left: 12 }} />
             </div>
         </section>
     );
@@ -134,7 +134,7 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 14</p>
+                <p>CORE / 15</p>
                 <h1>
                     一块画布，
                     <br />
