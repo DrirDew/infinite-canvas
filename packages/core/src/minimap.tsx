@@ -23,9 +23,14 @@ export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme,
     const ref = useRef<HTMLDivElement>(null);
     const dragging = useRef(false);
     const layout = useMemo(() => {
-        if (!nodes.length) return { bounds: { x: -500, y: -500, width: 1000, height: 1000 }, scale: 0.16, offset: { x: 40, y: 0 } };
+        const padding = Math.max(0, worldPadding);
+        if (!nodes.length) {
+            const size = Math.max(padding * 2, 1);
+            const scale = Math.min(width / size, height / size);
+            return { bounds: { x: -size / 2, y: -size / 2, width: size, height: size }, scale, offset: { x: (width - size * scale) / 2, y: (height - size * scale) / 2 } };
+        }
         const bounds = nodeBounds(nodes);
-        const world = { x: bounds.left - worldPadding, y: bounds.top - worldPadding, width: bounds.right - bounds.left + worldPadding * 2, height: bounds.bottom - bounds.top + worldPadding * 2 };
+        const world = { x: bounds.left - padding, y: bounds.top - padding, width: bounds.right - bounds.left + padding * 2, height: bounds.bottom - bounds.top + padding * 2 };
         const scale = Math.min(width / world.width, height / world.height);
         return { bounds: world, scale, offset: { x: (width - world.width * scale) / 2, y: (height - world.height * scale) / 2 } };
     }, [height, nodes, width, worldPadding]);
