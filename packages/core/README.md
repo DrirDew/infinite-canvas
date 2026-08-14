@@ -53,7 +53,7 @@ interactions.resetViewport();
 
 - `types.ts`：公开文档、节点、选择和命令类型。
 - `document.ts`：无 React 依赖的文档修改、选择清理和剪贴板变换逻辑。
-- `selectors.ts`：分组数量与节点、连线关联高亮等纯派生查询。
+- `selectors.ts`：分组数量、上下游节点与关联高亮等纯派生查询。
 - `use-canvas.ts`：实例状态、历史、事务和预览命令。
 - `use-canvas-viewport.ts`：容器尺寸、坐标转换、缩放、复位和节点聚焦动画。
 - `use-canvas-interactions.ts`：组合视口能力，并管理框选、节点选择与拖动、连线和全局指针生命周期。

@@ -4,6 +4,7 @@ import { seedanceReferenceLabel } from "@/lib/seedance-video";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { imageToDataUrl } from "@/services/image-storage";
+import { getCanvasDownstreamNodes, getCanvasUpstreamNodes } from "@infinite-canvas/core";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/types/canvas";
 
 export type CanvasResourceKind = "image" | "video" | "audio" | "text";
@@ -69,16 +70,12 @@ export function getGenerationResourceNodes(nodeId: string, nodes: CanvasNodeData
 }
 
 function getContextResourceNodes(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]) {
-    return connections
-        .filter((connection) => connection.toNodeId === nodeId)
-        .map((connection) => nodes.find((node) => node.id === connection.fromNodeId))
-        .filter((node): node is CanvasNodeData => Boolean(node && isResourceNode(node)));
+    return getCanvasUpstreamNodes(nodeId, nodes, connections).filter(isResourceNode);
 }
 
 function getConnectedConfigResourceNodes(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]) {
-    const configConnection = connections.find((connection) => connection.fromNodeId === nodeId && nodes.find((node) => node.id === connection.toNodeId)?.type === CanvasNodeType.Config);
-    if (!configConnection) return [];
-    return getContextResourceNodes(configConnection.toNodeId, nodes, connections).filter((node) => node.id !== nodeId);
+    const config = getCanvasDownstreamNodes(nodeId, nodes, connections).find((node) => node.type === CanvasNodeType.Config);
+    return config ? getContextResourceNodes(config.id, nodes, connections).filter((node) => node.id !== nodeId) : [];
 }
 
 function labelResourceNodes(nodes: CanvasNodeData[], active: boolean) {

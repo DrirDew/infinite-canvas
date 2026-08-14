@@ -22,3 +22,13 @@ export function getCanvasRelations(activeNodeId: string | null, connections: Can
     });
     return { nodeIds, connectionIds };
 }
+
+export function getCanvasUpstreamNodes<TMetadata extends BaseCanvasNodeMetadata>(nodeId: string, nodes: CanvasNode<TMetadata>[], connections: CanvasConnection[]) {
+    const byId = new Map(nodes.map((node) => [node.id, node]));
+    return connections.flatMap((connection) => (connection.toNodeId === nodeId && byId.has(connection.fromNodeId) ? [byId.get(connection.fromNodeId)!] : []));
+}
+
+export function getCanvasDownstreamNodes<TMetadata extends BaseCanvasNodeMetadata>(nodeId: string, nodes: CanvasNode<TMetadata>[], connections: CanvasConnection[]) {
+    const byId = new Map(nodes.map((node) => [node.id, node]));
+    return connections.flatMap((connection) => (connection.fromNodeId === nodeId && byId.has(connection.toNodeId) ? [byId.get(connection.toNodeId)!] : []));
+}

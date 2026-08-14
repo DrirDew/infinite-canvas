@@ -8,7 +8,7 @@ import { buildGenerationConfig } from "@/lib/canvas/canvas-generation-helpers";
 import { buildNodeContext } from "@/lib/canvas/plugin-node-context";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { ensurePluginsLoaded } from "@/lib/canvas/plugin-loader";
-import { canvasThemes } from "@infinite-canvas/core";
+import { canvasThemes, getCanvasDownstreamNodes, getCanvasUpstreamNodes } from "@infinite-canvas/core";
 import type { CanvasNodeToolbarItem, CanvasPluginAi, CanvasPluginHost } from "@/types/canvas-plugin";
 import type { ReferenceImage } from "@/types/image";
 import type { CanvasAgentOp } from "@/lib/canvas/canvas-agent-ops";
@@ -85,16 +85,8 @@ export function usePluginHost(params: PluginHostParams) {
             getNode: (id) => nodesRef.current.find((node) => node.id === id) || null,
             getNodes: () => nodesRef.current,
             getConnections: () => connectionsRef.current,
-            getUpstream: (nodeId) =>
-                connectionsRef.current
-                    .filter((conn) => conn.toNodeId === nodeId)
-                    .map((conn) => nodesRef.current.find((node) => node.id === conn.fromNodeId))
-                    .filter((node): node is CanvasNodeData => Boolean(node)),
-            getDownstream: (nodeId) =>
-                connectionsRef.current
-                    .filter((conn) => conn.fromNodeId === nodeId)
-                    .map((conn) => nodesRef.current.find((node) => node.id === conn.toNodeId))
-                    .filter((node): node is CanvasNodeData => Boolean(node)),
+            getUpstream: (nodeId) => getCanvasUpstreamNodes(nodeId, nodesRef.current, connectionsRef.current),
+            getDownstream: (nodeId) => getCanvasDownstreamNodes(nodeId, nodesRef.current, connectionsRef.current),
             updateNode: (nodeId, patch) => updateNode(nodeId, patch),
             updateMetadata: (nodeId, patch) => updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, ...patch } })),
             applyOps: (ops) => applyAgentOps(ops),
