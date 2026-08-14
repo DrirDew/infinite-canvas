@@ -10,11 +10,12 @@ export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     selectedConnectionId?: string | null;
     activeConnectionIds?: ReadonlySet<string>;
     theme: CanvasTheme;
+    resolvePath?: (source: CanvasNode<TMetadata>, target?: CanvasNode<TMetadata>, interaction?: CanvasConnectionInteraction) => string;
     onConnectionSelect?: (connection: CanvasConnection) => void;
     onConnectionContextMenu?: (event: MouseEvent<SVGPathElement>, connection: CanvasConnection) => void;
 };
 
-export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, onConnectionSelect, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
+export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, resolvePath = getConnectionPath, onConnectionSelect, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
     const byId = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     const source = interaction ? byId.get(interaction.handle.nodeId) : undefined;
     const target = interaction?.targetNodeId ? byId.get(interaction.targetNodeId) : undefined;
@@ -24,7 +25,7 @@ export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interacti
                 const from = byId.get(connection.fromNodeId);
                 const to = byId.get(connection.toNodeId);
                 if (!from || !to) return null;
-                const path = getConnectionPath(from, to);
+                const path = resolvePath(from, to);
                 const active = selectedConnectionId === connection.id || Boolean(activeConnectionIds?.has(connection.id));
                 return (
                     <g key={connection.id}>
@@ -49,7 +50,7 @@ export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interacti
                     </g>
                 );
             })}
-            {interaction && source ? <path d={getConnectionPath(source, target, interaction)} stroke={theme.node.activeStroke} strokeWidth="2" fill="none" strokeDasharray="5,5" /> : null}
+            {interaction && source ? <path d={resolvePath(source, target, interaction)} stroke={theme.node.activeStroke} strokeWidth="2" fill="none" strokeDasharray="5,5" /> : null}
         </svg>
     );
 }
