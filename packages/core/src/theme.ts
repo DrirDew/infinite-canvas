@@ -1,7 +1,12 @@
 export type CanvasColorTheme = "light" | "dark";
 export type CanvasBackgroundMode = "dots" | "lines" | "blank";
+export type CanvasTheme = {
+    canvas: { background: string; dot: string; line: string; selectionStroke: string; selectionFill: string };
+    node: { label: string; fill: string; panel: string; stroke: string; activeStroke: string; placeholder: string; text: string; muted: string; faint: string };
+    toolbar: { panel: string; border: string; item: string; itemHover: string; activeBg: string; activeText: string };
+};
 
-export const canvasThemes = {
+export const canvasThemes: Record<CanvasColorTheme, CanvasTheme> = {
     light: {
         canvas: {
             background: "#f4f2ed",
@@ -58,6 +63,4 @@ export const canvasThemes = {
             activeText: "#f5f5f4",
         },
     },
-} as const;
-
-export type CanvasTheme = (typeof canvasThemes)[CanvasColorTheme];
+};

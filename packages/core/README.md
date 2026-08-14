@@ -11,7 +11,9 @@ Core 的公开边界包括文档与实例状态、基础编辑命令、指针与
 包以 MIT 协议发布，npm 产物包含 README、许可证以及 `core`、`headless`、`react` 三个声明完整的公开入口。
 
 ```tsx
-import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, getCanvasDocumentIssues, useCanvas, useCanvasEditor, useCanvasInteractions } from "@infinite-canvas/core";
+import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, getCanvasDocumentIssues, useCanvas, useCanvasEditor, useCanvasInteractions, type CanvasTheme } from "@infinite-canvas/core";
+
+const customTheme: CanvasTheme = { ...canvasThemes.light, canvas: { ...canvasThemes.light.canvas, background: "#f8fafc" } };
 
 const canvas = useCanvas({
     document: { nodes: [], connections: [] },
@@ -99,3 +101,4 @@ const editor = useCanvasEditor({
 - `shortcuts.ts`：跨平台画布快捷键识别。
 - `geometry/viewport.ts`、`geometry/nodes.ts`、`geometry/connections.ts`：按视口、节点分组和连线职责拆分的纯几何工具；`geometry.ts` 保持统一公开入口。
 - `theme.ts`：画布主题 token。
+- `CanvasTheme` 是使用普通字符串颜色的结构契约，宿主可从默认主题扩展或完整实现自定义主题。
