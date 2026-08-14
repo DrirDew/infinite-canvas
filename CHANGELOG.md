@@ -2,6 +2,8 @@
 
 ## Unreleased
 
++ [调整] 移除便利贴示例插件及其官方插件清单入口。
++ [调整] 项目改为 Bun monorepo，统一 Web、文档站、Canvas Agent、Plugin SDK 和插件的目录与依赖管理。
 + [新增] 提示词来源新增 Freestylefly GPT Image 2 内置来源。
 
 ## v0.15.1 - 2026-08-07

@@ -1,0 +1,11 @@
+{
+    "name": "infinite-canvas-monorepo",
+    "private": true,
+    "workspaces": ["apps/*", "packages/*", "plugins/user/*", "plugins/registry"],
+    "scripts": {
+        "dev": "bun --cwd apps/web dev",
+        "build": "bun --cwd apps/web build",
+        "dev:docs": "bun --cwd apps/docs dev",
+        "build:plugins": "bun --cwd plugins/registry build"
+    }
+}

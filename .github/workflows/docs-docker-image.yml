@@ -2,7 +2,7 @@ name: Docs Docker image
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -25,7 +25,6 @@ jobs:
           images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
-            type=ref,event=tag
             type=sha,prefix=
 
   build:
@@ -56,7 +55,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./docs/Dockerfile
+          file: ./apps/docs/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ needs.meta.outputs.labels }}
           outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true

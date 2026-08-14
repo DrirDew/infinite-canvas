@@ -1,0 +1,19 @@
+{
+    "name": "@infinite-canvas/core",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "exports": "./src/index.ts",
+    "scripts": {
+        "typecheck": "tsc --noEmit"
+    },
+    "peerDependencies": {
+        "react": ">=18",
+        "react-dom": ">=18"
+    },
+    "devDependencies": {
+        "@types/react": "19.1.12",
+        "@types/react-dom": "19.1.9",
+        "typescript": "^5"
+    }
+}

@@ -2,7 +2,7 @@ name: Docker image
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -24,7 +24,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=tag
+            type=raw,value=latest
             type=sha,prefix=
 
   build:

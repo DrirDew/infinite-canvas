@@ -1,0 +1,29 @@
+---
+title: Local Development
+description: Frontend-first local development
+---
+
+# Local Development
+
+The main application lives in `apps/web/`. The browser sends AI requests directly to the user's OpenAI-compatible endpoint.
+
+## Start the frontend
+
+```bash
+bun install
+bun run dev
+```
+
+Open `http://localhost:3000`, then enter your `Base URL`, `API Key`, and model names in Settings. Prompt sources and WebDAV are also accessed directly by the browser.
+
+## Start the documentation site
+
+```bash
+bun run dev:docs
+```
+
+Common locations:
+
+- Canvas, pages, and interactions: `apps/web/`
+- Prompt caching: `apps/web/src/services/api/prompts.ts`
+- Documentation content: `apps/docs/content/docs/`
