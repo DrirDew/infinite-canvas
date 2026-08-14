@@ -1,4 +1,4 @@
-import type { BaseCanvasNodeMetadata, CanvasConnection, CanvasNode, CanvasNodeStatus, ConnectionHandle, Position, ViewportTransform } from "@infinite-canvas/core";
+import type { BaseCanvasNodeMetadata, CanvasConnection, CanvasNode, ConnectionHandle, Position, ViewportTransform } from "@infinite-canvas/core";
 
 export enum CanvasNodeType {
     Image = "image",
@@ -10,7 +10,8 @@ export enum CanvasNodeType {
 }
 
 export type CanvasNodeTypeId = string;
-export type { CanvasConnection, CanvasNodeStatus, ConnectionHandle, Position, ViewportTransform };
+export type CanvasNodeStatus = "idle" | "success" | "loading" | "error";
+export type { CanvasConnection, ConnectionHandle, Position, ViewportTransform };
 export type CanvasGenerationMode = "text" | "image" | "video" | "audio";
 export type CanvasImageGenerationType = "generation" | "edit";
 

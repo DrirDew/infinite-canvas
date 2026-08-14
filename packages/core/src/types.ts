@@ -9,7 +9,6 @@ export type CanvasNodeDragResult = { moved: boolean; clickedNodeId: string | nul
 
 export type CanvasNodeTypeId = string;
 export type CanvasNodeRole = "group";
-export type CanvasNodeStatus = "idle" | "success" | "loading" | "error";
 export type BaseCanvasNodeMetadata = { groupId?: string };
 export type CanvasNode<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
     id: string;
