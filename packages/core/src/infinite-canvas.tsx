@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject, type WheelEvent } from "react";
 import { canvasDefaults } from "./defaults.js";
 import { zoomViewportAtPoint } from "./geometry.js";
+import { acquireBodyCursor, releaseBodyCursor } from "./internal/body-cursor.js";
 import { subscribeWindowEvent } from "./internal/window-events.js";
 import type { CanvasBackgroundMode, CanvasTheme } from "./theme.js";
 import type { CanvasTool, ViewportTransform } from "./types.js";
 
 const DEFAULT_IGNORE_SELECTOR = "[data-canvas-no-zoom]";
 const NODE_SELECTOR = "[data-node-id],[data-connection-id]";
-const cursorOwners = new Set<object>();
-let previousBodyCursor = "";
 type PanState = {
     active: boolean;
     pointerId: number;
@@ -217,12 +216,3 @@ export function InfiniteCanvas({
 const invertTool = (tool: CanvasTool): CanvasTool => (tool === "select" ? "pan" : "select");
 const ignored = (target: EventTarget | null, selector: string) => target instanceof Element && Boolean(target.closest(selector));
 const isEditable = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest("input,textarea,select,button,a,[contenteditable='true'],[role='textbox']"));
-const acquireBodyCursor = (owner: object) => {
-    if (!cursorOwners.size) previousBodyCursor = document.body.style.cursor;
-    cursorOwners.add(owner);
-    document.body.style.cursor = "grabbing";
-};
-const releaseBodyCursor = (owner: object) => {
-    if (!cursorOwners.delete(owner) || cursorOwners.size) return;
-    document.body.style.cursor = previousBodyCursor;
-};
