@@ -1,6 +1,8 @@
 import { nanoid } from "nanoid";
+import { normalizeConnection } from "@infinite-canvas/core";
 
 import i18n from "@/i18n";
+import { resolveCanvasConnection } from "@/lib/canvas/canvas-connection";
 import { getNodeSpec, isRegisteredNodeType } from "@/lib/canvas/node-registry";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type CanvasNodeTypeId, type ViewportTransform } from "@/types/canvas";
 
@@ -78,9 +80,9 @@ export function applyCanvasAgentOps(snapshot: CanvasAgentSnapshot, ops?: CanvasA
         }
         if (op.type === "connect_nodes") {
             if (!op.fromNodeId || !op.toNodeId) return;
-            const exists = connections.some((conn) => conn.fromNodeId === op.fromNodeId && conn.toNodeId === op.toNodeId);
-            const hasNodes = nodes.some((node) => node.id === op.fromNodeId) && nodes.some((node) => node.id === op.toNodeId);
-            if (!exists && hasNodes) connections = [...connections, { id: op.id || nanoid(), fromNodeId: op.fromNodeId, toNodeId: op.toNodeId }];
+            const connection = normalizeConnection(op.fromNodeId, op.toNodeId, nodes, "source", resolveCanvasConnection);
+            const exists = connection && connections.some((item) => item.fromNodeId === connection.fromNodeId && item.toNodeId === connection.toNodeId);
+            if (connection && !exists) connections = [...connections, { id: op.id || nanoid(), ...connection }];
         }
         if (op.type === "set_viewport" && op.viewport) viewport = op.viewport;
         if (op.type === "select_nodes") selectedNodeIds = (op.ids || []).filter((id) => nodes.some((node) => node.id === id));
