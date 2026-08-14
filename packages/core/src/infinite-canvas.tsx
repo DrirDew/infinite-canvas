@@ -36,6 +36,8 @@ export type InfiniteCanvasProps = {
     ariaLabel?: string;
     backgroundStyle?: CSSProperties;
     renderBackground?: (context: CanvasBackgroundRenderContext) => ReactNode;
+    contentClassName?: string;
+    contentStyle?: CSSProperties;
     onViewportChange: (viewport: ViewportTransform) => void;
     onCanvasPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
     onCanvasDeselect?: () => void;
@@ -62,6 +64,8 @@ export function InfiniteCanvas({
     ariaLabel = "Infinite canvas",
     backgroundStyle,
     renderBackground,
+    contentClassName,
+    contentStyle,
     onViewportChange,
     onCanvasPointerDown,
     onCanvasDeselect,
@@ -182,6 +186,7 @@ export function InfiniteCanvas({
     return (
         <div
             ref={containerRef}
+            data-canvas-root
             className={className}
             tabIndex={tabIndex}
             aria-label={ariaLabel}
@@ -217,9 +222,9 @@ export function InfiniteCanvas({
             onDrop={onDrop}
         >
             {backgroundMode === "blank" && customBackground == null ? null : (
-                <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.4, backgroundImage: customBackground == null ? backgroundImage : undefined, backgroundSize: `${grid}px ${grid}px`, backgroundPosition: `${viewport.x % grid}px ${viewport.y % grid}px`, ...backgroundStyle }}>{customBackground}</div>
+                <div data-canvas-background style={{ position: "absolute", inset: 0, opacity: 0.4, backgroundImage: customBackground == null ? backgroundImage : undefined, backgroundSize: `${grid}px ${grid}px`, backgroundPosition: `${viewport.x % grid}px ${viewport.y % grid}px`, ...backgroundStyle, pointerEvents: "none" }}>{customBackground}</div>
             )}
-            <div style={{ position: "absolute", transformOrigin: "top left", transform: `translate(${viewport.x}px,${viewport.y}px) scale(${viewport.k})` }}>{children}</div>
+            <div data-canvas-content className={contentClassName} style={{ ...contentStyle, position: "absolute", transformOrigin: "top left", transform: `translate(${viewport.x}px,${viewport.y}px) scale(${viewport.k})` }}>{children}</div>
         </div>
     );
 }

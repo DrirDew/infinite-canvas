@@ -28,7 +28,7 @@ export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interacti
     const source = interaction ? byId.get(interaction.handle.nodeId) : undefined;
     const target = interaction?.targetNodeId ? byId.get(interaction.targetNodeId) : undefined;
     return (
-        <svg className={className} style={{ position: "absolute", left: 0, top: 0, width: 1, height: 1, overflow: "visible", pointerEvents: "none", transform: "translateZ(0)", zIndex: 0, ...style }}>
+        <svg data-canvas-connections className={className} style={{ position: "absolute", left: 0, top: 0, width: 1, height: 1, overflow: "visible", pointerEvents: "none", transform: "translateZ(0)", zIndex: 0, ...style }}>
             {connections.map((connection) => {
                 const from = byId.get(connection.fromNodeId);
                 const to = byId.get(connection.toNodeId);
@@ -59,7 +59,7 @@ export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interacti
                     </g>
                 );
             })}
-            {interaction && source ? <path d={resolvePath(source, target, interaction)} fill="none" stroke={theme.node.activeStroke} strokeWidth={2} strokeDasharray="5,5" {...previewStyle} /> : null}
+            {interaction && source ? <path data-connection-preview d={resolvePath(source, target, interaction)} fill="none" stroke={theme.node.activeStroke} strokeWidth={2} strokeDasharray="5,5" {...previewStyle} /> : null}
         </svg>
     );
 }
