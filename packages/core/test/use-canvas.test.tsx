@@ -24,7 +24,7 @@ function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connecti
     return canvas;
 }
 
-type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode">;
+type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode" | "onSelectionChange" | "onInteractionChange">;
 
 test("adds, updates, and removes nodes and connections", () => {
     const canvas = createCanvas();
@@ -132,6 +132,21 @@ test("supports application grouping policies", () => {
     expect(canvas.commands.moveNodeDrag({ x: 300, y: 0 })).toBeNull();
     canvas.commands.endNodeDrag({ x: 300, y: 0 });
     expect(canvas.commands.getDocument().nodes[0].groupId).toBeUndefined();
+});
+
+test("publishes selection and interaction changes", () => {
+    let selected: string[] = [];
+    let connecting = false;
+    const canvas = createCanvas({ nodes: [node("a")], connections: [] }, undefined, {
+        onSelectionChange: (selection) => (selected = [...selection.nodeIds]),
+        onInteractionChange: (interaction) => (connecting = Boolean(interaction.connectionInteraction)),
+    });
+    canvas.commands.selectNodes(["a"]);
+    canvas.commands.startConnection({ nodeId: "a", handleType: "source" }, { x: 100, y: 50 });
+    expect(selected).toEqual(["a"]);
+    expect(connecting).toBe(true);
+    canvas.commands.cancelConnection();
+    expect(connecting).toBe(false);
 });
 
 test("dragging groups moves children and resizing creates one history entry", () => {

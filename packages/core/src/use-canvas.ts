@@ -20,6 +20,8 @@ export function useCanvas<TMetadata = unknown>({
     viewport: initialViewport = DEFAULT_VIEWPORT,
     onDocumentChange,
     onViewportChange,
+    onSelectionChange,
+    onInteractionChange,
     resolveConnection,
     canGroupNode,
     historyLimit = canvasDefaults.historyLimit,
@@ -44,11 +46,15 @@ export function useCanvas<TMetadata = unknown>({
     const clipboardRef = useRef<CanvasClipboard<TMetadata> | null>(null);
     const onChangeRef = useRef(onDocumentChange);
     const onViewportChangeRef = useRef(onViewportChange);
+    const onSelectionChangeRef = useRef(onSelectionChange);
+    const onInteractionChangeRef = useRef(onInteractionChange);
     const connectionResolverRef = useRef(resolveConnection);
     const groupResolverRef = useRef(canGroupNode);
     const behaviorRef = useRef(behavior);
     onChangeRef.current = onDocumentChange;
     onViewportChangeRef.current = onViewportChange;
+    onSelectionChangeRef.current = onSelectionChange;
+    onInteractionChangeRef.current = onInteractionChange;
     connectionResolverRef.current = resolveConnection;
     groupResolverRef.current = canGroupNode;
     behaviorRef.current = behavior;
@@ -58,10 +64,12 @@ export function useCanvas<TMetadata = unknown>({
         const updateSelection = (next: CanvasSelection) => {
             selectionRef.current = next;
             setSelection(next);
+            onSelectionChangeRef.current?.(next);
         };
         const updateInteraction = (next: CanvasInteractionState) => {
             interactionRef.current = next;
             setInteraction(next);
+            onInteractionChangeRef.current?.(next);
         };
         const setViewport = (updater: ViewportUpdater) => {
             const next = typeof updater === "function" ? updater(viewportRef.current) : updater;
@@ -168,9 +176,8 @@ export function useCanvas<TMetadata = unknown>({
                 previewRef.current = null;
                 dragRef.current = null;
                 documentRef.current = next;
-                selectionRef.current = emptySelection();
                 setDocumentState(next);
-                setSelection(selectionRef.current);
+                updateSelection(emptySelection());
                 updateInteraction(DEFAULT_INTERACTION);
                 updateHistoryState();
             },

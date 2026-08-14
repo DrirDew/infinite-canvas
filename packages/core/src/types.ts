@@ -110,6 +110,8 @@ export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
     viewport?: ViewportTransform;
     onDocumentChange?: (document: CanvasDocument<TMetadata>) => void;
     onViewportChange?: (viewport: ViewportTransform) => void;
+    onSelectionChange?: (selection: CanvasSelection) => void;
+    onInteractionChange?: (interaction: CanvasInteractionState) => void;
     resolveConnection?: CanvasConnectionResolver<TMetadata>;
     canGroupNode?: CanvasGroupResolver<TMetadata>;
 };
