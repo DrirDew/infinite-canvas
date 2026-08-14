@@ -365,11 +365,13 @@ function InfiniteCanvasPage() {
         canvasCommands.cancelConnection();
     }, [canvasCommands]);
 
-    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onViewportChange: handleViewportChange, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture, onConnectionStart: handleConnectStart, onNodeResizeStart: handleNodeResizeStart, onNodeResize: handleNodeResize, onNodeResizeEnd: handleNodeResizeEnd } = useCanvasInteractions({
+    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onViewportChange: handleViewportChange, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture, onConnectionStart: handleConnectStart, onConnectionSelect: handleConnectionSelect, onConnectionContextMenu: handleConnectionContextMenu, onNodeResizeStart: handleNodeResizeStart, onNodeResize: handleNodeResize, onNodeResizeEnd: handleNodeResizeEnd } = useCanvasInteractions({
         commands: canvasCommands,
         containerRef,
         onResizeStart: () => setExpandedImageNodeId(null),
         onViewportChange: () => setContextMenu(null),
+        onConnectionSelect: () => setContextMenu(null),
+        onConnectionContextMenu: (event, connection) => setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId: connection.id }),
         onContainerResize: ({ width, height }) => {
             if (didInitialCenterRef.current) return;
             didInitialCenterRef.current = true;
@@ -2017,14 +2019,8 @@ function InfiniteCanvasPage() {
                         selectedConnectionId={selectedConnectionId}
                         activeConnectionIds={relatedHighlight.connectionIds}
                         theme={theme}
-                        onConnectionSelect={(connection) => {
-                            canvasCommands.selectConnection(connection.id);
-                            setContextMenu(null);
-                        }}
-                        onConnectionContextMenu={(event, connection) => {
-                            canvasCommands.selectConnection(connection.id);
-                            setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId: connection.id });
-                        }}
+                        onConnectionSelect={handleConnectionSelect}
+                        onConnectionContextMenu={handleConnectionContextMenu}
                     />
 
                     {visibleNodes.map((node) => (

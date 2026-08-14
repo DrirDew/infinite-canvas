@@ -8,7 +8,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
     const count = useRef(2);
     const snapshot = useRef<CanvasDocument>(null!);
     snapshot.current ||= initialDocument(title);
-    const { document, viewport, selectedNodeIds, connectionInteraction, canUndo, canRedo, commands } = useCanvas({ document: snapshot.current, viewport: initial, onDocumentChange: (next) => (snapshot.current = next) });
+    const { document, viewport, selectedNodeIds, selectedConnectionId, connectionInteraction, canUndo, canRedo, commands } = useCanvas({ document: snapshot.current, viewport: initial, onDocumentChange: (next) => (snapshot.current = next) });
     const interactions = useCanvasInteractions({
         commands,
         containerRef: ref,
@@ -50,7 +50,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                 <span>{title}</span>
                 <nav>
                     <button onClick={add}>新增</button>
-                    <button disabled={!selectedNodeIds.size} onClick={() => commands.removeNodes(selectedNodeIds)}>
+                    <button disabled={!selectedNodeIds.size && !selectedConnectionId} onClick={() => selectedNodeIds.size ? commands.removeNodes(selectedNodeIds) : commands.removeConnections([selectedConnectionId!])}>
                         删除
                     </button>
                     <button disabled={selectedNodeIds.size !== 1} onClick={resize}>
@@ -86,7 +86,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                     onCanvasDeselect={commands.clearSelection}
                     onCanvasMouseDown={interactions.onCanvasMouseDown}
                 >
-                    <CanvasConnectionLayer nodes={document.nodes} connections={document.connections} interaction={connectionInteraction} theme={canvasThemes.light} />
+                    <CanvasConnectionLayer nodes={document.nodes} connections={document.connections} interaction={connectionInteraction} selectedConnectionId={selectedConnectionId} theme={canvasThemes.light} onConnectionSelect={interactions.onConnectionSelect} />
                     {document.nodes.map((node) => (
                         <CanvasNodeShell
                             key={node.id}
@@ -134,7 +134,7 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 15</p>
+                <p>CORE / 16</p>
                 <h1>
                     一块画布，
                     <br />
