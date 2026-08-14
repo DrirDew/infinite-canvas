@@ -19,7 +19,7 @@ export function CanvasConnectionLayer<TMetadata extends BaseCanvasNodeMetadata>(
     const source = interaction ? byId.get(interaction.handle.nodeId) : undefined;
     const target = interaction?.targetNodeId ? byId.get(interaction.targetNodeId) : undefined;
     return (
-        <svg style={{ position: "absolute", left: 0, top: 0, width: 10000, height: 10000, overflow: "visible", pointerEvents: "none", transform: "translateZ(0)", zIndex: 0 }}>
+        <svg style={{ position: "absolute", left: 0, top: 0, width: 1, height: 1, overflow: "visible", pointerEvents: "none", transform: "translateZ(0)", zIndex: 0 }}>
             {connections.map((connection) => {
                 const from = byId.get(connection.fromNodeId);
                 const to = byId.get(connection.toNodeId);

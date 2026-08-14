@@ -58,7 +58,7 @@ interactions.resetViewport();
 - `use-canvas-viewport.ts`：容器尺寸、坐标转换、缩放、复位和节点聚焦动画。
 - `use-canvas-interactions.ts`：组合视口能力，并管理框选、节点选择与拖动、连线和全局指针生命周期。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
-- `connection-layer.tsx` / `selection-box.tsx`：连线、连线预览和框选渲染。
+- `connection-layer.tsx` / `selection-box.tsx`：不限制世界坐标范围的连线、连线预览和框选渲染。
 - `minimap.tsx`：可自定义节点颜色的独立小地图。
 - `node.tsx`：节点定位外壳、四角缩放控制、连接端口和未知节点占位。
 - `shortcuts.ts`：跨平台画布快捷键识别。
