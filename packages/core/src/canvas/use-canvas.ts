@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from "react";
-import { canvasDefaults } from "./defaults.js";
-import { createCanvasCommands } from "./internal/create-canvas-commands.js";
-import { createCanvasHistory, createCanvasSelection, DEFAULT_INTERACTION, DEFAULT_VIEWPORT, type CanvasBehavior, type CanvasDrag, type CanvasHistory } from "./internal/canvas-state.js";
-import type { CanvasClipboard, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, UseCanvasOptions, UseCanvasResult } from "./types.js";
+import { canvasDefaults } from "../defaults.js";
+import { createCanvasCommands } from "../internal/create-canvas-commands.js";
+import { createCanvasHistory, createCanvasSelection, DEFAULT_INTERACTION, DEFAULT_VIEWPORT, type CanvasBehavior, type CanvasDrag, type CanvasHistory } from "../internal/canvas-state.js";
+import type { CanvasClipboard, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, UseCanvasOptions, UseCanvasResult } from "../types.js";
 
 export function useCanvas<TMetadata = unknown>({
     document: initialDocument = { nodes: [], connections: [] },

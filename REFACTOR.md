@@ -178,7 +178,7 @@ Core 不提供持久化。第三方使用方自行选择存储方式；官方 We
 
 1. **Monorepo 基座（已完成）**：Web 与文档站移入 `apps/`，Canvas Agent 与 Plugin SDK 移入 `packages/`，插件移入 `plugins/user`，统一使用根 Bun workspace 和 `bun.lock`。
 2. **拆 Core（进行中）**：先迁移画布文档类型、坐标与几何等纯逻辑，再迁移实例状态和基础渲染；Core 内不得引用 `apps/web` 的别名、业务 store、i18n、Ant Design 或持久化。
-3. **建立 Examples（已完成）**：新增 `apps/examples`，只依赖 `@infinite-canvas/core`，用它验证 Core 的公开入口与多实例隔离。
+3. **建立 Examples（已完成）**：新增 `apps/examples`，只依赖 `@infinite-canvas/core`，用单画布产品示例验证公开入口与宿主组合；多实例隔离由 Core 测试覆盖。
 4. **Web 接回 Core**：Web 通过 Core 公开 API 组合项目、生成任务、素材、Agent 与插件适配，不直接访问 Core 内部 store。
 5. **替换插件运行时**：删除旧 loader/runtime 后再接入 Cordis，不保留两套运行时并行。
 

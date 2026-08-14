@@ -166,16 +166,15 @@ Core 负责画布文档、实例状态、历史、视口、几何、基础交互
 
 ## 源码职责
 
-- `model.ts` / `commands.ts` / `options.ts`：数据模型、命令和 Hook 配置；`types.ts` 是统一类型入口。
+- `canvas/`：数据模型、命令、配置、选择器和实例 Hook。
 - `document/`：文档校验、修改、选择清理和剪贴板变换；`document.ts` 是公共 barrel。
 - `geometry/`：视口、节点/分组和连线几何；`geometry.ts` 是公共 barrel。
-- `selectors.ts` / `shortcuts.ts` / `theme.ts` / `defaults.ts`：纯查询、快捷键、主题和默认参数。
-- `use-canvas.ts` / `use-canvas-editor.ts`：实例状态与高层组合。
-- `use-canvas-viewport.ts` / `use-canvas-interactions.ts`：视口能力与 React 事件编排。
+- `interaction/`：快捷键、视口能力和 React 事件编排。
+- `render/`：画布表面、连线、框选和小地图基础渲染。
+- `node/`：节点外壳、缩放控制、连接端口和未知节点占位。
 - `internal/canvas-command-runtime.ts` / `create-canvas-commands.ts`：状态发布、历史预览运行时和领域命令。
 - `internal/use-canvas-surface-input.ts` / `use-canvas-pointer-lifecycle.ts` / `pointer-ownership.ts` / `window-events.ts`：画布表面输入、编辑指针生命周期、实例所有权和共享全局事件。
-- `infinite-canvas.tsx` / `node/` / `connection-layer.tsx` / `selection-box.tsx` / `minimap.tsx`：画布表面、节点外壳与控制、连线、框选和小地图基础渲染；`node.tsx` 保持统一入口。
-- `headless.ts` / `react.ts` / `index.ts`：分环境公开入口。
+- 根目录的 `types.ts`、`document.ts`、`geometry.ts`、`node.tsx`、`headless.ts`、`react.ts` 和 `index.ts` 只保留统一导出入口；`theme.ts` 与 `defaults.ts` 保存跨模块公共定义。
 
 仓库内运行 `bun run dev:examples` 可查看接近官方 Web 结构的单画布示例，包含宿主节点、选择、拖动、缩放、连线、小地图和撤销重做。
 

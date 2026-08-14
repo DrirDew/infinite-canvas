@@ -1,8 +1,8 @@
 import { useMemo, type CSSProperties, type KeyboardEvent, type MouseEvent, type SVGAttributes } from "react";
-import { canvasDefaults } from "./defaults.js";
-import { getConnectionPath } from "./geometry.js";
-import type { CanvasTheme } from "./theme.js";
-import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "./types.js";
+import { canvasDefaults } from "../defaults.js";
+import { getConnectionPath } from "../geometry.js";
+import type { CanvasTheme } from "../theme.js";
+import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "../types.js";
 
 export type CanvasConnectionStyle = Pick<SVGAttributes<SVGPathElement>, "stroke" | "strokeWidth" | "strokeOpacity" | "strokeDasharray" | "style">;
 const defaultConnectionAriaLabel = (connection: CanvasConnection) => `Connection ${connection.id}`;

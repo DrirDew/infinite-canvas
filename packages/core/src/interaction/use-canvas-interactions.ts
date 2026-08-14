@@ -1,7 +1,7 @@
 import { useCallback, useRef, type MouseEvent, type PointerEvent } from "react";
-import { useCanvasPointerLifecycle } from "./internal/use-canvas-pointer-lifecycle.js";
+import { useCanvasPointerLifecycle } from "../internal/use-canvas-pointer-lifecycle.js";
 import { useCanvasViewport, type UseCanvasViewportOptions } from "./use-canvas-viewport.js";
-import type { CanvasConnection, CanvasConnectionDropResult, Position } from "./types.js";
+import type { CanvasConnection, CanvasConnectionDropResult, Position } from "../types.js";
 
 export type UseCanvasInteractionsOptions<TMetadata = unknown> = UseCanvasViewportOptions<TMetadata> & {
     onCanvasPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;

@@ -1,8 +1,8 @@
 import type { CSSProperties, DragEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from "react";
-import { canvasDefaults } from "./defaults.js";
-import { CANVAS_NODE_SELECTOR, DEFAULT_CANVAS_IGNORE_SELECTOR, isCanvasInputIgnored, useCanvasSurfaceInput } from "./internal/use-canvas-surface-input.js";
-import type { CanvasBackgroundMode, CanvasTheme } from "./theme.js";
-import type { CanvasTool, ViewportTransform } from "./types.js";
+import { canvasDefaults } from "../defaults.js";
+import { CANVAS_NODE_SELECTOR, DEFAULT_CANVAS_IGNORE_SELECTOR, isCanvasInputIgnored, useCanvasSurfaceInput } from "../internal/use-canvas-surface-input.js";
+import type { CanvasBackgroundMode, CanvasTheme } from "../theme.js";
+import type { CanvasTool, ViewportTransform } from "../types.js";
 
 export type InfiniteCanvasProps = {
     containerRef: RefObject<HTMLDivElement | null>;

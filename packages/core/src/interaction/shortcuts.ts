@@ -1,4 +1,4 @@
-import type { CanvasShortcut, CanvasShortcutEvent } from "./types.js";
+import type { CanvasShortcut, CanvasShortcutEvent } from "../types.js";
 
 export function resolveCanvasShortcut(event: CanvasShortcutEvent): CanvasShortcut | null {
     const key = event.key.toLowerCase();

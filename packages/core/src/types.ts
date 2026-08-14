@@ -1,3 +1,3 @@
-export * from "./model.js";
-export * from "./commands.js";
-export * from "./options.js";
+export * from "./canvas/model.js";
+export * from "./canvas/commands.js";
+export * from "./canvas/options.js";

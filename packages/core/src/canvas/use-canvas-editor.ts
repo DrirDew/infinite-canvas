@@ -1,6 +1,6 @@
-import type { UseCanvasOptions } from "./types.js";
+import type { UseCanvasOptions } from "../types.js";
 import { useCanvas } from "./use-canvas.js";
-import { useCanvasInteractions, type UseCanvasInteractionsOptions } from "./use-canvas-interactions.js";
+import { useCanvasInteractions, type UseCanvasInteractionsOptions } from "../interaction/use-canvas-interactions.js";
 
 export type UseCanvasEditorOptions<TMetadata = unknown> = {
     canvas?: UseCanvasOptions<TMetadata>;

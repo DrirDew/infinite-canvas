@@ -1,8 +1,8 @@
 import { useMemo, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
-import { canvasDefaults } from "./defaults.js";
-import { nodeBounds } from "./geometry.js";
-import type { CanvasTheme } from "./theme.js";
-import type { CanvasNode, CanvasSize, ViewportTransform } from "./types.js";
+import { canvasDefaults } from "../defaults.js";
+import { nodeBounds } from "../geometry.js";
+import type { CanvasTheme } from "../theme.js";
+import type { CanvasNode, CanvasSize, ViewportTransform } from "../types.js";
 
 export type CanvasMinimapProps<TMetadata = unknown> = {
     nodes: readonly CanvasNode<TMetadata>[];
