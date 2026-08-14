@@ -11,6 +11,7 @@ const cursorOwners = new Set<object>();
 let previousBodyCursor = "";
 type PanState = {
     active: boolean;
+    pointerId: number;
     x: number;
     y: number;
     initialX: number;
@@ -64,7 +65,7 @@ export function InfiniteCanvas({
     onDrop,
     children,
 }: InfiniteCanvasProps) {
-    const panRef = useRef<PanState>({ active: false, x: 0, y: 0, initialX: 0, initialY: 0, moved: false, background: false });
+    const panRef = useRef<PanState>({ active: false, pointerId: -1, x: 0, y: 0, initialX: 0, initialY: 0, moved: false, background: false });
     const cursorOwnerRef = useRef({});
     const frameRef = useRef<number | null>(null);
     const nextViewportRef = useRef<ViewportTransform | null>(null);
@@ -111,7 +112,7 @@ export function InfiniteCanvas({
     const activeTool = control || space ? invertTool(tool) : tool;
     const move = (event: PointerEvent<HTMLDivElement>) => {
         const pan = panRef.current;
-        if (!pan.active) return;
+        if (!pan.active || event.pointerId !== pan.pointerId) return;
         const dx = event.clientX - pan.x;
         const dy = event.clientY - pan.y;
         pan.moved ||= Math.abs(dx) > 3 || Math.abs(dy) > 3;
@@ -122,22 +123,23 @@ export function InfiniteCanvas({
             if (nextViewportRef.current) viewportChangeRef.current(nextViewportRef.current);
         });
     };
-    const end = (cancelled = false) => {
+    const end = (event: PointerEvent<HTMLDivElement>, cancelled = false) => {
         const pan = panRef.current;
-        if (!pan.active) return;
+        if (!pan.active || event.pointerId !== pan.pointerId) return;
         if (!cancelled && !pan.moved && pan.background) deselectRef.current?.();
         pan.active = false;
         setPanning(false);
         releaseBodyCursor(cursorOwnerRef.current);
     };
     const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
+        if (panRef.current.active && event.pointerId !== panRef.current.pointerId) return;
         if (ignored(event.target, ignoreSelector) || (event.target instanceof Element && event.target.closest("[data-connection-create-menu]"))) return;
         const background = !(event.target instanceof Element && event.target.closest(NODE_SELECTOR));
         const pointerTool = event.ctrlKey ? invertTool(tool) : activeTool;
         if (event.button === 1 || (event.button === 0 && pointerTool === "pan")) {
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
-            panRef.current = { active: true, x: event.clientX, y: event.clientY, initialX: viewport.x, initialY: viewport.y, moved: false, background };
+            panRef.current = { active: true, pointerId: event.pointerId, x: event.clientX, y: event.clientY, initialX: viewport.x, initialY: viewport.y, moved: false, background };
             setPanning(true);
             acquireBodyCursor(cursorOwnerRef.current);
         } else if (event.button === 0 && background) {
@@ -173,8 +175,8 @@ export function InfiniteCanvas({
             }}
             onPointerDown={pointerDown}
             onPointerMove={move}
-            onPointerUp={() => end()}
-            onPointerCancel={() => end(true)}
+            onPointerUp={(event) => end(event)}
+            onPointerCancel={(event) => end(event, true)}
             onKeyDown={(event) => {
                 if (event.key === "Control") setControl(true);
                 if (event.code !== "Space" || isEditable(event.target)) return;

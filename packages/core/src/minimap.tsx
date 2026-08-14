@@ -25,7 +25,7 @@ export type CanvasMinimapProps<TMetadata = unknown> = {
 
 export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme, onViewportChange, nodeColor, nodeStyle, renderNode, viewportStyle, width = canvasDefaults.minimapWidth, height = canvasDefaults.minimapHeight, worldPadding = canvasDefaults.minimapWorldPadding, minNodeSize = canvasDefaults.minimapNodeSize, minViewportSize = canvasDefaults.minimapViewportSize, className, style }: CanvasMinimapProps<TMetadata>) {
     const ref = useRef<HTMLDivElement>(null);
-    const dragging = useRef(false);
+    const dragging = useRef<number | null>(null);
     const layout = useMemo(() => {
         const padding = Math.max(0, worldPadding);
         if (!nodes.length) {
@@ -53,16 +53,21 @@ export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme,
                 ref={ref}
                 style={{ position: "relative", width: "100%", height: "100%", cursor: "crosshair" }}
                 onPointerDown={(event) => {
+                    if (dragging.current !== null && dragging.current !== event.pointerId) return;
                     event.preventDefault();
                     event.currentTarget.setPointerCapture(event.pointerId);
-                    dragging.current = true;
+                    dragging.current = event.pointerId;
                     update(event);
                 }}
                 onPointerMove={(event) => {
-                    if (dragging.current) update(event);
+                    if (dragging.current === event.pointerId) update(event);
                 }}
-                onPointerUp={() => (dragging.current = false)}
-                onPointerCancel={() => (dragging.current = false)}
+                onPointerUp={(event) => {
+                    if (dragging.current === event.pointerId) dragging.current = null;
+                }}
+                onPointerCancel={(event) => {
+                    if (dragging.current === event.pointerId) dragging.current = null;
+                }}
             >
                 {nodes.map((node) => {
                     const position = toMap(node.position.x, node.position.y);

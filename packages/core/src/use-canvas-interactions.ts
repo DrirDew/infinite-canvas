@@ -23,6 +23,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     const callbacksRef = useRef({ onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelected, onConnectionMenu });
     const marqueeRef = useRef<Marquee | null>(null);
     const pendingSelectionRef = useRef<{ nodeId: string; ids: Set<string> } | null>(null);
+    const pointerIdRef = useRef<number | null>(null);
     const frameRef = useRef<number | null>(null);
     commandsRef.current = commands;
     callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelected, onConnectionMenu };
@@ -42,7 +43,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     }, []);
     const onNodePointerDownCapture = useCallback(
         (event: PointerEvent, nodeId: string) => {
-            if (event.button !== 0) return;
+            if (event.button !== 0 || (pointerIdRef.current !== null && pointerIdRef.current !== event.pointerId)) return;
             callbacksRef.current.onNodePointerDown?.(nodeId);
             const pending = { nodeId, ids: selectNode(event, nodeId) };
             callbacksRef.current.onNodeSelectionChange?.(pending.ids, nodeId);
@@ -56,18 +57,20 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     const onNodePointerDown = useCallback(
         (event: PointerEvent, nodeId: string) => {
             event.stopPropagation();
-            if (event.button !== 0) return;
+            if (event.button !== 0 || (pointerIdRef.current !== null && pointerIdRef.current !== event.pointerId)) return;
             const pending = pendingSelectionRef.current;
             const ids = pending?.nodeId === nodeId ? pending.ids : selectNode(event, nodeId);
             pendingSelectionRef.current = null;
             commandsRef.current.startNodeDrag(ids, { x: event.clientX, y: event.clientY });
+            if (commandsRef.current.getInteraction().isNodeDragging) pointerIdRef.current = event.pointerId;
         },
         [selectNode],
     );
     const onConnectionStart = useCallback((event: PointerEvent, nodeId: string, handleType: "source" | "target") => {
         event.stopPropagation();
-        if (event.button !== 0) return;
+        if (event.button !== 0 || (pointerIdRef.current !== null && pointerIdRef.current !== event.pointerId)) return;
         commandsRef.current.startConnection({ nodeId, handleType }, toCanvas(event.clientX, event.clientY));
+        if (commandsRef.current.getInteraction().connectionInteraction) pointerIdRef.current = event.pointerId;
     }, [toCanvas]);
     const onNodeResizeStart = useCallback((nodeId: string) => {
         commandsRef.current.startNodeResize(nodeId);
@@ -86,11 +89,12 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     }, []);
     const onCanvasPointerDown = useCallback(
         (event: PointerEvent<HTMLDivElement>) => {
+            if (event.button !== 0 || (pointerIdRef.current !== null && pointerIdRef.current !== event.pointerId)) return;
             callbacksRef.current.onCanvasPointerDown?.(event);
-            if (event.button !== 0) return;
             const start = toCanvas(event.clientX, event.clientY);
             const selection = commandsRef.current.getSelection();
             marqueeRef.current = { start, initialNodeIds: event.shiftKey ? [...selection.nodeIds] : [] };
+            pointerIdRef.current = event.pointerId;
             setSelectionRect(normalizeRect(start, start));
             if (!event.shiftKey || selection.connectionId) commandsRef.current.clearSelection();
         },
@@ -102,6 +106,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     }, []);
     useEffect(() => {
         const move = (event: globalThis.PointerEvent) => {
+            if (pointerIdRef.current !== null && event.pointerId !== pointerIdRef.current) return;
             const current = commandsRef.current;
             if (current.getInteraction().connectionInteraction) {
                 current.moveConnection(toCanvas(event.clientX, event.clientY));
@@ -122,6 +127,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
             setSelectionRect(rect);
         };
         const up = (event: globalThis.PointerEvent) => {
+            if (pointerIdRef.current !== null && event.pointerId !== pointerIdRef.current) return;
             const current = commandsRef.current;
             if (frameRef.current) {
                 cancelAnimationFrame(frameRef.current);
@@ -130,15 +136,18 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
             const drag = current.endNodeDrag({ x: event.clientX, y: event.clientY });
             if (drag.clickedNodeId) callbacksRef.current.onNodeClick?.(drag.clickedNodeId);
             marqueeRef.current = null;
+            pointerIdRef.current = null;
             setSelectionRect(null);
             if (!current.getInteraction().connectionInteraction) return;
             const result = current.endConnection(toCanvas(event.clientX, event.clientY));
             if (result) callbacksRef.current.onConnectionEnd?.(result);
         };
-        const cancel = () => {
+        const cancel = (event?: Event) => {
+            if (event instanceof globalThis.PointerEvent && pointerIdRef.current !== null && event.pointerId !== pointerIdRef.current) return;
             if (frameRef.current) cancelAnimationFrame(frameRef.current);
             frameRef.current = null;
             marqueeRef.current = null;
+            pointerIdRef.current = null;
             setSelectionRect(null);
             commandsRef.current.endNodeDrag();
             commandsRef.current.cancelConnection();
