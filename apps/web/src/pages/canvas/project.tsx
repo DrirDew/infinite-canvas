@@ -84,7 +84,6 @@ import {
     CanvasNodeType,
     type CanvasAssistantImage,
     type CanvasAssistantSession,
-    type CanvasConnection,
     type CanvasNodeData,
     type CanvasNodeImage,
     type CanvasNodeMetadata,
@@ -177,53 +176,10 @@ function InfiniteCanvasPage() {
         commands: canvasCommands,
     } = useCanvas<CanvasNodeMetadata>({ onDocumentChange });
     const setViewport = canvasCommands.setViewport;
-    const documentCommitQueuedRef = useRef(false);
-    const updateDocument = useCallback(
-        (updater: (document: CanvasDocument<CanvasNodeMetadata>) => CanvasDocument<CanvasNodeMetadata>) => {
-            canvasCommands.preview(updater);
-            if (documentCommitQueuedRef.current) return;
-            documentCommitQueuedRef.current = true;
-            queueMicrotask(() => {
-                documentCommitQueuedRef.current = false;
-                canvasCommands.commitPreview();
-            });
-        },
-        [canvasCommands],
-    );
-    const setNodes = useCallback((updater: CanvasNodeData[] | ((nodes: CanvasNodeData[]) => CanvasNodeData[])) => updateDocument((document) => ({ ...document, nodes: typeof updater === "function" ? updater(document.nodes) : updater })), [updateDocument]);
-    const setConnections = useCallback(
-        (updater: CanvasConnection[] | ((connections: CanvasConnection[]) => CanvasConnection[])) => updateDocument((document) => ({ ...document, connections: typeof updater === "function" ? updater(document.connections) : updater })),
-        [updateDocument],
-    );
     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [canvasTool, setCanvasTool] = useState<"select" | "pan">("select");
     const [size, setSize] = useState({ width: 1200, height: 720 });
-    const setSelectedNodeIds = useCallback(
-        (updater: Set<string> | ((ids: Set<string>) => Set<string>)) => {
-            const next = typeof updater === "function" ? updater(selectedNodeIdsRef.current) : updater;
-            if (!next.size && selectedConnectionIdRef.current) return;
-            selectedNodeIdsRef.current = next;
-            selectedConnectionIdRef.current = null;
-            canvasCommands.selectNodes(next);
-        },
-        [canvasCommands],
-    );
-    const selectedConnectionIdRef = useRef(selectedConnectionId);
-    const setSelectedConnectionId = useCallback(
-        (updater: string | null | ((id: string | null) => string | null)) => {
-            const next = typeof updater === "function" ? updater(selectedConnectionIdRef.current) : updater;
-            if (next) {
-                selectedNodeIdsRef.current = new Set();
-                selectedConnectionIdRef.current = next;
-                canvasCommands.selectConnection(next);
-            } else if (selectedConnectionIdRef.current) {
-                selectedConnectionIdRef.current = null;
-                canvasCommands.clearSelection();
-            }
-        },
-        [canvasCommands],
-    );
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [pendingConnectionCreate, setPendingConnectionCreate] = useState<PendingConnectionCreate | null>(null);
     const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
@@ -294,8 +250,7 @@ function InfiniteCanvasPage() {
             });
             setRunningNodeId((current) => (current === runningId ? null : current));
             if (!affectedNodeIds.size) return;
-            setNodes((prev) =>
-                prev.map((node) =>
+            canvasCommands.transaction((document) => ({ ...document, nodes: document.nodes.map((node) =>
                     affectedNodeIds.has(node.id) && node.metadata?.status === NODE_STATUS_LOADING
                         ? {
                               ...node,
@@ -306,11 +261,9 @@ function InfiniteCanvasPage() {
                                   images: node.metadata.images?.map((image) => (image.status === NODE_STATUS_LOADING ? { ...image, status: NODE_STATUS_ERROR, errorDetails: t("common.requestCanceled") } : image)),
                               },
                           }
-                        : node,
-                ),
-            );
+                        : node) }));
         },
-        [t],
+        [canvasCommands, t],
     );
 
     const confirmStopGeneration = useCallback(
@@ -380,10 +333,9 @@ function InfiniteCanvasPage() {
         nodesRef.current = nodes;
         connectionsRef.current = connections;
         selectedNodeIdsRef.current = selectedNodeIds;
-        selectedConnectionIdRef.current = selectedConnectionId;
         viewportRef.current = viewport;
         pendingConnectionCreateRef.current = pendingConnectionCreate;
-    }, [nodes, connections, selectedNodeIds, selectedConnectionId, viewport, pendingConnectionCreate]);
+    }, [nodes, connections, selectedNodeIds, viewport, pendingConnectionCreate]);
 
     useLayoutEffect(() => {
         selectionBoxRef.current = selectionBox;
@@ -438,8 +390,7 @@ function InfiniteCanvasPage() {
                 return;
             }
             canvasCommands.transaction((document) => ({ nodes: [...document.nodes, newNode], connections: [...document.connections, { id: nanoid(), ...connection }] }));
-            setSelectedNodeIds(new Set([newNode.id]));
-            setSelectedConnectionId(null);
+            canvasCommands.selectNodes([newNode.id]);
             if (type !== CanvasNodeType.Text && type !== CanvasNodeType.Audio) setDialogNodeId(newNode.id);
             setPendingConnectionCreate(null);
             canvasCommands.cancelConnection();
@@ -562,8 +513,7 @@ function InfiniteCanvasPage() {
             const newNode = createCanvasNode(type, targetPosition, configMetadata);
 
             canvasCommands.addNode(newNode);
-            setSelectedNodeIds(new Set([newNode.id]));
-            setSelectedConnectionId(null);
+            canvasCommands.selectNodes([newNode.id]);
             const definition = getNodeDefinition(type);
             // Display-only plugin nodes with hidePanel do not open a panel; custom Panels require autoOpenPanel on creation.
             // Plugin nodes declaring useBuiltinPanel open the built-in generation panel on creation, like image nodes.
@@ -585,8 +535,6 @@ function InfiniteCanvasPage() {
             if (!ids.size) return;
             const allIds = new Set(ids);
             canvasCommands.removeNodes(allIds);
-            setSelectedNodeIds(new Set());
-            setSelectedConnectionId(null);
             setHoveredNodeId((current) => (current && allIds.has(current) ? null : current));
             setToolbarNodeId((current) => (current && allIds.has(current) ? null : current));
             setDialogNodeId((current) => (current && allIds.has(current) ? null : current));
@@ -606,7 +554,6 @@ function InfiniteCanvasPage() {
     const deleteConnection = useCallback(
         (connectionId: string) => {
             canvasCommands.removeConnections([connectionId]);
-            setSelectedConnectionId((current) => (current === connectionId ? null : current));
             setContextMenu((current) => (current?.type === "connection" && current.connectionId === connectionId ? null : current));
         },
         [canvasCommands],
@@ -615,15 +562,14 @@ function InfiniteCanvasPage() {
     const deselectCanvas = useCallback(() => {
         cancelPendingConnectionCreate();
         setExpandedImageNodeId(null);
-        setSelectedNodeIds(new Set());
-        setSelectedConnectionId(null);
+        canvasCommands.clearSelection();
         setContextMenu(null);
         setSelectionBox(null);
         setHoveredNodeId(null);
         setToolbarNodeId(null);
         setDialogNodeId(null);
         setEditingNodeId(null);
-    }, [cancelPendingConnectionCreate]);
+    }, [cancelPendingConnectionCreate, canvasCommands]);
 
     const clearCanvas = useCallback(() => {
         canvasCommands.transaction(() => ({ nodes: [], connections: [] }));
@@ -652,8 +598,7 @@ function InfiniteCanvasPage() {
             };
 
             canvasCommands.addNode(next);
-            setSelectedNodeIds(new Set([id]));
-            setSelectedConnectionId(null);
+            canvasCommands.selectNodes([id]);
             if (next.type !== CanvasNodeType.Group) setDialogNodeId(id);
         },
         [canvasCommands],
@@ -670,8 +615,6 @@ function InfiniteCanvasPage() {
             mapNode: (node) => ({ ...node, title: node.title.endsWith(" Copy") ? node.title : `${node.title} Copy` }),
         });
         if (!pasted) return false;
-        setSelectedNodeIds(new Set(pasted.nodes.map((node) => node.id)));
-        setSelectedConnectionId(null);
         setContextMenu(null);
         setDialogNodeId(pasted.nodes[0]?.type === CanvasNodeType.Group ? null : pasted.nodes[0]?.id || null);
         return true;
@@ -690,8 +633,7 @@ function InfiniteCanvasPage() {
             const worldY = node.position.y + node.height / 2;
             const k = Math.min(Math.max(Math.min((size.width * 0.6) / node.width, (size.height * 0.6) / node.height), 0.05), 1);
             const target = { x: size.width / 2 - worldX * k, y: size.height / 2 - worldY * k, k };
-            setSelectedNodeIds(new Set([nodeId]));
-            setSelectedConnectionId(null);
+            canvasCommands.selectNodes([nodeId]);
             setContextMenu(null);
 
             if (focusAnimRef.current) cancelAnimationFrame(focusAnimRef.current);
@@ -708,7 +650,7 @@ function InfiniteCanvasPage() {
             };
             focusAnimRef.current = requestAnimationFrame(step);
         },
-        [size.height, size.width],
+        [canvasCommands, size.height, size.width],
     );
 
     useEffect(() => () => void (focusAnimRef.current && cancelAnimationFrame(focusAnimRef.current)), []);
@@ -778,19 +720,15 @@ function InfiniteCanvasPage() {
             };
             selectionBoxRef.current = nextSelectionBox;
             setSelectionBox(nextSelectionBox);
-            if (!event.shiftKey) {
-                setSelectedNodeIds(new Set());
-            }
-
-            setSelectedConnectionId(null);
+            if (!event.shiftKey || canvasCommands.getSelection().connectionId) canvasCommands.clearSelection();
         },
-        [cancelPendingConnectionCreate, screenToCanvas],
+        [cancelPendingConnectionCreate, canvasCommands, screenToCanvas],
     );
 
     // Selection-only logic shared by the bubbling drag entry point and outer capture handler.
     // Returns the single target ID after the click, or null for multi-selection or deselection, to sync the toolbar.
     const selectNodeByEvent = useCallback((event: Pick<ReactMouseEvent, "shiftKey" | "metaKey" | "ctrlKey">, nodeId: string) => {
-        const nextSelected = new Set(selectedNodeIdsRef.current);
+        const nextSelected = new Set(canvasCommands.getSelection().nodeIds);
         if (event.shiftKey || event.metaKey || event.ctrlKey) {
             if (nextSelected.has(nodeId)) nextSelected.delete(nodeId);
             else nextSelected.add(nodeId);
@@ -798,11 +736,11 @@ function InfiniteCanvasPage() {
             nextSelected.clear();
             nextSelected.add(nodeId);
         }
-        setSelectedNodeIds(nextSelected);
+        canvasCommands.selectNodes(nextSelected);
         const soloId = nextSelected.size === 1 && nextSelected.has(nodeId) ? nodeId : null;
         setToolbarNodeId(soloId);
         return { nextSelected, soloId };
-    }, []);
+    }, [canvasCommands]);
 
     // Capture-phase selection lets any inner element, including textarea or iframe, select the node and show its toolbar.
     // It only selects; body onMouseDown still starts dragging, so text selection inside editors does not drag the node.
@@ -813,7 +751,6 @@ function InfiniteCanvasPage() {
             if (event.button !== 0) return;
             setContextMenu(null);
             setHoveredNodeId(null);
-            setSelectedConnectionId(null);
             const { nextSelected } = selectNodeByEvent(event, nodeId);
             pendingSelectionRef.current = nextSelected;
         },
@@ -949,52 +886,27 @@ function InfiniteCanvasPage() {
             metadata: imageMetadata(image),
         };
 
-        setNodes((prev) => [...prev, newNode]);
-        setSelectedNodeIds(new Set([id]));
-        setSelectedConnectionId(null);
+        canvasCommands.addNode(newNode);
+        canvasCommands.selectNodes([id]);
         setDialogNodeId(id);
-    }, []);
+    }, [canvasCommands]);
 
     const createVideoFileNode = useCallback(async (file: File, position: Position) => {
         const video = await uploadMediaFile(file, "video");
         const size = fitNodeSize(video.width || 1280, video.height || 720, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
         const id = `video-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        setNodes((prev) => [
-            ...prev,
-            {
-                id,
-                type: CanvasNodeType.Video,
-                title: file.name,
-                position: { x: position.x - size.width / 2, y: position.y - size.height / 2 },
-                width: size.width,
-                height: size.height,
-                metadata: videoMetadata(video),
-            },
-        ]);
-        setSelectedNodeIds(new Set([id]));
-        setSelectedConnectionId(null);
+        canvasCommands.addNode({ id, type: CanvasNodeType.Video, title: file.name, position: { x: position.x - size.width / 2, y: position.y - size.height / 2 }, width: size.width, height: size.height, metadata: videoMetadata(video) });
+        canvasCommands.selectNodes([id]);
         setDialogNodeId(id);
-    }, []);
+    }, [canvasCommands]);
 
     const createAudioFileNode = useCallback(async (file: File, position: Position) => {
         const audio = await uploadMediaFile(file, "audio");
         const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
         const id = `audio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        setNodes((prev) => [
-            ...prev,
-            {
-                id,
-                type: CanvasNodeType.Audio,
-                title: file.name,
-                position: { x: position.x - spec.width / 2, y: position.y - spec.height / 2 },
-                width: spec.width,
-                height: spec.height,
-                metadata: audioMetadata(audio),
-            },
-        ]);
-        setSelectedNodeIds(new Set([id]));
-        setSelectedConnectionId(null);
-    }, []);
+        canvasCommands.addNode({ id, type: CanvasNodeType.Audio, title: file.name, position: { x: position.x - spec.width / 2, y: position.y - spec.height / 2 }, width: spec.width, height: spec.height, metadata: audioMetadata(audio) });
+        canvasCommands.selectNodes([id]);
+    }, [canvasCommands]);
 
     const createTextNodeFromClipboard = useCallback(
         (text: string) => {
@@ -1006,14 +918,13 @@ function InfiniteCanvasPage() {
                 title: trimmed.slice(0, 32) || t("canvas.projectPage.clipboardText"),
             };
 
-            setNodes((prev) => [...prev, node]);
-            setSelectedNodeIds(new Set([node.id]));
-            setSelectedConnectionId(null);
+            canvasCommands.addNode(node);
+            canvasCommands.selectNodes([node.id]);
             setContextMenu(null);
             setDialogNodeId(node.id);
             return true;
         },
-        [getCanvasCenter, t],
+        [canvasCommands, getCanvasCenter, t],
     );
 
     const pasteSystemClipboard = useCallback(async () => {
@@ -1048,22 +959,18 @@ function InfiniteCanvasPage() {
             if (shortcut === "undo") undoCanvas();
             else if (shortcut === "redo") redoCanvas();
             else if (shortcut === "select-all") {
-                setSelectedNodeIds(new Set(nodesRef.current.map((node) => node.id)));
-                setSelectedConnectionId(null);
+                canvasCommands.selectNodes(nodesRef.current.map((node) => node.id));
                 setContextMenu(null);
                 setSelectionBox(null);
             } else if (shortcut === "copy") copySelectedNodes();
             else if (shortcut === "paste") {
                 if (!pasteCopiedNodes()) void pasteSystemClipboard();
             } else if (shortcut === "delete") {
-                if (selectedNodeIdsRef.current.size) {
-                    deleteNodes(new Set(selectedNodeIdsRef.current));
-                } else if (selectedConnectionIdRef.current) {
-                    deleteConnection(selectedConnectionIdRef.current);
-                }
+                const selection = canvasCommands.getSelection();
+                if (selection.nodeIds.size) deleteNodes(selection.nodeIds);
+                else if (selection.connectionId) deleteConnection(selection.connectionId);
             } else if (shortcut === "escape") {
-                setSelectedNodeIds(new Set());
-                setSelectedConnectionId(null);
+                canvasCommands.clearSelection();
                 setContextMenu(null);
                 setNodeCreatePosition(null);
                 setSelectionBox(null);
@@ -1087,7 +994,6 @@ function InfiniteCanvasPage() {
         (event: ReactMouseEvent, nodeId: string, handleType: "source" | "target") => {
             event.stopPropagation();
             canvasCommands.startConnection({ nodeId, handleType }, screenToCanvas(event.clientX, event.clientY));
-            setSelectedConnectionId(null);
         },
         [canvasCommands, screenToCanvas],
     );
@@ -1108,56 +1014,36 @@ function InfiniteCanvasPage() {
     }, [canvasCommands]);
 
     const toggleNodeFreeResize = useCallback((nodeId: string) => {
-        setNodes((prev) =>
-            prev.map((node) => {
-                if (node.id !== nodeId) return node;
-                const freeResize = !node.metadata?.freeResize;
-                if (freeResize || node.type !== CanvasNodeType.Image) return { ...node, metadata: { ...node.metadata, freeResize } };
-                const ratio = (node.metadata?.naturalWidth || node.width) / (node.metadata?.naturalHeight || node.height || 1);
-                const height = node.width / ratio;
-                return { ...node, height, position: { x: node.position.x, y: node.position.y + node.height / 2 - height / 2 }, metadata: { ...node.metadata, freeResize } };
-            }),
-        );
-    }, []);
+        canvasCommands.updateNode(nodeId, (node) => {
+            const freeResize = !node.metadata?.freeResize;
+            if (freeResize || node.type !== CanvasNodeType.Image) return { ...node, metadata: { ...node.metadata, freeResize } };
+            const ratio = (node.metadata?.naturalWidth || node.width) / (node.metadata?.naturalHeight || node.height || 1);
+            const height = node.width / ratio;
+            return { ...node, height, position: { x: node.position.x, y: node.position.y + node.height / 2 - height / 2 }, metadata: { ...node.metadata, freeResize } };
+        });
+    }, [canvasCommands]);
 
     const handleNodeContentChange = useCallback((nodeId: string, content: string) => {
-        setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, content } } : node)));
-    }, []);
+        canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, content } }));
+    }, [canvasCommands]);
 
     const handleNodeTitleChange = useCallback((nodeId: string, title: string) => {
-        setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, title } : node)));
-    }, []);
+        canvasCommands.updateNode(nodeId, { title });
+    }, [canvasCommands]);
 
     const toggleBatchExpanded = useCallback((nodeId: string) => {
         setExpandedImageNodeId((current) => (current === nodeId ? null : nodeId));
     }, []);
 
     const setBatchPrimary = useCallback((nodeId: string, imageId: string) => {
-        setNodes((prev) =>
-            prev.map((node) => {
-                if (node.id !== nodeId) return node;
-                const image = node.metadata?.images?.find((item) => item.id === imageId);
-                if (!image?.content) return node;
-                const edge = Math.max(node.width, node.height);
-                const size = node.metadata?.freeResize ? { width: node.width, height: node.height } : fitNodeSize(image.naturalWidth, image.naturalHeight, edge, edge);
-                return {
-                    ...node,
-                    position: { x: node.position.x + node.width / 2 - size.width / 2, y: node.position.y + node.height / 2 - size.height / 2 },
-                    ...size,
-                    metadata: {
-                        ...node.metadata,
-                        content: image.content,
-                        storageKey: image.storageKey,
-                        naturalWidth: image.naturalWidth,
-                        naturalHeight: image.naturalHeight,
-                        bytes: image.bytes,
-                        mimeType: image.mimeType,
-                        primaryImageId: image.id,
-                    },
-                };
-            }),
-        );
-    }, []);
+        canvasCommands.updateNode(nodeId, (node) => {
+            const image = node.metadata?.images?.find((item) => item.id === imageId);
+            if (!image?.content) return node;
+            const edge = Math.max(node.width, node.height);
+            const size = node.metadata?.freeResize ? { width: node.width, height: node.height } : fitNodeSize(image.naturalWidth, image.naturalHeight, edge, edge);
+            return { ...node, position: { x: node.position.x + node.width / 2 - size.width / 2, y: node.position.y + node.height / 2 - size.height / 2 }, ...size, metadata: { ...node.metadata, content: image.content, storageKey: image.storageKey, naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight, bytes: image.bytes, mimeType: image.mimeType, primaryImageId: image.id } };
+        });
+    }, [canvasCommands]);
 
     const duplicateBatchImage = useCallback((node: CanvasNodeData, imageId: string) => {
         const image = node.metadata?.images?.find((item) => item.id === imageId);
@@ -1188,28 +1074,26 @@ function InfiniteCanvasPage() {
                 references: node.metadata?.references,
             },
         };
-        setNodes((prev) => [...prev, copy]);
-        setSelectedNodeIds(new Set([id]));
-        setSelectedConnectionId(null);
+        canvasCommands.addNode(copy);
+        canvasCommands.selectNodes([id]);
         setDialogNodeId(id);
-    }, []);
+    }, [canvasCommands]);
 
     const openTextEditor = useCallback((node: CanvasNodeData) => {
         if (node.type !== CanvasNodeType.Text) return;
-        setSelectedNodeIds(new Set([node.id]));
-        setSelectedConnectionId(null);
+        canvasCommands.selectNodes([node.id]);
         setDialogNodeId(node.id);
         setEditingNodeId(node.id);
         setEditRequestNonce((value) => value + 1);
-    }, []);
+    }, [canvasCommands]);
 
     const handleNodePromptChange = useCallback((nodeId: string, prompt: string) => {
-        setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, prompt } } : node)));
-    }, []);
+        canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, prompt } }));
+    }, [canvasCommands]);
 
     const handleConfigNodeChange = useCallback((nodeId: string, patch: Partial<CanvasNodeData["metadata"]>) => {
-        setNodes((prev) => prev.map((node) => (node.id === nodeId ? applyNodeConfigPatch(node, patch) : node)));
-    }, []);
+        canvasCommands.updateNode(nodeId, (node) => applyNodeConfigPatch(node, patch));
+    }, [canvasCommands]);
 
     const downloadNodeImage = useCallback((node: CanvasNodeData) => {
         if ((node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Audio) || !node.metadata?.content) return;
@@ -1301,14 +1185,12 @@ function InfiniteCanvasPage() {
                 title: t("canvas.projectPage.reverseConfigTitle"),
             };
 
-            setNodes((prev) => [...prev, textNode, configNode]);
-            setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: node.id, toNodeId: configNode.id }, { id: nanoid(), fromNodeId: textNode.id, toNodeId: configNode.id }]);
-            setSelectedNodeIds(new Set([configNode.id]));
-            setSelectedConnectionId(null);
+            canvasCommands.transaction((document) => ({ nodes: [...document.nodes, textNode, configNode], connections: [...document.connections, { id: nanoid(), fromNodeId: node.id, toNodeId: configNode.id }, { id: nanoid(), fromNodeId: textNode.id, toNodeId: configNode.id }] }));
+            canvasCommands.selectNodes([configNode.id]);
             setDialogNodeId(configNode.id);
             setContextMenu(null);
         },
-        [effectiveConfig.model, effectiveConfig.textModel, message, t],
+        [canvasCommands, effectiveConfig.model, effectiveConfig.textModel, message, t],
     );
 
     const cropImageNode = useCallback(async (node: CanvasNodeData, crop: CanvasImageCropRect) => {
@@ -1329,12 +1211,11 @@ function InfiniteCanvasPage() {
                 prompt: node.metadata?.prompt,
             },
         };
-        setNodes((prev) => [...prev, child]);
-        setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
-        setSelectedNodeIds(new Set([childId]));
+        canvasCommands.transaction((document) => ({ nodes: [...document.nodes, child], connections: [...document.connections, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }] }));
+        canvasCommands.selectNodes([childId]);
         setDialogNodeId(childId);
         setCropNodeId(null);
-    }, []);
+    }, [canvasCommands]);
 
     const splitImageNode = useCallback(
         async (node: CanvasNodeData, params: CanvasImageSplitParams) => {
@@ -1364,14 +1245,12 @@ function InfiniteCanvasPage() {
                     } satisfies CanvasNodeData;
                 }),
             );
-            setNodes((prev) => [...prev, ...childNodes]);
-            setConnections((prev) => [...prev, ...childNodes.map((child) => ({ id: nanoid(), fromNodeId: node.id, toNodeId: child.id }))]);
-            setSelectedNodeIds(new Set(childNodes.map((child) => child.id)));
-            setSelectedConnectionId(null);
+            canvasCommands.transaction((document) => ({ nodes: [...document.nodes, ...childNodes], connections: [...document.connections, ...childNodes.map((child) => ({ id: nanoid(), fromNodeId: node.id, toNodeId: child.id }))] }));
+            canvasCommands.selectNodes(childNodes.map((child) => child.id));
             setDialogNodeId(null);
             message.success(t("canvas.projectPage.splitSuccess", { count: childNodes.length }));
         },
-        [message, t],
+        [canvasCommands, message, t],
     );
 
     const maskEditImageNode = useCallback(
@@ -1389,39 +1268,27 @@ function InfiniteCanvasPage() {
             const generationMetadata = buildImageGenerationMetadata("edit", generationConfig, 1, [source]);
             setMaskEditNodeId(null);
             setRunningNodeId(childId);
-            setNodes((prev) => [
-                ...prev,
-                {
-                    id: childId,
-                    type: CanvasNodeType.Image,
-                    title: userPrompt.slice(0, 32) || t("canvas.projectPage.maskResult"),
-                    position: { x: node.position.x + node.width + 96, y: node.position.y },
-                    width: node.width,
-                    height: node.height,
-                    metadata: { prompt, status: NODE_STATUS_LOADING, ...generationMetadata },
-                },
-            ]);
-            setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
-            setSelectedNodeIds(new Set([childId]));
-            setSelectedConnectionId(null);
+            const child: CanvasNodeData = { id: childId, type: CanvasNodeType.Image, title: userPrompt.slice(0, 32) || t("canvas.projectPage.maskResult"), position: { x: node.position.x + node.width + 96, y: node.position.y }, width: node.width, height: node.height, metadata: { prompt, status: NODE_STATUS_LOADING, ...generationMetadata } };
+            canvasCommands.transaction((document) => ({ nodes: [...document.nodes, child], connections: [...document.connections, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }] }));
+            canvasCommands.selectNodes([childId]);
             setDialogNodeId(childId);
             const controller = startGenerationRequest(childId, node.id, childId);
             try {
                 const image = await requestEdit(generationConfig, prompt, [source], { id: `${node.id}-mask`, name: "mask.png", type: "image/png", dataUrl: payload.maskDataUrl }, { signal: controller.signal }).then((items) => items[0]);
                 const uploaded = await uploadImage(image.dataUrl);
                 const size = fitNodeSize(uploaded.width, uploaded.height, node.width, node.height);
-                setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt, ...generationMetadata } } : item)));
+                canvasCommands.updateNode(childId, (item) => ({ ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt, ...generationMetadata } }));
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
                 const errorDetails = error instanceof Error ? error.message : t("canvas.projectPage.maskFailed");
                 message.error(errorDetails);
-                setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } } : item)));
+                canvasCommands.updateNode(childId, (item) => ({ ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } }));
             } finally {
                 finishGenerationRequest(childId, controller);
                 setRunningNodeId(null);
             }
         },
-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t],
+        [canvasCommands, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t],
     );
 
     const upscaleImageNode = useCallback(async (node: CanvasNodeData, params: CanvasImageUpscaleParams) => {
@@ -1443,11 +1310,10 @@ function InfiniteCanvasPage() {
                 prompt: node.metadata?.prompt,
             },
         };
-        setNodes((prev) => [...prev, child]);
-        setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
-        setSelectedNodeIds(new Set([childId]));
+        canvasCommands.transaction((document) => ({ nodes: [...document.nodes, child], connections: [...document.connections, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }] }));
+        canvasCommands.selectNodes([childId]);
         setDialogNodeId(childId);
-    }, []);
+    }, [canvasCommands]);
 
     const generateAngleNode = useCallback(
         async (node: CanvasNodeData, params: CanvasImageAngleParams) => {
@@ -1466,20 +1332,9 @@ function InfiniteCanvasPage() {
             ]);
             setAngleNodeId(null);
             setRunningNodeId(childId);
-            setNodes((prev) => [
-                ...prev,
-                {
-                    id: childId,
-                    type: CanvasNodeType.Image,
-                    title,
-                    position: { x: node.position.x + node.width + 96, y: node.position.y },
-                    width: imageConfig.width,
-                    height: imageConfig.height,
-                    metadata: { prompt, status: NODE_STATUS_LOADING, ...generationMetadata },
-                },
-            ]);
-            setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
-            setSelectedNodeIds(new Set([childId]));
+            const child: CanvasNodeData = { id: childId, type: CanvasNodeType.Image, title, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: imageConfig.width, height: imageConfig.height, metadata: { prompt, status: NODE_STATUS_LOADING, ...generationMetadata } };
+            canvasCommands.transaction((document) => ({ nodes: [...document.nodes, child], connections: [...document.connections, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }] }));
+            canvasCommands.selectNodes([childId]);
             setDialogNodeId(childId);
             const controller = startGenerationRequest(childId, node.id, childId);
             try {
@@ -1492,22 +1347,22 @@ function InfiniteCanvasPage() {
                 ).then((items) => items[0]);
                 const uploaded = await uploadImage(image.dataUrl);
                 const size = fitNodeSize(uploaded.width, uploaded.height, imageConfig.width, imageConfig.height);
-                setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt, ...generationMetadata } } : item)));
+                canvasCommands.updateNode(childId, (item) => ({ ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt, ...generationMetadata } }));
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
                 const errorDetails = error instanceof Error ? error.message : t("canvas.projectPage.generationFailed");
-                setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } } : item)));
+                canvasCommands.updateNode(childId, (item) => ({ ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } }));
             } finally {
                 finishGenerationRequest(childId, controller);
                 setRunningNodeId(null);
             }
         },
-        [effectiveConfig, finishGenerationRequest, openConfigDialog, startGenerationRequest, t],
+        [canvasCommands, effectiveConfig, finishGenerationRequest, openConfigDialog, startGenerationRequest, t],
     );
 
     const handleFontSizeChange = useCallback((nodeId: string, fontSize: number) => {
-        setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, fontSize } } : node)));
-    }, []);
+        canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, fontSize } }));
+    }, [canvasCommands]);
 
     const handleUploadRequest = useCallback((nodeId?: string, position?: Position) => {
         uploadTargetRef.current = { nodeId, position };
@@ -1535,75 +1390,18 @@ function InfiniteCanvasPage() {
                 if (isAudioFile(first)) {
                     const audio = await uploadMediaFile(first, "audio");
                     const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
-                    setNodes((prev) =>
-                        prev.map((node) =>
-                            node.id === target.nodeId
-                                ? {
-                                      ...node,
-                                      type: CanvasNodeType.Audio,
-                                      title: first.name,
-                                      position: { x: node.position.x + node.width / 2 - spec.width / 2, y: node.position.y + node.height / 2 - spec.height / 2 },
-                                      width: spec.width,
-                                      height: spec.height,
-                                      metadata: { ...node.metadata, ...audioMetadata(audio), errorDetails: undefined },
-                                  }
-                                : node,
-                        ),
-                    );
-                    setSelectedNodeIds(new Set([target.nodeId]));
-                    setSelectedConnectionId(null);
+                    canvasCommands.updateNode(target.nodeId, (node) => ({ ...node, type: CanvasNodeType.Audio, title: first.name, position: { x: node.position.x + node.width / 2 - spec.width / 2, y: node.position.y + node.height / 2 - spec.height / 2 }, width: spec.width, height: spec.height, metadata: { ...node.metadata, ...audioMetadata(audio), errorDetails: undefined } }));
+                    canvasCommands.selectNodes([target.nodeId]);
                 } else if (first.type.startsWith("video/")) {
                     const video = await uploadMediaFile(first, "video");
                     const nextSize = fitNodeSize(video.width || 1280, video.height || 720, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
-                    setNodes((prev) =>
-                        prev.map((node) =>
-                            node.id === target.nodeId
-                                ? {
-                                      ...node,
-                                      type: CanvasNodeType.Video,
-                                      title: first.name,
-                                      position: { x: node.position.x + node.width / 2 - nextSize.width / 2, y: node.position.y + node.height / 2 - nextSize.height / 2 },
-                                      width: nextSize.width,
-                                      height: nextSize.height,
-                                      metadata: { ...node.metadata, ...videoMetadata(video), errorDetails: undefined },
-                                  }
-                                : node,
-                        ),
-                    );
-                    setSelectedNodeIds(new Set([target.nodeId]));
-                    setSelectedConnectionId(null);
+                    canvasCommands.updateNode(target.nodeId, (node) => ({ ...node, type: CanvasNodeType.Video, title: first.name, position: { x: node.position.x + node.width / 2 - nextSize.width / 2, y: node.position.y + node.height / 2 - nextSize.height / 2 }, width: nextSize.width, height: nextSize.height, metadata: { ...node.metadata, ...videoMetadata(video), errorDetails: undefined } }));
+                    canvasCommands.selectNodes([target.nodeId]);
                 } else {
                     const image = await uploadImage(first);
                     const s = fitNodeSize(image.width, image.height);
-                    setNodes((prev) =>
-                        prev.map((node) =>
-                            node.id === target.nodeId
-                                ? {
-                                      ...node,
-                                      type: CanvasNodeType.Image,
-                                      title: first.name,
-                                      width: s.width,
-                                      height: s.height,
-                                      metadata: {
-                                          ...node.metadata,
-                                          ...imageMetadata(image),
-                                          errorDetails: undefined,
-                                          freeResize: false,
-                                          images: undefined,
-                                          generationType: undefined,
-                                          model: undefined,
-                                          size: undefined,
-                                          quality: undefined,
-                                          count: undefined,
-                                          references: undefined,
-                                          primaryImageId: undefined,
-                                      },
-                                  }
-                                : node,
-                        ),
-                    );
-                    setSelectedNodeIds(new Set([target.nodeId]));
-                    setSelectedConnectionId(null);
+                    canvasCommands.updateNode(target.nodeId, (node) => ({ ...node, type: CanvasNodeType.Image, title: first.name, width: s.width, height: s.height, metadata: { ...node.metadata, ...imageMetadata(image), errorDetails: undefined, freeResize: false, images: undefined, generationType: undefined, model: undefined, size: undefined, quality: undefined, count: undefined, references: undefined, primaryImageId: undefined } }));
+                    canvasCommands.selectNodes([target.nodeId]);
                 }
 
                 // Create the remaining files near the target node.
@@ -1636,7 +1434,7 @@ function InfiniteCanvasPage() {
             uploadTargetRef.current = null;
             event.target.value = "";
         },
-        [createAudioFileNode, createImageFileNode, createVideoFileNode, screenToCanvas, size.height, size.width],
+        [canvasCommands, createAudioFileNode, createImageFileNode, createVideoFileNode, screenToCanvas, size.height, size.width],
     );
 
     const handleDrop = useCallback(
@@ -1696,7 +1494,7 @@ function InfiniteCanvasPage() {
                 if (!scene) return;
                 setRunningNodeId(nodeId);
                 const controller = startGenerationRequest(nodeId, nodeId, nodeId);
-                setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, prompt: scene, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
+                canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, prompt: scene, status: NODE_STATUS_LOADING, errorDetails: undefined } }));
                 try {
                     const fullPrompt = (builtinPanel.promptPrefix || "") + scene;
                     // Upstream image nodes become references; without them this is text-to-image.
@@ -1713,15 +1511,13 @@ function InfiniteCanvasPage() {
                         ? await requestEdit({ ...generationConfig, count: "1" }, fullPrompt, refs, undefined, { signal: controller.signal }).then((items) => items[0])
                         : await requestGeneration({ ...generationConfig, count: "1" }, fullPrompt, { signal: controller.signal }).then((items) => items[0]);
                     const uploaded = await uploadImage(image.dataUrl);
-                    setNodes((prev) =>
-                        prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...imageMetadata(uploaded), prompt: scene, model: generationConfig.model, status: NODE_STATUS_SUCCESS, errorDetails: undefined } } : node)),
-                    );
+                    canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, ...imageMetadata(uploaded), prompt: scene, model: generationConfig.model, status: NODE_STATUS_SUCCESS, errorDetails: undefined } }));
                     setDialogNodeId(null);
                 } catch (error) {
                     if (!isGenerationCanceled(error)) {
                         const errorDetails = error instanceof Error ? error.message : t("canvas.projectPage.generationFailed");
                         message.error(errorDetails);
-                        setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails } } : node)));
+                        canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails } }));
                     }
                 } finally {
                     finishGenerationRequest(nodeId, controller);
@@ -1750,7 +1546,7 @@ function InfiniteCanvasPage() {
             }
             let pendingChildIds: string[] = [];
             if (markSourceStatus)
-                setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...(node.type === CanvasNodeType.Config ? {} : { prompt }), status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)));
+                canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, ...(node.type === CanvasNodeType.Config ? {} : { prompt }), status: NODE_STATUS_LOADING, errorDetails: undefined } }));
 
             try {
                 if (mode === "image") {
@@ -1789,8 +1585,9 @@ function InfiniteCanvasPage() {
                         },
                     };
 
-                    setNodes((prev) => [
-                        ...prev.map((node) =>
+                    canvasCommands.transaction((document) => ({
+                        nodes: [
+                        ...document.nodes.map((node) =>
                             node.id === nodeId
                                 ? isConfigNode
                                     ? {
@@ -1821,11 +1618,10 @@ function InfiniteCanvasPage() {
                                           }
                                 : node,
                         ),
-                        ...(isEmptyImageNode ? [] : [rootNode]),
-                    ]);
-                    if (!isEmptyImageNode) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: nodeId, toNodeId: rootId }]);
-                    setSelectedNodeIds(new Set([nodeId]));
-                    setSelectedConnectionId(null);
+                        ...(isEmptyImageNode ? [] : [rootNode])],
+                        connections: isEmptyImageNode ? document.connections : [...document.connections, { id: nanoid(), fromNodeId: nodeId, toNodeId: rootId }],
+                    }));
+                    canvasCommands.selectNodes([nodeId]);
                     setDialogNodeId(nodeId);
 
                     const controller = rootId === nodeId ? runController : startGenerationRequest(rootId, nodeId, nodeId, runController);
@@ -1850,9 +1646,7 @@ function InfiniteCanvasPage() {
                                     bytes: uploaded.bytes,
                                     mimeType: uploaded.mimeType,
                                 };
-                                setNodes((prev) =>
-                                    prev.map((node) => {
-                                        if (node.id !== rootId) return node;
+                                canvasCommands.updateNode(rootId, (node) => {
                                         const images = node.metadata?.images?.map((image) => (image.id === imageId ? item : image)) || [];
                                         if (node.metadata?.primaryImageId) return { ...node, metadata: { ...node.metadata, images } };
                                         const center = { x: node.position.x + node.width / 2, y: node.position.y + node.height / 2 };
@@ -1872,42 +1666,34 @@ function InfiniteCanvasPage() {
                                                 primaryImageId: imageId,
                                             },
                                         };
-                                    }),
-                                );
+                                    });
                                 hasSuccess = true;
-                                if (isConfigNode) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS, errorDetails: undefined } } : node)));
+                                if (isConfigNode) canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS, errorDetails: undefined } }));
                                 return true;
                             } catch (error) {
                                 if (isGenerationCanceled(error)) return false;
                                 const errorDetails = error instanceof Error ? error.message : t("canvas.projectPage.generationFailed");
                                 if (!firstError) firstError = errorDetails;
                                 hasFailure = true;
-                                setNodes((prev) =>
-                                    prev.map((node) =>
-                                        node.id === rootId ? { ...node, metadata: { ...node.metadata, images: node.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_ERROR, errorDetails } : image)) } } : node,
-                                    ),
-                                );
+                                canvasCommands.updateNode(rootId, (node) => ({ ...node, metadata: { ...node.metadata, images: node.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_ERROR, errorDetails } : image)) } }));
                             }
                             return false;
                         }),
                     );
                     if (rootId !== nodeId) finishGenerationRequest(rootId, controller);
                     if (controller.signal.aborted) {
-                        setNodes((prev) => prev.map((node) => (node.id === nodeId && isConfigNode && node.metadata?.status === NODE_STATUS_LOADING ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : node)));
+                        if (isConfigNode) canvasCommands.updateNode(nodeId, (node) => (node.metadata?.status === NODE_STATUS_LOADING ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_IDLE, errorDetails: undefined } } : node));
                         return;
                     }
                     if (hasFailure) {
                         message.error(hasSuccess ? t("canvas.projectPage.partialFailed") : firstError || t("canvas.projectPage.generationFailed"));
                     }
-                    setNodes((prev) =>
-                        prev.map((node) =>
+                    canvasCommands.transaction((document) => ({ ...document, nodes: document.nodes.map((node) =>
                             node.id === nodeId && isConfigNode
                                 ? { ...node, metadata: { ...node.metadata, status: hasSuccess ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR, errorDetails: hasSuccess ? undefined : t("canvas.projectPage.generationFailed") } }
                                 : node.id === rootId
                                   ? { ...node, metadata: { ...node.metadata, status: hasSuccess ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR, errorDetails: hasSuccess ? undefined : t("canvas.projectPage.allFailed") } }
-                                  : node,
-                        ),
-                    );
+                                  : node) }));
                     return;
                 }
 
@@ -1936,22 +1722,14 @@ function InfiniteCanvasPage() {
                         },
                     };
                     pendingChildIds = [videoId];
-                    setNodes((prev) =>
-                        isEmptyVideoNode
-                            ? prev.map((node) => (node.id === nodeId ? { ...node, ...videoNode } : node))
-                            : [...prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS } } : node)), videoNode],
-                    );
-                    if (!isEmptyVideoNode) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: nodeId, toNodeId: videoId }]);
+                    canvasCommands.transaction((document) => ({ nodes: isEmptyVideoNode ? document.nodes.map((node) => (node.id === nodeId ? { ...node, ...videoNode } : node)) : [...document.nodes.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS } } : node)), videoNode], connections: isEmptyVideoNode ? document.connections : [...document.connections, { id: nanoid(), fromNodeId: nodeId, toNodeId: videoId }] }));
                     const controller = startGenerationRequest(videoId, nodeId, nodeId, runController);
                     try {
                         const video = await storeGeneratedVideo(
                             await requestVideoGeneration(generationConfig, effectivePrompt, generationContext.referenceImages, generationContext.referenceVideos, generationContext.referenceAudios, { signal: controller.signal }),
                         );
                         const videoSize = fitNodeSize(video.width || spec.width, video.height || spec.height, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
-                        setNodes((prev) =>
-                            prev.map((node) =>
-                                node.id === videoId
-                                    ? {
+                        canvasCommands.updateNode(videoId, (node) => ({
                                           ...node,
                                           width: videoSize.width,
                                           height: videoSize.height,
@@ -1968,10 +1746,7 @@ function InfiniteCanvasPage() {
                                               watermark: generationConfig.videoWatermark,
                                               references: generationReferenceUrls(generationContext),
                                           },
-                                      }
-                                    : node,
-                            ),
-                        );
+                                      }));
                     } finally {
                         finishGenerationRequest(videoId, controller);
                     }
@@ -1993,16 +1768,11 @@ function InfiniteCanvasPage() {
                         metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig) },
                     };
                     pendingChildIds = [audioId];
-                    setNodes((prev) =>
-                        isEmptyAudioNode
-                            ? prev.map((node) => (node.id === nodeId ? { ...node, ...audioNode } : node))
-                            : [...prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS } } : node)), audioNode],
-                    );
-                    if (!isEmptyAudioNode) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: nodeId, toNodeId: audioId }]);
+                    canvasCommands.transaction((document) => ({ nodes: isEmptyAudioNode ? document.nodes.map((node) => (node.id === nodeId ? { ...node, ...audioNode } : node)) : [...document.nodes.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS } } : node)), audioNode], connections: isEmptyAudioNode ? document.connections : [...document.connections, { id: nanoid(), fromNodeId: nodeId, toNodeId: audioId }] }));
                     const controller = startGenerationRequest(audioId, nodeId, nodeId, runController);
                     try {
                         const audio = await storeGeneratedAudio(await requestAudioGeneration(generationConfig, effectivePrompt, { signal: controller.signal }), generationConfig.audioFormat);
-                        setNodes((prev) => prev.map((node) => (node.id === audioId ? { ...node, metadata: { ...node.metadata, ...audioMetadata(audio), prompt: effectivePrompt, ...buildAudioGenerationMetadata(generationConfig) } } : node)));
+                        canvasCommands.updateNode(audioId, (node) => ({ ...node, metadata: { ...node.metadata, ...audioMetadata(audio), prompt: effectivePrompt, ...buildAudioGenerationMetadata(generationConfig) } }));
                     } finally {
                         finishGenerationRequest(audioId, controller);
                     }
@@ -2030,8 +1800,7 @@ function InfiniteCanvasPage() {
                         height: textConfig.height,
                         metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, fontSize: 14, model: generationConfig.model, reasoningEffort: generationConfig.reasoningEffort },
                     }));
-                    setNodes((prev) => [...prev.map((node) => (node.id === nodeId && isConfigNode ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)), ...childNodes]);
-                    setConnections((prev) => [...prev, ...childIds.map((childId) => ({ id: nanoid(), fromNodeId: nodeId, toNodeId: childId }))]);
+                    canvasCommands.transaction((document) => ({ nodes: [...document.nodes.map((node) => (node.id === nodeId && isConfigNode ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)), ...childNodes], connections: [...document.connections, ...childIds.map((childId) => ({ id: nanoid(), fromNodeId: nodeId, toNodeId: childId }))] }));
                 }
 
                 const controller = runController;
@@ -2047,7 +1816,7 @@ function InfiniteCanvasPage() {
                                 localStreamed = text;
                                 streamed = text;
                                 if (isConfigNode) return;
-                                setNodes((prev) => prev.map((node) => (node.id === targetNodeId ? { ...node, type: CanvasNodeType.Text, metadata: { ...node.metadata, content: text, status: NODE_STATUS_LOADING } } : node)));
+                                canvasCommands.updateNode(targetNodeId, (node) => ({ ...node, type: CanvasNodeType.Text, metadata: { ...node.metadata, content: text, status: NODE_STATUS_LOADING } }));
                             },
                             { signal: controller.signal },
                         )
@@ -2057,8 +1826,7 @@ function InfiniteCanvasPage() {
                 );
                 if (controller.signal.aborted) return;
                 const answerByNodeId = new Map(answers.map((item) => [item.nodeId, item.content]));
-                setNodes((prev) =>
-                    prev.map((node) =>
+                canvasCommands.transaction((document) => ({ ...document, nodes: document.nodes.map((node) =>
                         childIds.includes(node.id)
                             ? { ...node, metadata: { ...node.metadata, content: answerByNodeId.get(node.id) || streamed, status: NODE_STATUS_SUCCESS } }
                             : node.id === nodeId && isConfigNode
@@ -2070,22 +1838,18 @@ function InfiniteCanvasPage() {
                                       title: prompt.slice(0, 32) || "Generated Text",
                                       metadata: { ...node.metadata, content: answerByNodeId.get(node.id) || streamed, model: generationConfig.model, reasoningEffort: generationConfig.reasoningEffort, status: NODE_STATUS_SUCCESS },
                                   }
-                                : node,
-                    ),
-                );
+                                : node) }));
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
                 const errorDetails = error instanceof Error ? error.message : t("canvas.projectPage.generationFailed");
                 message.error(errorDetails);
-                setNodes((prev) =>
-                    prev.map((node) => (node.id === nodeId || pendingChildIds.includes(node.id) ? (node.id === nodeId && !markSourceStatus ? node : { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails } }) : node)),
-                );
+                canvasCommands.transaction((document) => ({ ...document, nodes: document.nodes.map((node) => (node.id === nodeId || pendingChildIds.includes(node.id) ? (node.id === nodeId && !markSourceStatus ? node : { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails } }) : node)) }));
             } finally {
                 finishGenerationRequest(nodeId, runController);
                 setRunningNodeId(null);
             }
         },
-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t],
+        [canvasCommands, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t],
     );
     useEffect(() => {
         generateNodeRef.current = handleGenerateNode;
@@ -2124,10 +1888,7 @@ function InfiniteCanvasPage() {
                 hasSavedImageMetadata && savedImageMetadata ? await resolveMetadataReferences(savedImageMetadata) : useReferenceImages ? (context?.referenceImages.length ? context.referenceImages : sourceNodeReferenceImages(sourceNode)) : [];
             if (useReferenceImages && !retryReferenceImages) {
                 message.error(t("canvas.projectPage.referenceMissing"));
-                setNodes((prev) =>
-                    prev.map((item) =>
-                        item.id === node.id
-                            ? {
+                canvasCommands.updateNode(node.id, (item) => ({
                                   ...item,
                                   metadata: {
                                       ...item.metadata,
@@ -2135,19 +1896,13 @@ function InfiniteCanvasPage() {
                                       errorDetails: item.metadata?.content ? undefined : t("canvas.projectPage.referenceMissing"),
                                       images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_ERROR, errorDetails: t("canvas.projectPage.referenceMissing") } : image)),
                                   },
-                              }
-                            : item,
-                    ),
-                );
+                              }));
                 return;
             }
             const retryImages = retryReferenceImages || [];
 
             setRunningNodeId(node.id);
-            setNodes((prev) =>
-                prev.map((item) =>
-                    item.id === node.id
-                        ? {
+            canvasCommands.updateNode(node.id, (item) => ({
                               ...item,
                               metadata: {
                                   ...item.metadata,
@@ -2155,10 +1910,7 @@ function InfiniteCanvasPage() {
                                   errorDetails: undefined,
                                   images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_LOADING, errorDetails: undefined } : image)),
                               },
-                          }
-                        : item,
-                ),
-            );
+                          }));
             const controller = startGenerationRequest(node.id, sourceNode.id, node.id);
 
             try {
@@ -2170,20 +1922,17 @@ function InfiniteCanvasPage() {
                         buildNodeResponseMessages({ ...context, prompt }),
                         (text) => {
                             streamed = text;
-                            setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, type: CanvasNodeType.Text, metadata: { ...item.metadata, content: text, status: NODE_STATUS_LOADING } } : item)));
+                            canvasCommands.updateNode(node.id, (item) => ({ ...item, type: CanvasNodeType.Text, metadata: { ...item.metadata, content: text, status: NODE_STATUS_LOADING } }));
                         },
                         { signal: controller.signal },
                     );
-                    setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, type: CanvasNodeType.Text, metadata: { ...item.metadata, content: answer || streamed, prompt, status: NODE_STATUS_SUCCESS } } : item)));
+                    canvasCommands.updateNode(node.id, (item) => ({ ...item, type: CanvasNodeType.Text, metadata: { ...item.metadata, content: answer || streamed, prompt, status: NODE_STATUS_SUCCESS } }));
                     return;
                 }
                 if (node.type === CanvasNodeType.Video) {
                     const video = await storeGeneratedVideo(await requestVideoGeneration(generationConfig, prompt, retryImages, context?.referenceVideos || [], context?.referenceAudios || [], { signal: controller.signal }));
                     const videoSize = fitNodeSize(video.width || node.width, video.height || node.height, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
-                    setNodes((prev) =>
-                        prev.map((item) =>
-                            item.id === node.id
-                                ? {
+                    canvasCommands.updateNode(node.id, (item) => ({
                                       ...item,
                                       width: videoSize.width,
                                       height: videoSize.height,
@@ -2199,15 +1948,12 @@ function InfiniteCanvasPage() {
                                           generateAudio: generationConfig.videoGenerateAudio,
                                           watermark: generationConfig.videoWatermark,
                                       },
-                                  }
-                                : item,
-                        ),
-                    );
+                                  }));
                     return;
                 }
                 if (node.type === CanvasNodeType.Audio) {
                     const audio = await storeGeneratedAudio(await requestAudioGeneration(generationConfig, prompt, { signal: controller.signal }), generationConfig.audioFormat);
-                    setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, ...audioMetadata(audio), prompt, ...buildAudioGenerationMetadata(generationConfig) } } : item)));
+                    canvasCommands.updateNode(node.id, (item) => ({ ...item, metadata: { ...item.metadata, ...audioMetadata(audio), prompt, ...buildAudioGenerationMetadata(generationConfig) } }));
                     return;
                 }
 
@@ -2237,9 +1983,7 @@ function InfiniteCanvasPage() {
                           references: savedImageMetadata.references,
                       }
                     : buildImageGenerationMetadata(useReferenceImages ? "edit" : "generation", generationConfig, 1, retryImages);
-                setNodes((prev) =>
-                    prev.map((item) => {
-                        if (item.id !== node.id) return item;
+                canvasCommands.updateNode(node.id, (item) => {
                         const makePrimary = !imageId || !item.metadata?.content;
                         const edge = imageId ? Math.max(item.width, item.height) : 0;
                         const imageSize =
@@ -2263,16 +2007,12 @@ function InfiniteCanvasPage() {
                                 ...generationMetadata,
                             },
                         };
-                    }),
-                );
+                    });
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
                 const errorDetails = error instanceof Error ? error.message : t("canvas.projectPage.generationFailed");
                 message.error(errorDetails);
-                setNodes((prev) =>
-                    prev.map((item) =>
-                        item.id === node.id
-                            ? {
+                canvasCommands.updateNode(node.id, (item) => ({
                                   ...item,
                                   metadata: {
                                       ...item.metadata,
@@ -2280,29 +2020,23 @@ function InfiniteCanvasPage() {
                                       errorDetails: item.metadata?.content ? undefined : errorDetails,
                                       images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_ERROR, errorDetails } : image)),
                                   },
-                              }
-                            : item,
-                    ),
-                );
+                              }));
             } finally {
                 finishGenerationRequest(node.id, controller);
                 setRunningNodeId(null);
             }
         },
-        [effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t],
+        [canvasCommands, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, openConfigDialog, startGenerationRequest, t],
     );
 
     const deleteBatchImage = useCallback((nodeId: string, imageId: string) => {
         const node = nodesRef.current.find((item) => item.id === nodeId);
         if ((node?.metadata?.images?.length || 0) <= 2) setExpandedImageNodeId(null);
-        setNodes((prev) =>
-            prev.map((item) => {
-                if (item.id !== nodeId) return item;
-                const images = item.metadata?.images?.filter((image) => image.id !== imageId) || [];
-                return { ...item, metadata: { ...item.metadata, images, count: images.length, primaryImageId: item.metadata?.primaryImageId === imageId ? images[0]?.id : item.metadata?.primaryImageId } };
-            }),
-        );
-    }, []);
+        canvasCommands.updateNode(nodeId, (item) => {
+            const images = item.metadata?.images?.filter((image) => image.id !== imageId) || [];
+            return { ...item, metadata: { ...item.metadata, images, count: images.length, primaryImageId: item.metadata?.primaryImageId === imageId ? images[0]?.id : item.metadata?.primaryImageId } };
+        });
+    }, [canvasCommands]);
 
     const retryBatchImage = useCallback((node: CanvasNodeData, imageId: string) => void handleRetryNode(node, imageId), [handleRetryNode]);
 
@@ -2332,15 +2066,11 @@ function InfiniteCanvasPage() {
             const connection = { id: nanoid(), fromNodeId: sourceNode.id, toNodeId: configNode.id };
             const nextNodes = nodesRef.current.map((item) => (item.id === sourceNode.id ? { ...item, metadata: { ...item.metadata, content: prompt, prompt, status: NODE_STATUS_SUCCESS } } : item)).concat(configNode);
             const nextConnections = [...connectionsRef.current, connection];
-            nodesRef.current = nextNodes;
-            connectionsRef.current = nextConnections;
-            setNodes(nextNodes);
-            setConnections(nextConnections);
-            setSelectedNodeIds(new Set([configNode.id]));
-            setSelectedConnectionId(null);
+            canvasCommands.transaction(() => ({ nodes: nextNodes, connections: nextConnections }));
+            canvasCommands.selectNodes([configNode.id]);
             setDialogNodeId(configNode.id);
         },
-        [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, message, t],
+        [canvasCommands, effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, message, t],
     );
 
     const insertAssistantImage = useCallback(
@@ -2360,12 +2090,11 @@ function InfiniteCanvasPage() {
                 metadata: { ...imageMetadata({ ...storedImage, width: meta.width, height: meta.height }), prompt: image.prompt },
             };
 
-            setNodes((prev) => [...prev, node]);
-            setSelectedNodeIds(new Set([id]));
-            setSelectedConnectionId(null);
+            canvasCommands.addNode(node);
+            canvasCommands.selectNodes([id]);
             setDialogNodeId(id);
         },
-        [screenToCanvas, size.height, size.width],
+        [canvasCommands, screenToCanvas, size.height, size.width],
     );
 
     const insertAssistantText = useCallback(
@@ -2376,11 +2105,10 @@ function InfiniteCanvasPage() {
                 title: title || text.slice(0, 32) || "Assistant Text",
             };
 
-            setNodes((prev) => [...prev, node]);
-            setSelectedNodeIds(new Set([node.id]));
-            setSelectedConnectionId(null);
+            canvasCommands.addNode(node);
+            canvasCommands.selectNodes([node.id]);
         },
-        [screenToCanvas, size.height, size.width],
+        [canvasCommands, screenToCanvas, size.height, size.width],
     );
 
     const handleAssetInsert = useCallback(
@@ -2392,25 +2120,14 @@ function InfiniteCanvasPage() {
                 const center = screenToCanvas((containerRef.current?.getBoundingClientRect().left || 0) + size.width / 2, (containerRef.current?.getBoundingClientRect().top || 0) + size.height / 2);
                 const id = `video-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
                 const nextSize = fitNodeSize(payload.width || spec.width, payload.height || spec.height, VIDEO_NODE_MAX_WIDTH, VIDEO_NODE_MAX_HEIGHT);
-                setNodes((prev) => [
-                    ...prev,
-                    {
-                        id,
-                        type: CanvasNodeType.Video,
-                        title: payload.title,
-                        position: { x: center.x - nextSize.width / 2, y: center.y - nextSize.height / 2 },
-                        width: nextSize.width,
-                        height: nextSize.height,
-                        metadata: { content: payload.url, storageKey: payload.storageKey, status: NODE_STATUS_SUCCESS, naturalWidth: payload.width, naturalHeight: payload.height },
-                    },
-                ]);
-                setSelectedNodeIds(new Set([id]));
+                canvasCommands.addNode({ id, type: CanvasNodeType.Video, title: payload.title, position: { x: center.x - nextSize.width / 2, y: center.y - nextSize.height / 2 }, width: nextSize.width, height: nextSize.height, metadata: { content: payload.url, storageKey: payload.storageKey, status: NODE_STATUS_SUCCESS, naturalWidth: payload.width, naturalHeight: payload.height } });
+                canvasCommands.selectNodes([id]);
             } else {
                 insertAssistantImage({ id: `asset-${Date.now()}`, prompt: payload.title, dataUrl: payload.dataUrl, storageKey: payload.storageKey });
             }
             setAssetPickerOpen(false);
         },
-        [insertAssistantImage, insertAssistantText, screenToCanvas, size.height, size.width],
+        [canvasCommands, insertAssistantImage, insertAssistantText, screenToCanvas, size.height, size.width],
     );
 
     // Memoize every callback and render function passed to CanvasNode.
@@ -2538,13 +2255,11 @@ function InfiniteCanvasPage() {
                         activeConnectionIds={relatedHighlight.connectionIds}
                         theme={theme}
                         onConnectionSelect={(connection) => {
-                            setSelectedConnectionId(connection.id);
-                            setSelectedNodeIds(new Set());
+                            canvasCommands.selectConnection(connection.id);
                             setContextMenu(null);
                         }}
                         onConnectionContextMenu={(event, connection) => {
-                            setSelectedConnectionId(connection.id);
-                            setSelectedNodeIds(new Set());
+                            canvasCommands.selectConnection(connection.id);
                             setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId: connection.id });
                         }}
                     />

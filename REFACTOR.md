@@ -282,8 +282,8 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 ### 10.5 Web 接回 Core
 
 - `use-canvas-store` 只保存项目数据和 Core 文档快照。
-- `project.tsx` 删除已经迁入 Core 的事件处理与临时编辑状态。
-- AI 生成结果通过 Core 命令添加或更新节点。
+- `project.tsx` 已删除本地选择 setter 与 `setNodes`、`setConnections` 文档数组适配，选择、普通编辑、媒体导入、AI 流式生成和批量结果均直接调用 Core 命令。
+- AI 生成结果已通过 `updateNode` 或 `transaction` 添加、更新节点和连线，多节点初始化继续保持原子提交。
 - Agent 操作转换为 Core 命令。
 - Web 插件节点定义通过适配层交给 Core。
 - Web 统一从 Core 引用画布主题，删除重复的 `canvas-theme.ts`。
