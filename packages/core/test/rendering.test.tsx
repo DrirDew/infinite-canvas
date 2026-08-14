@@ -10,9 +10,10 @@ const nodes: CanvasNode[] = [
 const customTheme: CanvasTheme = { ...canvasThemes.light, canvas: { ...canvasThemes.light.canvas, background: "rebeccapurple" } };
 
 test("renders core connection, selection, and minimap layers", () => {
-    const canvasHtml = renderToString(<InfiniteCanvas containerRef={createRef<HTMLDivElement>()} viewport={{ x: 0, y: 0, k: 1 }} theme={customTheme} tool="select" className="custom-canvas" ariaLabel="Editor" onViewportChange={() => {}} />);
+    const canvasHtml = renderToString(<InfiniteCanvas containerRef={createRef<HTMLDivElement>()} viewport={{ x: 0, y: 0, k: 1 }} theme={customTheme} tool="select" className="custom-canvas" ariaLabel="Editor" backgroundStyle={{ opacity: 1 }} renderBackground={({ mode }) => <span data-custom-background={mode} />} onViewportChange={() => {}} />);
     expect(canvasHtml).toContain('tabindex="0" aria-label="Editor"');
     expect(canvasHtml).toContain("background:rebeccapurple");
+    expect(canvasHtml).toContain('data-custom-background="lines"');
     expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} selectedConnectionId="ab" theme={canvasThemes.light} />)).toContain('data-connection-id="ab"');
     expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} resolvePath={() => "M 0 0 L 1 1"} />)).toContain('d="M 0 0 L 1 1"');
     const connectionHtml = renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} hitStrokeWidth={24} className="custom-connections" style={{ zIndex: 2 }} resolveStyle={() => ({ stroke: "red", strokeWidth: 5, strokeDasharray: "2 2" })} />);

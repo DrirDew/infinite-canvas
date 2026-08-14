@@ -34,6 +34,8 @@ export type InfiniteCanvasProps = {
     style?: CSSProperties;
     tabIndex?: number;
     ariaLabel?: string;
+    backgroundStyle?: CSSProperties;
+    renderBackground?: (context: CanvasBackgroundRenderContext) => ReactNode;
     onViewportChange: (viewport: ViewportTransform) => void;
     onCanvasPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
     onCanvasDeselect?: () => void;
@@ -42,6 +44,7 @@ export type InfiniteCanvasProps = {
     onDrop?: (event: DragEvent<HTMLDivElement>) => void;
     children?: ReactNode;
 };
+export type CanvasBackgroundRenderContext = { viewport: ViewportTransform; theme: CanvasTheme; mode: CanvasBackgroundMode; gridSize: number };
 
 export function InfiniteCanvas({
     containerRef,
@@ -57,6 +60,8 @@ export function InfiniteCanvas({
     style,
     tabIndex = 0,
     ariaLabel = "Infinite canvas",
+    backgroundStyle,
+    renderBackground,
     onViewportChange,
     onCanvasPointerDown,
     onCanvasDeselect,
@@ -162,6 +167,7 @@ export function InfiniteCanvas({
         backgroundMode === "dots"
             ? `radial-gradient(circle, ${theme.canvas.dot} ${viewport.k < 0.12 ? 0.8 : 1.15}px, transparent 1.35px)`
             : `linear-gradient(${theme.canvas.line} 1px, transparent 1px),linear-gradient(90deg,${theme.canvas.line} 1px,transparent 1px)`;
+    const customBackground = renderBackground?.({ viewport, theme, mode: backgroundMode, gridSize });
 
     return (
         <div
@@ -200,8 +206,8 @@ export function InfiniteCanvas({
             onDragOver={(event) => event.preventDefault()}
             onDrop={onDrop}
         >
-            {backgroundMode === "blank" ? null : (
-                <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.4, backgroundImage, backgroundSize: `${grid}px ${grid}px`, backgroundPosition: `${viewport.x % grid}px ${viewport.y % grid}px` }} />
+            {backgroundMode === "blank" && customBackground == null ? null : (
+                <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.4, backgroundImage: customBackground == null ? backgroundImage : undefined, backgroundSize: `${grid}px ${grid}px`, backgroundPosition: `${viewport.x % grid}px ${viewport.y % grid}px`, ...backgroundStyle }}>{customBackground}</div>
             )}
             <div style={{ position: "absolute", transformOrigin: "top left", transform: `translate(${viewport.x}px,${viewport.y}px) scale(${viewport.k})` }}>{children}</div>
         </div>
