@@ -74,4 +74,5 @@ interactions.resetViewport();
 - `minimap.tsx`：可自定义节点颜色的独立小地图。
 - `node.tsx`：节点定位外壳、四角缩放控制、连接端口和未知节点占位。
 - `shortcuts.ts`：跨平台画布快捷键识别。
-- `geometry.ts` / `theme.ts`：纯几何工具与画布主题。
+- `geometry/viewport.ts`、`geometry/nodes.ts`、`geometry/connections.ts`：按视口、节点分组和连线职责拆分的纯几何工具；`geometry.ts` 保持统一公开入口。
+- `theme.ts`：画布主题 token。
