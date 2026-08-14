@@ -76,7 +76,7 @@ const editor = useCanvasEditor({
 
 ## 源码职责
 
-- `types.ts`：公开文档、节点、选择和命令类型。
+- `model.ts` / `commands.ts` / `options.ts`：分别定义画布数据模型、实例命令和 Hook 配置；`types.ts` 保持统一公开类型入口。
 - `defaults.ts`：公开且可覆盖的引擎默认参数。
 - `headless.ts` / `react.ts`：无 React 能力与 React 运行时能力的独立包入口。
 - `document.ts`：无 React 依赖的文档校验、修改、选择清理和剪贴板变换逻辑。
