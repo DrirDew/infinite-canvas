@@ -7,7 +7,7 @@
 Core 的公开边界包括文档与实例状态、基础编辑命令、指针与视口交互、剪贴板、快捷键识别和基础渲染。节点 `type` 是接入应用定义的普通字符串；需要参与分组引擎的节点使用 `role: "group"`，子节点通过顶层 `groupId` 归属分组。泛型 `metadata` 不受 Core 字段约束，可由接入应用自由定义。项目存储、系统剪贴板媒体、ID 生成、节点业务内容、AI、Agent 与插件宿主由接入应用负责。
 
 ```tsx
-import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, useCanvas, useCanvasInteractions } from "@infinite-canvas/core";
+import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, useCanvas, useCanvasEditor, useCanvasInteractions } from "@infinite-canvas/core";
 
 const canvas = useCanvas({
     document: { nodes: [], connections: [] },
@@ -45,6 +45,12 @@ interactions.focusNode(node.id);
 interactions.setZoom(1.5);
 interactions.resetViewport();
 
+// 也可以一次组合两个 Hook，嵌套配置用于区分状态回调与交互输入回调。
+const editor = useCanvasEditor({
+    canvas: { document, onDocumentChange: saveDocument },
+    interactions: { containerRef: ref, onViewportInput: closeTransientOverlays },
+});
+
 <InfiniteCanvas containerRef={ref} viewport={canvas.viewport} theme={canvasThemes.light} tool="select" gridSize={40} minZoom={0.1} maxZoom={4} onViewportChange={interactions.onViewportChange} onCanvasPointerDown={interactions.onCanvasPointerDown}>
     {canvas.document.nodes.map((node) => (
         <CanvasNodeShell key={node.id} node={node} onPointerDown={(event) => interactions.onNodePointerDown(event, node.id)} onPointerDownCapture={(event) => interactions.onNodePointerDownCapture(event, node.id)}>
@@ -69,6 +75,7 @@ interactions.resetViewport();
 - `document.ts`：无 React 依赖的文档修改、选择清理和剪贴板变换逻辑。
 - `selectors.ts`：分组数量、上下游节点、图遍历与关联高亮等纯派生查询。
 - `use-canvas.ts`：实例状态、历史、事务和预览命令。
+- `use-canvas-editor.ts`：一次组合实例状态与交互编排的高层 Hook。
 - `use-canvas-viewport.ts`：容器尺寸、坐标转换、缩放、复位和节点聚焦动画。
 - `use-canvas-interactions.ts`：组合视口能力，并管理框选、节点选择与拖动、连线和全局指针生命周期。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。

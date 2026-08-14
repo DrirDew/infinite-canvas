@@ -1,4 +1,5 @@
 export * from "./use-canvas";
+export * from "./use-canvas-editor";
 export * from "./use-canvas-viewport";
 export * from "./use-canvas-interactions";
 export * from "./infinite-canvas";
