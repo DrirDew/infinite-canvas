@@ -13,7 +13,7 @@ export function getConnectionPath<T>(source: CanvasNode<T>, target?: CanvasNode<
     return `M ${start.x} ${start.y} C ${start.x + curvature} ${start.y}, ${end.x - curvature} ${end.y}, ${end.x} ${end.y}`;
 }
 
-export function findConnectionDropTarget<T>(nodes: CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, resolver?: CanvasConnectionResolver<T>, handleRadius = canvasDefaults.connectionHandleRadius, nodePadding = canvasDefaults.connectionNodePadding): CanvasConnectionDropTarget {
+export function findConnectionDropTarget<T>(nodes: readonly CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, resolver?: CanvasConnectionResolver<T>, handleRadius = canvasDefaults.connectionHandleRadius, nodePadding = canvasDefaults.connectionNodePadding): CanvasConnectionDropTarget {
     const radius = handleRadius / Math.max(scale, 0.05);
     const padding = nodePadding / Math.max(scale, 0.05);
     let isNearNode = false;
@@ -38,7 +38,7 @@ export function findConnectionDropTarget<T>(nodes: CanvasNode<T>[], current: Con
     return { nodeId, isNearNode };
 }
 
-export function normalizeConnection<T>(firstNodeId: string, secondNodeId: string, nodes: CanvasNode<T>[], firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
+export function normalizeConnection<T>(firstNodeId: string, secondNodeId: string, nodes: readonly CanvasNode<T>[], firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
     const first = nodes.find((node) => node.id === firstNodeId);
     const second = nodes.find((node) => node.id === secondNodeId);
     if (!first || !second || first.id === second.id || isGroupNode(first) || isGroupNode(second)) return null;

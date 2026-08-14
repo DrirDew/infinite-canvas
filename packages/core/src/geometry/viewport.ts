@@ -31,6 +31,6 @@ export function fitViewportToNode<T>(node: CanvasNode<T>, size: CanvasSize, cove
     return { x: size.width / 2 - (node.position.x + node.width / 2) * k, y: size.height / 2 - (node.position.y + node.height / 2) * k, k };
 }
 
-export function nodesInViewport<T>(nodes: CanvasNode<T>[], viewport: ViewportTransform, size: CanvasSize, padding = 0) {
+export function nodesInViewport<T>(nodes: readonly CanvasNode<T>[], viewport: ViewportTransform, size: CanvasSize, padding = 0) {
     return nodesInRect(nodes, { x: -viewport.x / viewport.k - padding, y: -viewport.y / viewport.k - padding, width: size.width / viewport.k + padding * 2, height: size.height / viewport.k + padding * 2 });
 }

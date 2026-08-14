@@ -5,7 +5,7 @@ import type { CanvasTheme } from "./theme.js";
 import type { CanvasNode, CanvasSize, ViewportTransform } from "./types.js";
 
 export type CanvasMinimapProps<TMetadata = unknown> = {
-    nodes: CanvasNode<TMetadata>[];
+    nodes: readonly CanvasNode<TMetadata>[];
     viewport: ViewportTransform;
     viewportSize: CanvasSize;
     theme: CanvasTheme;

@@ -7,8 +7,8 @@ import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "
 export type CanvasConnectionStyle = Pick<SVGAttributes<SVGPathElement>, "stroke" | "strokeWidth" | "strokeOpacity" | "strokeDasharray" | "style">;
 
 export type CanvasConnectionLayerProps<TMetadata = unknown> = {
-    nodes: CanvasNode<TMetadata>[];
-    connections: CanvasConnection[];
+    nodes: readonly CanvasNode<TMetadata>[];
+    connections: readonly CanvasConnection[];
     interaction?: CanvasConnectionInteraction | null;
     selectedConnectionId?: string | null;
     activeConnectionIds?: ReadonlySet<string>;

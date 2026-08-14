@@ -12,11 +12,11 @@ export type CanvasPasteOptions<TMetadata = unknown> = {
 export type CanvasCommands<TMetadata = unknown> = {
     setDocument: (document: CanvasDocument<TMetadata>) => void;
     addNode: (node: CanvasNode<TMetadata>) => CanvasDocument<TMetadata>;
-    addNodes: (nodes: CanvasNode<TMetadata>[]) => CanvasDocument<TMetadata>;
+    addNodes: (nodes: readonly CanvasNode<TMetadata>[]) => CanvasDocument<TMetadata>;
     updateNode: (id: string, patch: CanvasNodePatch<TMetadata>) => CanvasDocument<TMetadata>;
     removeNodes: (ids: Iterable<string>) => CanvasDocument<TMetadata>;
     addConnection: (connection: CanvasConnection) => CanvasDocument<TMetadata>;
-    addConnections: (connections: CanvasConnection[]) => CanvasDocument<TMetadata>;
+    addConnections: (connections: readonly CanvasConnection[]) => CanvasDocument<TMetadata>;
     removeConnections: (ids: Iterable<string>) => CanvasDocument<TMetadata>;
     selectNodes: (ids: Iterable<string>) => void;
     selectNodesInRect: (rect: CanvasRect, initialIds?: Iterable<string>) => ReadonlySet<string>;

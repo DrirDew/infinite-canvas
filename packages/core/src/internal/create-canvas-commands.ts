@@ -165,11 +165,11 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
             updateHistoryState();
         },
         addNode: (node: CanvasNode<TMetadata>) => transaction((document) => addDocumentNodes(document, [node], groupResolverRef.current)),
-        addNodes: (nodes: CanvasNode<TMetadata>[]) => transaction((document) => addDocumentNodes(document, nodes, groupResolverRef.current)),
+        addNodes: (nodes: readonly CanvasNode<TMetadata>[]) => transaction((document) => addDocumentNodes(document, nodes, groupResolverRef.current)),
         updateNode: (id: string, patch: CanvasNodePatch<TMetadata>) => transaction((document) => updateDocumentNode(document, id, patch, connectionResolverRef.current, groupResolverRef.current)),
         removeNodes: (ids: Iterable<string>) => transaction((document) => removeDocumentNodes(document, ids)),
         addConnection: (connection: CanvasConnection) => transaction((document) => addDocumentConnections(document, [connection], connectionResolverRef.current)),
-        addConnections: (connections: CanvasConnection[]) => transaction((document) => addDocumentConnections(document, connections, connectionResolverRef.current)),
+        addConnections: (connections: readonly CanvasConnection[]) => transaction((document) => addDocumentConnections(document, connections, connectionResolverRef.current)),
         removeConnections: (ids: Iterable<string>) => transaction((document) => removeDocumentConnections(document, ids)),
         selectNodes(ids) {
             const available = new Set(documentRef.current.nodes.map((node) => node.id));

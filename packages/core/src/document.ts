@@ -35,7 +35,7 @@ export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMet
     return issues;
 }
 
-export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, nodes: CanvasNode<TMetadata>[], groupResolver?: CanvasGroupResolver<TMetadata>) {
+export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, nodes: readonly CanvasNode<TMetadata>[], groupResolver?: CanvasGroupResolver<TMetadata>) {
     const ids = new Set(document.nodes.map((node) => node.id));
     let added = nodes.filter((node) => {
         if (!node.id || ids.has(node.id)) return false;
@@ -87,7 +87,7 @@ export function removeDocumentNodes<TMetadata>(document: CanvasDocument<TMetadat
     };
 }
 
-export function addDocumentConnections<TMetadata>(document: CanvasDocument<TMetadata>, connections: CanvasConnection[], resolver?: CanvasConnectionResolver<TMetadata>) {
+export function addDocumentConnections<TMetadata>(document: CanvasDocument<TMetadata>, connections: readonly CanvasConnection[], resolver?: CanvasConnectionResolver<TMetadata>) {
     const ids = new Set(document.connections.map((connection) => connection.id));
     const added = connections.flatMap((connection) => {
         if (!connection.id || ids.has(connection.id)) return [];
