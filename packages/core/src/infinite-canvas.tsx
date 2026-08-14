@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject, type WheelEvent } from "react";
 import { canvasDefaults } from "./defaults";
 import { zoomViewportAtPoint } from "./geometry";
+import { subscribeWindowEvent } from "./internal/window-events";
 import type { CanvasBackgroundMode, CanvasTheme } from "./theme";
 import type { CanvasTool, ViewportTransform } from "./types";
 
@@ -89,9 +90,9 @@ export function InfiniteCanvas({
     }, []);
 
     useEffect(() => {
-        window.addEventListener("blur", cancel);
+        const unsubscribe = subscribeWindowEvent("blur", cancel);
         return () => {
-            window.removeEventListener("blur", cancel);
+            unsubscribe();
             if (frameRef.current) cancelAnimationFrame(frameRef.current);
             releaseBodyCursor(cursorOwnerRef.current);
         };

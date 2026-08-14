@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type CSSProperties, type HTMLAttributes, type PointerEvent, type ReactNode } from "react";
 import { resizeNodeBounds } from "./geometry";
+import { subscribeWindowEvent } from "./internal/window-events";
 import type { CanvasNode, CanvasResizeCorner } from "./types";
 import type { CanvasTheme } from "./theme";
 
@@ -30,7 +31,7 @@ const resizeHandleStyles: Record<CanvasResizeCorner, CSSProperties> = {
 };
 
 export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = 24, minHeight = 24, onResizeStart, onResize, onResizeEnd, onResizeCancel }: CanvasNodeResizeHandlesProps<TMetadata>) {
-    const resize = useRef({ active: false, pointerId: 0, nodeId: "", corner: "bottom-right" as CanvasResizeCorner, x: 0, y: 0, left: 0, top: 0, width: 0, height: 0, scale: 1, minWidth: 24, minHeight: 24, keepAspectRatio: false, ratio: 1 });
+    const resize = useRef({ active: false, pointerId: 0, nodeId: "", corner: "bottom-right" as CanvasResizeCorner, x: 0, y: 0, left: 0, top: 0, width: 0, height: 0, scale: 1, minWidth: 24, minHeight: 24, keepAspectRatio: false, ratio: 1, dispose: [] as (() => void)[] });
     const callbacks = useRef({ onResize, onResizeEnd, onResizeCancel });
     callbacks.current = { onResize, onResizeEnd, onResizeCancel };
     const move = useCallback((event: globalThis.PointerEvent) => {
@@ -43,10 +44,7 @@ export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRati
         if (!resize.current.active) return;
         const nodeId = resize.current.nodeId;
         resize.current.active = false;
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", up);
-        window.removeEventListener("pointercancel", cancel);
-        window.removeEventListener("blur", cancel);
+        resize.current.dispose.forEach((dispose) => dispose());
         if (commit) callbacks.current.onResizeEnd?.(nodeId);
         else callbacks.current.onResizeCancel?.(nodeId);
     }, []);
@@ -60,11 +58,8 @@ export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRati
         event.preventDefault();
         event.stopPropagation();
         onResizeStart?.(node.id);
-        resize.current = { active: true, pointerId: event.pointerId, nodeId: node.id, corner, x: event.clientX, y: event.clientY, left: node.position.x, top: node.position.y, width: node.width, height: node.height, scale, minWidth, minHeight, keepAspectRatio, ratio };
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", up);
-        window.addEventListener("pointercancel", cancel);
-        window.addEventListener("blur", cancel);
+        resize.current = { active: true, pointerId: event.pointerId, nodeId: node.id, corner, x: event.clientX, y: event.clientY, left: node.position.x, top: node.position.y, width: node.width, height: node.height, scale, minWidth, minHeight, keepAspectRatio, ratio, dispose: [] };
+        resize.current.dispose = [subscribeWindowEvent("pointermove", move), subscribeWindowEvent("pointerup", up), subscribeWindowEvent("pointercancel", cancel), subscribeWindowEvent("blur", cancel)];
     };
 
     return Object.entries(resizeHandleStyles).map(([corner, style]) => <div key={corner} data-resize-handle={corner} style={{ position: "absolute", zIndex: 50, width: 28, height: 28, touchAction: "none", ...style }} onPointerDown={(event) => start(event, corner as CanvasResizeCorner)} />);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { canvasDefaults } from "./defaults";
 import { centerViewport, fitViewportToNode, screenToCanvas, zoomViewport } from "./geometry";
+import { subscribeWindowEvent } from "./internal/window-events";
 import type { CanvasCommands, CanvasSize, CanvasViewportOptions, ViewportTransform } from "./types";
 
 export type UseCanvasViewportOptions<TMetadata = unknown> = CanvasViewportOptions & {
@@ -101,9 +102,9 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
     );
 
     useEffect(() => {
-        window.addEventListener("blur", cancelViewportAnimation);
+        const unsubscribe = subscribeWindowEvent("blur", cancelViewportAnimation);
         return () => {
-            window.removeEventListener("blur", cancelViewportAnimation);
+            unsubscribe();
             cancelViewportAnimation();
         };
     }, [cancelViewportAnimation]);

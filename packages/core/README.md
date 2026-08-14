@@ -85,6 +85,7 @@ const editor = useCanvasEditor({
 - `use-canvas-editor.ts`：一次组合实例状态与交互编排的高层 Hook。
 - `use-canvas-viewport.ts`：容器尺寸、坐标转换、缩放、复位和节点聚焦动画。
 - `use-canvas-interactions.ts`：组合视口能力，并管理框选、节点选择与拖动、连线和全局指针生命周期。
+- `internal/window-events.ts`：按事件类型复用单个 window 监听，并向各画布实例分发全局生命周期事件。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
 - `connection-layer.tsx` / `selection-box.tsx`：不限制世界坐标范围的连线、连线预览和框选渲染。
 - `minimap.tsx`：可自定义节点颜色、世界边距和最小可见尺寸的独立小地图。

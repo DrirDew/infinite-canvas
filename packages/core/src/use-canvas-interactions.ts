@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { normalizeRect } from "./geometry";
+import { subscribeWindowEvent } from "./internal/window-events";
 import { useCanvasViewport, type UseCanvasViewportOptions } from "./use-canvas-viewport";
 import type { CanvasConnection, CanvasConnectionDropResult, CanvasRect, Position } from "./types";
 
@@ -142,15 +143,9 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
             commandsRef.current.endNodeDrag();
             commandsRef.current.cancelConnection();
         };
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", up);
-        window.addEventListener("pointercancel", cancel);
-        window.addEventListener("blur", cancel);
+        const unsubscribe = [subscribeWindowEvent("pointermove", move), subscribeWindowEvent("pointerup", up), subscribeWindowEvent("pointercancel", cancel), subscribeWindowEvent("blur", cancel)];
         return () => {
-            window.removeEventListener("pointermove", move);
-            window.removeEventListener("pointerup", up);
-            window.removeEventListener("pointercancel", cancel);
-            window.removeEventListener("blur", cancel);
+            unsubscribe.forEach((dispose) => dispose());
             if (frameRef.current) cancelAnimationFrame(frameRef.current);
         };
     }, [toCanvas]);
