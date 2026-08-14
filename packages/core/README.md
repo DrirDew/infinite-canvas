@@ -8,7 +8,7 @@ Core 的公开边界包括文档与实例状态、基础编辑命令、指针与
 
 实例返回的 `selectedNodeIds`、`CanvasSelection.nodeIds` 和框选结果使用 `ReadonlySet`，接入应用通过选择命令修改状态，不直接写入 Core 内部集合。纯查询、几何、基础渲染和批量新增接口接受 readonly 节点与连线数组，不可变 store 快照无需复制。重复选择和相同视口值不会触发 React 状态或外部回调；`setDocument` 仍会强制发布实例重置。节点更新会比较最终引擎字段与 metadata 引用，语义无变化的 patch 不发布快照或增加历史。
 
-包以 MIT 协议发布，npm 产物包含 README、许可证以及 `core`、`headless`、`react` 三个声明完整的公开入口。
+包以 MIT 协议发布，只将 React 18+ 声明为 peer dependency；npm 产物包含 README、许可证以及根入口、`headless`、`react` 三个声明完整的公开入口。
 
 ```tsx
 import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, InfiniteCanvas, canvasThemes, getCanvasDocumentIssues, useCanvas, useCanvasEditor, useCanvasInteractions, type CanvasTheme } from "@infinite-canvas/core";

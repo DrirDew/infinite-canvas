@@ -128,7 +128,6 @@
       },
       "peerDependencies": {
         "react": ">=18",
-        "react-dom": ">=18",
       },
     },
     "packages/plugin-sdk": {
