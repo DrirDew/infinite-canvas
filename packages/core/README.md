@@ -86,7 +86,7 @@ const editor = useCanvasEditor({
 - `defaults.ts`：公开且可复用的行为、视口、缩放控制、连线命中和小地图默认参数。
 - `headless.ts` / `react.ts`：无 React 能力与 React 运行时能力的独立包入口。
 - `tsconfig.json`：按 NodeNext 输出可直接发布的 ESM、源码映射和类型声明映射。
-- `document.ts`：无 React 依赖的文档校验、修改、选择清理和剪贴板变换逻辑。
+- `document/validation.ts`、`mutations.ts`、`clipboard.ts`：无 React 依赖的文档校验、修改、选择清理和剪贴板变换；`document.ts` 保持统一公开入口。
 - `selectors.ts`：分组数量、上下游节点、图遍历与关联高亮等纯派生查询。
 - `use-canvas.ts`：只组合 React 实例状态、最新配置引用和稳定命令对象。
 - `internal/canvas-state.ts` / `internal/create-canvas-commands.ts`：维护实例临时状态结构，并构造文档、历史、预览和交互命令。

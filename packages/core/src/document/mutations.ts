@@ -1,0 +1,82 @@
+import { normalizeConnection } from "../geometry.js";
+import type { CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode, CanvasNodePatch, CanvasSelection } from "../types.js";
+
+export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, nodes: readonly CanvasNode<TMetadata>[], groupResolver?: CanvasGroupResolver<TMetadata>) {
+    const ids = new Set(document.nodes.map((node) => node.id));
+    let added = nodes.filter((node) => {
+        if (!node.id || ids.has(node.id)) return false;
+        ids.add(node.id);
+        return true;
+    });
+    const available = new Map([...document.nodes, ...added].map((node) => [node.id, node]));
+    added = added.map((node) => {
+        const group = node.groupId ? available.get(node.groupId) : undefined;
+        const valid = group?.role === "group" && node.groupId !== node.id && (!groupResolver || groupResolver(node, group));
+        return node.groupId && !valid ? { ...node, groupId: undefined } : node;
+    });
+    return added.length ? { ...document, nodes: [...document.nodes, ...added] } : document;
+}
+
+export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata>, id: string, patch: CanvasNodePatch<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>, groupResolver?: CanvasGroupResolver<TMetadata>) {
+    const index = document.nodes.findIndex((node) => node.id === id);
+    if (index < 0) return document;
+    const node = document.nodes[index];
+    let next = typeof patch === "function" ? patch(node) : { ...node, ...patch };
+    if (next === node) return document;
+    if (!next.id || (next.id !== id && document.nodes.some((item) => item.id === next.id))) return document;
+    const nodes = document.nodes.map((item, itemIndex) => {
+        if (itemIndex === index) return next;
+        if (item.groupId !== id) return item;
+        return { ...item, groupId: next.role === "group" ? next.id : undefined };
+    });
+    const group = next.groupId ? nodes.find((item) => item.id === next.groupId && item.role === "group") : undefined;
+    const groupId = next.groupId && next.groupId !== next.id && group && (!groupResolver || groupResolver(next, group)) ? next.groupId : undefined;
+    if (groupId !== next.groupId) nodes[index] = next = { ...next, groupId };
+    if (sameCanvasNode(node, next)) nodes[index] = next = node;
+    const connections = document.connections.flatMap((connection) => {
+        if (connection.fromNodeId !== id && connection.toNodeId !== id) return [connection];
+        const normalized = normalizeConnection(connection.fromNodeId === id ? next.id : connection.fromNodeId, connection.toNodeId === id ? next.id : connection.toNodeId, nodes, "source", resolver);
+        return normalized ? [normalized.fromNodeId === connection.fromNodeId && normalized.toNodeId === connection.toNodeId ? connection : { ...connection, ...normalized }] : [];
+    });
+    return nodes.every((item, itemIndex) => item === document.nodes[itemIndex]) && connections.length === document.connections.length && connections.every((connection, connectionIndex) => connection === document.connections[connectionIndex]) ? document : { ...document, nodes, connections };
+}
+
+export function removeDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>) {
+    const removed = new Set(ids);
+    if (!removed.size) return document;
+    const changed = document.nodes.some((node) => removed.has(node.id) || Boolean(node.groupId && removed.has(node.groupId))) || document.connections.some((connection) => removed.has(connection.fromNodeId) || removed.has(connection.toNodeId));
+    if (!changed) return document;
+    return {
+        nodes: document.nodes.filter((node) => !removed.has(node.id)).map((node) => (node.groupId && removed.has(node.groupId) ? { ...node, groupId: undefined } : node)),
+        connections: document.connections.filter((connection) => !removed.has(connection.fromNodeId) && !removed.has(connection.toNodeId)),
+    };
+}
+
+export function addDocumentConnections<TMetadata>(document: CanvasDocument<TMetadata>, connections: readonly CanvasConnection[], resolver?: CanvasConnectionResolver<TMetadata>) {
+    const ids = new Set(document.connections.map((connection) => connection.id));
+    const added = connections.flatMap((connection) => {
+        if (!connection.id || ids.has(connection.id)) return [];
+        const normalized = normalizeConnection(connection.fromNodeId, connection.toNodeId, document.nodes, "source", resolver);
+        if (!normalized) return [];
+        ids.add(connection.id);
+        return [{ ...connection, ...normalized }];
+    });
+    return added.length ? { ...document, connections: [...document.connections, ...added] } : document;
+}
+
+export function removeDocumentConnections<TMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>) {
+    const removed = new Set(ids);
+    if (!removed.size) return document;
+    const connections = document.connections.filter((connection) => !removed.has(connection.id));
+    return connections.length === document.connections.length ? document : { ...document, connections };
+}
+
+export function cleanCanvasSelection<TMetadata>(document: CanvasDocument<TMetadata>, selection: CanvasSelection): CanvasSelection {
+    const nodeIds = new Set(document.nodes.map((node) => node.id));
+    const connectionIds = new Set(document.connections.map((connection) => connection.id));
+    const selected = new Set([...selection.nodeIds].filter((id) => nodeIds.has(id)));
+    const connectionId = selection.connectionId && connectionIds.has(selection.connectionId) ? selection.connectionId : null;
+    return selected.size === selection.nodeIds.size && connectionId === selection.connectionId ? selection : { nodeIds: selected, connectionId };
+}
+
+const sameCanvasNode = <TMetadata>(first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>) => first.id === second.id && first.type === second.type && first.role === second.role && first.groupId === second.groupId && first.title === second.title && first.position.x === second.position.x && first.position.y === second.position.y && first.width === second.width && first.height === second.height && first.metadata === second.metadata;
