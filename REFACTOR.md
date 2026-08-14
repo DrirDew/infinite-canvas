@@ -299,6 +299,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - Core 的中心缩放与滚轮锚点缩放共用统一几何函数和缩放上下限。
 - 节点缩放控制点统一使用 Pointer Events，并在 pointer cancel、窗口失焦或卸载时结束 Core 预览状态。
 - 小地图复用 Core 节点边界函数；视口平移失焦时清理尚未提交的动画帧。
+- Core 将容器测量与视口动画拆为独立 `useCanvasViewport`，`useCanvasInteractions` 只组合并扩展编辑交互。
 
 ### 10.6 扩充 Examples
 

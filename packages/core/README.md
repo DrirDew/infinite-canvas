@@ -53,7 +53,8 @@ interactions.resetViewport();
 - `types.ts`：公开文档、节点、选择和命令类型。
 - `document.ts`：无 React 依赖的文档修改、选择清理和剪贴板变换逻辑。
 - `use-canvas.ts`：实例状态、历史、事务和预览命令。
-- `use-canvas-interactions.ts`：容器尺寸、坐标与视口控制、框选、节点选择与拖动、连线移动和全局指针生命周期。
+- `use-canvas-viewport.ts`：容器尺寸、坐标转换、缩放、复位和节点聚焦动画。
+- `use-canvas-interactions.ts`：组合视口能力，并管理框选、节点选择与拖动、连线和全局指针生命周期。
 - `infinite-canvas.tsx`：基础视口、平移、缩放和背景渲染。
 - `connection-layer.tsx` / `selection-box.tsx`：连线、连线预览和框选渲染。
 - `minimap.tsx`：可自定义节点颜色的独立小地图。

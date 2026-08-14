@@ -9,3 +9,4 @@ export * from "./selection-box";
 export * from "./minimap";
 export * from "./node";
 export * from "./use-canvas-interactions";
+export * from "./use-canvas-viewport";
