@@ -1,5 +1,5 @@
-import { CanvasNodeType, type CanvasConnectionResolver } from "@infinite-canvas/core";
-import type { CanvasNodeMetadata } from "@/types/canvas";
+import type { CanvasConnectionResolver } from "@infinite-canvas/core";
+import { CanvasNodeType, type CanvasNodeMetadata } from "@/types/canvas";
 
 export const resolveCanvasConnection: CanvasConnectionResolver<CanvasNodeMetadata> = (first, second, firstHandleType) => {
     if (first.type === CanvasNodeType.Config && second.type === CanvasNodeType.Config) return null;

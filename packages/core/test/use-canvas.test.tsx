@@ -101,7 +101,7 @@ test("viewport and rectangle selection stay inside each instance", () => {
 
 test("drag previews commit once, snap into groups, and cancel safely", () => {
     const canvas = createCanvas({
-        nodes: [node("a"), { ...node("group"), type: "group", position: { x: 300, y: 0 }, width: 400, height: 300 }],
+        nodes: [node("a"), { ...node("group"), type: "group", role: "group", position: { x: 300, y: 0 }, width: 400, height: 300 }],
         connections: [],
     });
     canvas.commands.startNodeDrag(["a"], { x: 0, y: 0 });
@@ -116,7 +116,7 @@ test("drag previews commit once, snap into groups, and cancel safely", () => {
 });
 
 test("dragging groups moves children and resizing creates one history entry", () => {
-    const canvas = createCanvas({ nodes: [{ ...node("group"), type: "group" }, node("child", { groupId: "group" })], connections: [] });
+    const canvas = createCanvas({ nodes: [{ ...node("group"), type: "group", role: "group" }, node("child", { groupId: "group" })], connections: [] });
     canvas.commands.startNodeDrag(["group"], { x: 0, y: 0 });
     canvas.commands.endNodeDrag({ x: 100, y: 50 });
     expect(canvas.commands.getDocument().nodes.map(({ position }) => position)).toEqual([
@@ -150,7 +150,7 @@ test("connection interaction resolves targets without generating ids", () => {
 
 test("clipboard remaps groups and connections in one isolated transaction", () => {
     const canvas = createCanvas({
-        nodes: [{ ...node("group"), type: "group", width: 300, height: 300 }, { ...node("child", { groupId: "group" }), position: { x: 50, y: 50 } }],
+        nodes: [{ ...node("group"), type: "group", role: "group", width: 300, height: 300 }, { ...node("child", { groupId: "group" }), position: { x: 50, y: 50 } }],
         connections: [connection("edge", "group", "child")],
     });
     const other = createCanvas();

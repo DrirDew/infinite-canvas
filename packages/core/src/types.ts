@@ -7,21 +7,14 @@ export type ViewportUpdater = ViewportTransform | ((viewport: ViewportTransform)
 export type CanvasResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 export type CanvasNodeDragResult = { moved: boolean; clickedNodeId: string | null };
 
-export enum CanvasNodeType {
-    Image = "image",
-    Text = "text",
-    Config = "config",
-    Video = "video",
-    Audio = "audio",
-    Group = "group",
-}
-
-export type CanvasNodeTypeId = CanvasNodeType | (string & {});
+export type CanvasNodeTypeId = string;
+export type CanvasNodeRole = "group";
 export type CanvasNodeStatus = "idle" | "success" | "loading" | "error";
 export type BaseCanvasNodeMetadata = { groupId?: string };
 export type CanvasNode<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
     id: string;
     type: CanvasNodeTypeId;
+    role?: CanvasNodeRole;
     title: string;
     position: Position;
     width: number;

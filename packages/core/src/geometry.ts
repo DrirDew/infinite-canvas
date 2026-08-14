@@ -1,4 +1,4 @@
-import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnectionDropTarget, type CanvasConnectionInteraction, type CanvasConnectionResolver, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type CanvasSize, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
+import type { BaseCanvasNodeMetadata, CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, CanvasRect, CanvasResizeCorner, CanvasSize, ConnectionHandle, Position, ViewportTransform } from "./types";
 
 export const CANVAS_MIN_ZOOM = 0.05;
 export const CANVAS_MAX_ZOOM = 5;
@@ -69,14 +69,16 @@ export function nodeBounds<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T
     );
 }
 
+export const isGroupNode = <T extends BaseCanvasNodeMetadata>(node: CanvasNode<T>) => node.role === "group";
+
 export function findGroupDropTarget<T extends BaseCanvasNodeMetadata>(movedIds: Set<string>, nodes: CanvasNode<T>[]) {
-    if (nodes.some((node) => movedIds.has(node.id) && node.type === CanvasNodeType.Group)) return null;
-    const moving = nodes.filter((node) => movedIds.has(node.id) && node.type !== CanvasNodeType.Group);
+    if (nodes.some((node) => movedIds.has(node.id) && isGroupNode(node))) return null;
+    const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return null;
     return (
         [...nodes].reverse().find(
             (group) =>
-                group.type === CanvasNodeType.Group &&
+                isGroupNode(group) &&
                 !movedIds.has(group.id) &&
                 moving.some((node) => {
                     const x = node.position.x + node.width / 2;
@@ -88,14 +90,14 @@ export function findGroupDropTarget<T extends BaseCanvasNodeMetadata>(movedIds: 
 }
 
 export function snapNodesIntoGroup<T extends BaseCanvasNodeMetadata>(movedIds: Set<string>, nodes: CanvasNode<T>[], group: CanvasNode<T>) {
-    const moving = nodes.filter((node) => movedIds.has(node.id) && node.type !== CanvasNodeType.Group);
+    const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return nodes;
     const bounds = nodeBounds(moving);
     const [left, top, right, bottom] = [group.position.x + 24, group.position.y + 24, group.position.x + group.width - 24, group.position.y + group.height - 24];
     const dx = bounds.right - bounds.left > right - left ? left - bounds.left : bounds.left < left ? left - bounds.left : bounds.right > right ? right - bounds.right : 0;
     const dy = bounds.bottom - bounds.top > bottom - top ? top - bounds.top : bounds.top < top ? top - bounds.top : bounds.bottom > bottom ? bottom - bounds.bottom : 0;
     return nodes.map((node) =>
-        !movedIds.has(node.id) || node.type === CanvasNodeType.Group
+        !movedIds.has(node.id) || isGroupNode(node)
             ? node
             : {
                   ...node,
@@ -108,7 +110,7 @@ export function snapNodesIntoGroup<T extends BaseCanvasNodeMetadata>(movedIds: S
 export function findContainingGroupId<T extends BaseCanvasNodeMetadata>(node: CanvasNode<T>, nodes: CanvasNode<T>[]) {
     const x = node.position.x + node.width / 2;
     const y = node.position.y + node.height / 2;
-    return [...nodes].reverse().find((group) => group.type === CanvasNodeType.Group && group.id !== node.id && x >= group.position.x && x <= group.position.x + group.width && y >= group.position.y && y <= group.position.y + group.height)?.id;
+    return [...nodes].reverse().find((group) => isGroupNode(group) && group.id !== node.id && x >= group.position.x && x <= group.position.x + group.width && y >= group.position.y && y <= group.position.y + group.height)?.id;
 }
 
 export function getConnectionTargetAnchor<T extends BaseCanvasNodeMetadata>(node: CanvasNode<T>, current: ConnectionHandle) {
@@ -153,7 +155,7 @@ export function findConnectionDropTarget<T extends BaseCanvasNodeMetadata>(nodes
 export function normalizeConnection<T extends BaseCanvasNodeMetadata>(firstNodeId: string, secondNodeId: string, nodes: CanvasNode<T>[], firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
     const first = nodes.find((node) => node.id === firstNodeId);
     const second = nodes.find((node) => node.id === secondNodeId);
-    if (!first || !second || first.id === second.id || first.type === CanvasNodeType.Group || second.type === CanvasNodeType.Group) return null;
+    if (!first || !second || first.id === second.id || isGroupNode(first) || isGroupNode(second)) return null;
     return resolver ? resolver(first, second, firstHandleType) : firstHandleType === "source" ? { fromNodeId: first.id, toNodeId: second.id } : { fromNodeId: second.id, toNodeId: first.id };
 }
 

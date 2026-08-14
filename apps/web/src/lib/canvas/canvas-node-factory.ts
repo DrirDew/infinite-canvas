@@ -13,6 +13,7 @@ export function createCanvasNode(type: CanvasNodeTypeId, position: Position, met
     return {
         id,
         type,
+        role: type === CanvasNodeType.Group ? "group" : undefined,
         title: spec.title,
         position: {
             x: position.x - spec.width / 2,

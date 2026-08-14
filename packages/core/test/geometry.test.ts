@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { CanvasNodeType, canvasToScreen, centerViewport, findConnectionDropTarget, fitNodeSize, fitViewportToNode, getConnectionPath, nodesInRect, nodesInViewport, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas, zoomViewport, zoomViewportAtPoint } from "../src";
+import { canvasToScreen, centerViewport, findConnectionDropTarget, fitNodeSize, fitViewportToNode, getConnectionPath, nodesInRect, nodesInViewport, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas, zoomViewport, zoomViewportAtPoint } from "../src";
 
 describe("core geometry", () => {
     test("keeps node ratios and connection direction", () => {
         expect(fitNodeSize(1200, 600)).toEqual({ width: 640, height: 320 });
         const nodes = [
-            { id: "image", type: CanvasNodeType.Image, title: "", position: { x: 0, y: 0 }, width: 1, height: 1 },
-            { id: "config", type: CanvasNodeType.Config, title: "", position: { x: 0, y: 0 }, width: 1, height: 1 },
+            { id: "image", type: "image", title: "", position: { x: 0, y: 0 }, width: 1, height: 1 },
+            { id: "config", type: "config", title: "", position: { x: 0, y: 0 }, width: 1, height: 1 },
         ];
         expect(normalizeConnection("image", "config", nodes, "source")).toEqual({ fromNodeId: "image", toNodeId: "config" });
         expect(normalizeConnection("image", "config", nodes, "target")).toEqual({ fromNodeId: "config", toNodeId: "image" });

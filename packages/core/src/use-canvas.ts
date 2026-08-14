@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { addDocumentConnections, addDocumentNodes, cleanCanvasSelection, createCanvasClipboard, pasteCanvasClipboard, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "./document";
-import { findConnectionDropTarget, findContainingGroupId, findGroupDropTarget, nodesInRect, normalizeConnection, snapNodesIntoGroup } from "./geometry";
-import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasClipboard, type CanvasCommands, type CanvasConnection, type CanvasConnectionDropResult, type CanvasDocument, type CanvasDocumentUpdater, type CanvasInteractionState, type CanvasNode, type CanvasNodePatch, type CanvasPasteOptions, type CanvasSelection, type ConnectionHandle, type Position, type UseCanvasOptions, type UseCanvasResult, type ViewportTransform, type ViewportUpdater } from "./types";
+import { findConnectionDropTarget, findContainingGroupId, findGroupDropTarget, isGroupNode, nodesInRect, normalizeConnection, snapNodesIntoGroup } from "./geometry";
+import type { BaseCanvasNodeMetadata, CanvasClipboard, CanvasCommands, CanvasConnection, CanvasConnectionDropResult, CanvasDocument, CanvasDocumentUpdater, CanvasInteractionState, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection, ConnectionHandle, Position, UseCanvasOptions, UseCanvasResult, ViewportTransform, ViewportUpdater } from "./types";
 
 type CanvasHistory<TMetadata extends BaseCanvasNodeMetadata> = {
     past: CanvasDocument<TMetadata>[];
@@ -132,7 +132,7 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
                 nodes = target
                     ? snapNodesIntoGroup(movedIds, nodes, target)
                     : nodes.map((node) => {
-                          if (!movedIds.has(node.id) || node.type === CanvasNodeType.Group) return node;
+                          if (!movedIds.has(node.id) || isGroupNode(node)) return node;
                           const groupId = findContainingGroupId(node, nodes);
                           return node.metadata?.groupId === groupId ? node : { ...node, metadata: { ...node.metadata, groupId } };
                       });

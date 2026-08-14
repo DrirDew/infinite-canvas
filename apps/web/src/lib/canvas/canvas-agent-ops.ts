@@ -48,6 +48,7 @@ export function applyCanvasAgentOps(snapshot: CanvasAgentSnapshot, ops?: CanvasA
             const node: CanvasNodeData = {
                 id: op.id || `${nodeType}-${Date.now()}-${index}`,
                 type: nodeType,
+                role: nodeType === CanvasNodeType.Group ? "group" : undefined,
                 title: op.title || spec.title,
                 position: op.position || { x: op.x ?? index * 36, y: op.y ?? index * 36 },
                 width: op.width || spec.width,
@@ -59,7 +60,11 @@ export function applyCanvasAgentOps(snapshot: CanvasAgentSnapshot, ops?: CanvasA
         }
         if (op.type === "update_node") {
             if (!op.id) return;
-            nodes = nodes.map((node) => (node.id === op.id ? { ...node, ...op.patch, metadata: { ...node.metadata, ...op.patch?.metadata, ...op.metadata } } : node));
+            nodes = nodes.map((node) => {
+                if (node.id !== op.id) return node;
+                const next = { ...node, ...op.patch, metadata: { ...node.metadata, ...op.patch?.metadata, ...op.metadata } };
+                return { ...next, role: next.type === CanvasNodeType.Group ? "group" : undefined };
+            });
         }
         if (op.type === "delete_node") {
             const ids = new Set(op.ids || (op.id ? [op.id] : op.nodeType ? nodes.filter((node) => node.type === op.nodeType).map((node) => node.id) : []));
