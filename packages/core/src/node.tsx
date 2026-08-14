@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, type CSSProperties, type HTMLAttributes, type PointerEvent, type ReactNode } from "react";
-import { resizeNodeBounds } from "./geometry";
-import { subscribeWindowEvent } from "./internal/window-events";
-import type { CanvasNode, CanvasResizeCorner } from "./types";
-import type { CanvasTheme } from "./theme";
+import { resizeNodeBounds } from "./geometry.js";
+import { subscribeWindowEvent } from "./internal/window-events.js";
+import type { CanvasNode, CanvasResizeCorner } from "./types.js";
+import type { CanvasTheme } from "./theme.js";
 
 export type CanvasNodeShellProps<TMetadata = unknown> = HTMLAttributes<HTMLDivElement> & { node: CanvasNode<TMetadata> };
 

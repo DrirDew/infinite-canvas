@@ -1,6 +1,6 @@
 import type { CSSProperties, SVGAttributes } from "react";
-import type { CanvasTheme } from "./theme";
-import type { CanvasRect } from "./types";
+import type { CanvasTheme } from "./theme.js";
+import type { CanvasRect } from "./types.js";
 
 export type CanvasSelectionBoxProps = {
     rect: CanvasRect;

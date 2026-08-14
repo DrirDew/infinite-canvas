@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { canvasDefaults } from "./defaults";
-import { centerViewport, fitViewportToNode, screenToCanvas, zoomViewport } from "./geometry";
-import { subscribeWindowEvent } from "./internal/window-events";
-import type { CanvasCommands, CanvasSize, CanvasViewportOptions, ViewportTransform } from "./types";
+import { canvasDefaults } from "./defaults.js";
+import { centerViewport, fitViewportToNode, screenToCanvas, zoomViewport } from "./geometry.js";
+import { subscribeWindowEvent } from "./internal/window-events.js";
+import type { CanvasCommands, CanvasSize, CanvasViewportOptions, ViewportTransform } from "./types.js";
 
 export type UseCanvasViewportOptions<TMetadata = unknown> = CanvasViewportOptions & {
     commands: CanvasCommands<TMetadata>;

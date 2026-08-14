@@ -1,5 +1,5 @@
-import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, ConnectionHandle, Position } from "../types";
-import { isGroupNode } from "./nodes";
+import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, ConnectionHandle, Position } from "../types.js";
+import { isGroupNode } from "./nodes.js";
 
 export function getConnectionTargetAnchor<T>(node: CanvasNode<T>, current: ConnectionHandle) {
     return { x: current.handleType === "source" ? node.position.x : node.position.x + node.width, y: node.position.y + node.height / 2 };

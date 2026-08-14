@@ -1,4 +1,4 @@
-import type { CanvasClipboard, CanvasConnection, CanvasConnectionDropResult, CanvasConnectionDropTarget, CanvasDocument, CanvasInteractionState, CanvasNode, CanvasNodeDragResult, CanvasRect, CanvasSelection, ConnectionHandle, Position, ViewportTransform } from "./model";
+import type { CanvasClipboard, CanvasConnection, CanvasConnectionDropResult, CanvasConnectionDropTarget, CanvasDocument, CanvasInteractionState, CanvasNode, CanvasNodeDragResult, CanvasRect, CanvasSelection, ConnectionHandle, Position, ViewportTransform } from "./model.js";
 
 export type ViewportUpdater = ViewportTransform | ((viewport: ViewportTransform) => ViewportTransform);
 export type CanvasNodePatch<TMetadata = unknown> = Partial<CanvasNode<TMetadata>> | ((node: CanvasNode<TMetadata>) => CanvasNode<TMetadata>);

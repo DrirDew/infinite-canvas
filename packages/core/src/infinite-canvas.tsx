@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject, type WheelEvent } from "react";
-import { canvasDefaults } from "./defaults";
-import { zoomViewportAtPoint } from "./geometry";
-import { subscribeWindowEvent } from "./internal/window-events";
-import type { CanvasBackgroundMode, CanvasTheme } from "./theme";
-import type { CanvasTool, ViewportTransform } from "./types";
+import { canvasDefaults } from "./defaults.js";
+import { zoomViewportAtPoint } from "./geometry.js";
+import { subscribeWindowEvent } from "./internal/window-events.js";
+import type { CanvasBackgroundMode, CanvasTheme } from "./theme.js";
+import type { CanvasTool, ViewportTransform } from "./types.js";
 
 const DEFAULT_IGNORE_SELECTOR = "[data-canvas-no-zoom]";
 const NODE_SELECTOR = "[data-node-id],[data-connection-id]";

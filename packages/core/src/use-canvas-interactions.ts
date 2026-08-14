@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
-import { normalizeRect } from "./geometry";
-import { subscribeWindowEvent } from "./internal/window-events";
-import { useCanvasViewport, type UseCanvasViewportOptions } from "./use-canvas-viewport";
-import type { CanvasConnection, CanvasConnectionDropResult, CanvasRect, Position } from "./types";
+import { normalizeRect } from "./geometry.js";
+import { subscribeWindowEvent } from "./internal/window-events.js";
+import { useCanvasViewport, type UseCanvasViewportOptions } from "./use-canvas-viewport.js";
+import type { CanvasConnection, CanvasConnectionDropResult, CanvasRect, Position } from "./types.js";
 
 export type UseCanvasInteractionsOptions<TMetadata = unknown> = UseCanvasViewportOptions<TMetadata> & {
     onCanvasPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;

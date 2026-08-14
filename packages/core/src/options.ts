@@ -1,5 +1,5 @@
-import type { CanvasCommands } from "./commands";
-import type { CanvasConnectionInteraction, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, ViewportTransform } from "./model";
+import type { CanvasCommands } from "./commands.js";
+import type { CanvasConnectionInteraction, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, ViewportTransform } from "./model.js";
 
 export type CanvasBehaviorOptions = {
     historyLimit?: number;

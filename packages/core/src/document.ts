@@ -1,5 +1,5 @@
-import { nodeBounds, normalizeConnection } from "./geometry";
-import type { CanvasClipboard, CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection } from "./types";
+import { nodeBounds, normalizeConnection } from "./geometry.js";
+import type { CanvasClipboard, CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection } from "./types.js";
 
 export type CanvasDocumentIssue = {
     type: "empty-node-id" | "duplicate-node-id" | "invalid-group" | "rejected-group" | "empty-connection-id" | "duplicate-connection-id" | "missing-connection-node" | "self-connection" | "group-connection" | "rejected-connection";

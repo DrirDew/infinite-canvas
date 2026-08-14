@@ -1,4 +1,4 @@
-import type { CanvasBehaviorOptions, CanvasDocument, CanvasInteractionState, CanvasSelection, Position, ViewportTransform } from "../types";
+import type { CanvasBehaviorOptions, CanvasDocument, CanvasInteractionState, CanvasSelection, Position, ViewportTransform } from "../types.js";
 
 export type CanvasBehavior = Required<CanvasBehaviorOptions>;
 export type CanvasHistory<TMetadata> = { past: CanvasDocument<TMetadata>[]; future: CanvasDocument<TMetadata>[] };

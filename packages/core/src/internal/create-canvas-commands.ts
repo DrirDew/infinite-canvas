@@ -1,8 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
-import { addDocumentConnections, addDocumentNodes, cleanCanvasSelection, createCanvasClipboard, pasteCanvasClipboard, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "../document";
-import { findConnectionDropTarget, findContainingGroupId, findGroupDropTarget, isGroupNode, nodesInRect, normalizeConnection, snapNodesIntoGroup } from "../geometry";
-import type { CanvasClipboard, CanvasCommands, CanvasConnection, CanvasConnectionDropResult, CanvasConnectionResolver, CanvasDocument, CanvasDocumentUpdater, CanvasGroupResolver, CanvasInteractionState, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection, ConnectionHandle, Position, ViewportTransform, ViewportUpdater } from "../types";
-import { createCanvasHistory, createCanvasSelection, DEFAULT_INTERACTION, type CanvasBehavior, type CanvasDrag, type CanvasHistory } from "./canvas-state";
+import { addDocumentConnections, addDocumentNodes, cleanCanvasSelection, createCanvasClipboard, pasteCanvasClipboard, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "../document.js";
+import { findConnectionDropTarget, findContainingGroupId, findGroupDropTarget, isGroupNode, nodesInRect, normalizeConnection, snapNodesIntoGroup } from "../geometry.js";
+import type { CanvasClipboard, CanvasCommands, CanvasConnection, CanvasConnectionDropResult, CanvasConnectionResolver, CanvasDocument, CanvasDocumentUpdater, CanvasGroupResolver, CanvasInteractionState, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection, ConnectionHandle, Position, ViewportTransform, ViewportUpdater } from "../types.js";
+import { createCanvasHistory, createCanvasSelection, DEFAULT_INTERACTION, type CanvasBehavior, type CanvasDrag, type CanvasHistory } from "./canvas-state.js";
 
 type HistoryState = { canUndo: boolean; canRedo: boolean };
 type Latest<T> = { current: T };

@@ -1,2 +1,2 @@
-export * from "./headless";
-export * from "./react";
+export * from "./headless.js";
+export * from "./react.js";

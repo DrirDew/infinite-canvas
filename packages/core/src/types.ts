@@ -1,3 +1,3 @@
-export * from "./model";
-export * from "./commands";
-export * from "./options";
+export * from "./model.js";
+export * from "./commands.js";
+export * from "./options.js";

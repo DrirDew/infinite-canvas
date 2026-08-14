@@ -1,6 +1,6 @@
-import { canvasDefaults } from "../defaults";
-import type { CanvasNode, CanvasSize, Position, ViewportTransform } from "../types";
-import { nodesInRect } from "./nodes";
+import { canvasDefaults } from "../defaults.js";
+import type { CanvasNode, CanvasSize, Position, ViewportTransform } from "../types.js";
+import { nodesInRect } from "./nodes.js";
 
 export const CANVAS_MIN_ZOOM = canvasDefaults.minZoom;
 export const CANVAS_MAX_ZOOM = canvasDefaults.maxZoom;

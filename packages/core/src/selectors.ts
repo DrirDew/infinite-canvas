@@ -1,4 +1,4 @@
-import type { CanvasConnection, CanvasNode } from "./types";
+import type { CanvasConnection, CanvasNode } from "./types.js";
 
 export function countCanvasGroupChildren<TMetadata>(nodes: CanvasNode<TMetadata>[]) {
     const counts = new Map<string, number>();

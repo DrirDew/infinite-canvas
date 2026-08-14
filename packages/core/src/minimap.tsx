@@ -1,7 +1,7 @@
 import { useMemo, useRef, type CSSProperties, type PointerEvent } from "react";
-import { nodeBounds } from "./geometry";
-import type { CanvasTheme } from "./theme";
-import type { CanvasNode, CanvasSize, ViewportTransform } from "./types";
+import { nodeBounds } from "./geometry.js";
+import type { CanvasTheme } from "./theme.js";
+import type { CanvasNode, CanvasSize, ViewportTransform } from "./types.js";
 
 export type CanvasMinimapProps<TMetadata = unknown> = {
     nodes: CanvasNode<TMetadata>[];

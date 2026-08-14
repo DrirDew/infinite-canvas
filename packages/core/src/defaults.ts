@@ -1,4 +1,4 @@
-import type { CanvasBehaviorOptions, CanvasViewportOptions } from "./types";
+import type { CanvasBehaviorOptions, CanvasViewportOptions } from "./types.js";
 
 export const canvasDefaults = {
     historyLimit: 50,

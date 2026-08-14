@@ -1,7 +1,7 @@
 import { useMemo, type MouseEvent, type SVGAttributes } from "react";
-import { getConnectionPath } from "./geometry";
-import type { CanvasTheme } from "./theme";
-import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "./types";
+import { getConnectionPath } from "./geometry.js";
+import type { CanvasTheme } from "./theme.js";
+import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "./types.js";
 
 export type CanvasConnectionStyle = Pick<SVGAttributes<SVGPathElement>, "stroke" | "strokeWidth" | "strokeOpacity" | "strokeDasharray" | "style">;
 
