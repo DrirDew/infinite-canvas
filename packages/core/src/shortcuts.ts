@@ -1,6 +1,6 @@
-import type { CanvasShortcut } from "./types.js";
+import type { CanvasShortcut, CanvasShortcutEvent } from "./types.js";
 
-export function resolveCanvasShortcut(event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey">): CanvasShortcut | null {
+export function resolveCanvasShortcut(event: CanvasShortcutEvent): CanvasShortcut | null {
     const key = event.key.toLowerCase();
     const modifier = event.metaKey || event.ctrlKey;
     if (modifier && !event.altKey) {

@@ -1,6 +1,7 @@
 export type Position = { x: number; y: number };
 export type CanvasSize = { width: number; height: number };
 export type ViewportTransform = Position & { k: number };
+export type CanvasViewportOrigin = { left: number; top: number };
 export type CanvasRect = Position & CanvasSize;
 export type CanvasTool = "select" | "pan";
 export type CanvasResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -30,3 +31,4 @@ export type CanvasConnectionDropResult = CanvasConnectionDropTarget & { handle: 
 export type CanvasInteractionState = { isNodeDragging: boolean; isNodeResizing: boolean; dropTargetGroupId: string | null; connectionInteraction: CanvasConnectionInteraction | null };
 export type CanvasNodeDragResult = { moved: boolean; clickedNodeId: string | null };
 export type CanvasShortcut = "undo" | "redo" | "select-all" | "copy" | "paste" | "delete" | "escape";
+export type CanvasShortcutEvent = { key: string; metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean };

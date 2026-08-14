@@ -13,7 +13,7 @@ Core 只要求 React 18+，不强制依赖 `react-dom`。包以 MIT 协议发布
 | 入口 | 内容 |
 | --- | --- |
 | `@infinite-canvas/core` | 全部公开 API |
-| `@infinite-canvas/core/headless` | 文档、几何、选择器、快捷键、主题和默认配置，不加载 React |
+| `@infinite-canvas/core/headless` | 文档、几何、选择器、快捷键、主题和默认配置，不加载 React，也不在声明中依赖浏览器 DOM 类型 |
 | `@infinite-canvas/core/react` | Hooks 与基础渲染组件 |
 
 ## 快速开始

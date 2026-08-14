@@ -1,15 +1,15 @@
 import { canvasDefaults } from "../defaults.js";
-import type { CanvasNode, CanvasSize, Position, ViewportTransform } from "../types.js";
+import type { CanvasNode, CanvasSize, CanvasViewportOrigin, Position, ViewportTransform } from "../types.js";
 import { nodesInRect } from "./nodes.js";
 
 export const CANVAS_MIN_ZOOM = canvasDefaults.minZoom;
 export const CANVAS_MAX_ZOOM = canvasDefaults.maxZoom;
 
-export function screenToCanvas(clientX: number, clientY: number, viewport: ViewportTransform, origin: Pick<DOMRect, "left" | "top"> = { left: 0, top: 0 }): Position {
+export function screenToCanvas(clientX: number, clientY: number, viewport: ViewportTransform, origin: CanvasViewportOrigin = { left: 0, top: 0 }): Position {
     return { x: (clientX - origin.left - viewport.x) / viewport.k, y: (clientY - origin.top - viewport.y) / viewport.k };
 }
 
-export function canvasToScreen(position: Position, viewport: ViewportTransform, origin: Pick<DOMRect, "left" | "top"> = { left: 0, top: 0 }): Position {
+export function canvasToScreen(position: Position, viewport: ViewportTransform, origin: CanvasViewportOrigin = { left: 0, top: 0 }): Position {
     return { x: origin.left + viewport.x + position.x * viewport.k, y: origin.top + viewport.y + position.y * viewport.k };
 }
 
