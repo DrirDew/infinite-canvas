@@ -14,12 +14,12 @@ export type UseCanvasInteractionsOptions<TMetadata = unknown> = UseCanvasViewpor
     onConnectionContextMenu?: (event: MouseEvent<SVGPathElement>, connection: CanvasConnection) => void;
 };
 
-export function useCanvasInteractions<TMetadata>({ commands, containerRef, onContainerResize, onViewportInput, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration, onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelect: onConnectionSelected, onConnectionContextMenu: onConnectionMenu }: UseCanvasInteractionsOptions<TMetadata>) {
+export function useCanvasInteractions<TMetadata>({ commands, containerRef, onContainerResize, onViewportInput, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration, onCanvasPointerDown: onCanvasPointerDownCallback, onNodePointerDown: onNodePointerDownCallback, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelect: onConnectionSelected, onConnectionContextMenu: onConnectionMenu }: UseCanvasInteractionsOptions<TMetadata>) {
     const commandsRef = useRef(commands);
-    const callbacksRef = useRef({ onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onResizeStart, onConnectionSelected, onConnectionMenu });
+    const callbacksRef = useRef({ onCanvasPointerDown: onCanvasPointerDownCallback, onNodePointerDown: onNodePointerDownCallback, onNodeSelectionChange, onResizeStart, onConnectionSelected, onConnectionMenu });
     const pendingSelectionRef = useRef<{ nodeId: string; ids: Set<string> } | null>(null);
     commandsRef.current = commands;
-    callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onResizeStart, onConnectionSelected, onConnectionMenu };
+    callbacksRef.current = { onCanvasPointerDown: onCanvasPointerDownCallback, onNodePointerDown: onNodePointerDownCallback, onNodeSelectionChange, onResizeStart, onConnectionSelected, onConnectionMenu };
     const viewport = useCanvasViewport({ commands, containerRef, onContainerResize, onViewportInput, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration });
     const { toCanvas } = viewport;
     const { selectionRect, canStart, claimNode, claimConnection, startMarquee, cancelSelection } = useCanvasPointerLifecycle({ commands, containerRef, toCanvas, onNodeClick, onConnectionEnd });
