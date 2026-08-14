@@ -23,6 +23,7 @@ import {
     nodeSizeFromRatio,
     normalizeConnection,
     normalizeRect,
+    resolveCanvasShortcut,
     screenToCanvas as screenPointToCanvas,
     useCanvas,
     type CanvasDocument,
@@ -97,11 +98,6 @@ import type { ReferenceAudio } from "@/types/media";
 // Register built-in nodes in the shared registry once when the module loads.
 registerBuiltinNodes();
 
-type CanvasClipboard = {
-    nodes: CanvasNodeData[];
-    connections: CanvasConnection[];
-};
-
 type CanvasGenerationRequest = {
     targetNodeId: string;
     originNodeId: string;
@@ -147,7 +143,6 @@ function InfiniteCanvasPage() {
     const containerRef = useRef<HTMLDivElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const uploadTargetRef = useRef<{ nodeId?: string; position?: Position } | null>(null);
-    const clipboardRef = useRef<CanvasClipboard | null>(null);
     const viewportSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const didInitialCenterRef = useRef(false);
     const rafRef = useRef<number | null>(null);
@@ -663,83 +658,21 @@ function InfiniteCanvasPage() {
         [canvasCommands],
     );
 
-    const copySelectedNodes = useCallback(() => {
-        const selectedIds = selectedNodeIdsRef.current;
-        if (!selectedIds.size) return;
-
-        const copiedNodes = nodesRef.current
-            .filter((node) => selectedIds.has(node.id))
-            .map((node) => ({
-                ...node,
-                position: { ...node.position },
-                metadata: node.metadata ? { ...node.metadata } : undefined,
-            }));
-
-        if (!copiedNodes.length) return;
-
-        clipboardRef.current = {
-            nodes: copiedNodes,
-            connections: connectionsRef.current.filter((connection) => selectedIds.has(connection.fromNodeId) && selectedIds.has(connection.toNodeId)).map((connection) => ({ ...connection })),
-        };
-    }, []);
+    const copySelectedNodes = canvasCommands.copySelection;
 
     const pasteCopiedNodes = useCallback(() => {
-        const clipboard = clipboardRef.current;
-        if (!clipboard?.nodes.length) return false;
-
-        const center = getCanvasCenter();
-        const bounds = clipboard.nodes.reduce(
-            (acc, node) => ({
-                left: Math.min(acc.left, node.position.x),
-                top: Math.min(acc.top, node.position.y),
-                right: Math.max(acc.right, node.position.x + node.width),
-                bottom: Math.max(acc.bottom, node.position.y + node.height),
-            }),
-            { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity },
-        );
-        const dx = center.x - (bounds.left + bounds.right) / 2;
-        const dy = center.y - (bounds.top + bounds.bottom) / 2;
-        const idMap = new Map<string, string>();
-        const nextNodes = clipboard.nodes.map((node, index) => {
-            const id = `${node.type}-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`;
-            idMap.set(node.id, id);
-            return {
-                ...node,
-                id,
-                title: node.title.endsWith(" Copy") ? node.title : `${node.title} Copy`,
-                position: {
-                    x: node.position.x + dx,
-                    y: node.position.y + dy,
-                },
-                metadata: node.metadata ? { ...node.metadata } : undefined,
-            };
+        const stamp = Date.now();
+        const pasted = canvasCommands.pasteClipboard({
+            position: getCanvasCenter(),
+            createNodeId: (node, index) => `${node.type}-${stamp}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+            createConnectionId: (_, index) => `conn-${stamp}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+            mapNode: (node) => ({ ...node, title: node.title.endsWith(" Copy") ? node.title : `${node.title} Copy` }),
         });
-
-        const pastedNodes = nextNodes.map((node) => {
-            const groupId = node.metadata?.groupId;
-            if (!groupId) return node;
-            return { ...node, metadata: { ...node.metadata, groupId: idMap.get(groupId) } };
-        });
-
-        const nextConnections = clipboard.connections.flatMap((connection, index) => {
-            const fromNodeId = idMap.get(connection.fromNodeId);
-            const toNodeId = idMap.get(connection.toNodeId);
-            if (!fromNodeId || !toNodeId) return [];
-            return [
-                {
-                    ...connection,
-                    id: `conn-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
-                    fromNodeId,
-                    toNodeId,
-                },
-            ];
-        });
-
-        canvasCommands.transaction((document) => ({ nodes: [...document.nodes, ...pastedNodes], connections: [...document.connections, ...nextConnections] }));
-        setSelectedNodeIds(new Set(pastedNodes.map((node) => node.id)));
+        if (!pasted) return false;
+        setSelectedNodeIds(new Set(pasted.nodes.map((node) => node.id)));
         setSelectedConnectionId(null);
         setContextMenu(null);
-        setDialogNodeId(pastedNodes[0]?.type === CanvasNodeType.Group ? null : pastedNodes[0]?.id || null);
+        setDialogNodeId(pasted.nodes[0]?.type === CanvasNodeType.Group ? null : pasted.nodes[0]?.id || null);
         return true;
     }, [canvasCommands, getCanvasCenter]);
 
@@ -1107,54 +1040,27 @@ function InfiniteCanvasPage() {
             if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement || target?.closest("[contenteditable='true'],[data-canvas-no-zoom],[data-canvas-shortcuts-ignore]"))
                 return;
 
-            const key = event.key.toLowerCase();
-            const isModifierShortcut = event.metaKey || event.ctrlKey;
+            const shortcut = resolveCanvasShortcut(event);
+            if (!shortcut || (shortcut === "copy" && window.getSelection()?.toString())) return;
+            event.preventDefault();
 
-            if (isModifierShortcut && key === "c" && window.getSelection()?.toString()) return;
-
-            if (isModifierShortcut && !event.altKey && key === "z") {
-                event.preventDefault();
-                if (event.shiftKey) redoCanvas();
-                else undoCanvas();
-                return;
-            }
-
-            if (isModifierShortcut && !event.altKey && key === "y") {
-                event.preventDefault();
-                redoCanvas();
-                return;
-            }
-
-            if (isModifierShortcut && !event.altKey && key === "a") {
-                event.preventDefault();
+            if (shortcut === "undo") undoCanvas();
+            else if (shortcut === "redo") redoCanvas();
+            else if (shortcut === "select-all") {
                 setSelectedNodeIds(new Set(nodesRef.current.map((node) => node.id)));
                 setSelectedConnectionId(null);
                 setContextMenu(null);
                 setSelectionBox(null);
-                return;
-            }
-
-            if (isModifierShortcut && !event.altKey && key === "c") {
-                event.preventDefault();
-                copySelectedNodes();
-                return;
-            }
-
-            if (isModifierShortcut && !event.altKey && key === "v") {
-                event.preventDefault();
+            } else if (shortcut === "copy") copySelectedNodes();
+            else if (shortcut === "paste") {
                 if (!pasteCopiedNodes()) void pasteSystemClipboard();
-                return;
-            }
-
-            if (event.key === "Delete" || event.key === "Backspace") {
+            } else if (shortcut === "delete") {
                 if (selectedNodeIdsRef.current.size) {
                     deleteNodes(new Set(selectedNodeIdsRef.current));
-                } else if (selectedConnectionId) {
-                    deleteConnection(selectedConnectionId);
+                } else if (selectedConnectionIdRef.current) {
+                    deleteConnection(selectedConnectionIdRef.current);
                 }
-            }
-
-            if (event.key === "Escape") {
+            } else if (shortcut === "escape") {
                 setSelectedNodeIds(new Set());
                 setSelectedConnectionId(null);
                 setContextMenu(null);
@@ -1174,7 +1080,7 @@ function InfiniteCanvasPage() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [canvasCommands, copySelectedNodes, deleteConnection, deleteNodes, pasteCopiedNodes, pasteSystemClipboard, redoCanvas, selectedConnectionId, undoCanvas]);
+    }, [canvasCommands, copySelectedNodes, deleteConnection, deleteNodes, pasteCopiedNodes, pasteSystemClipboard, redoCanvas, undoCanvas]);
 
     const handleConnectStart = useCallback(
         (event: ReactMouseEvent, nodeId: string, handleType: "source" | "target") => {

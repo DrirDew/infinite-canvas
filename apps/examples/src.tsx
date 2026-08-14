@@ -64,6 +64,15 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
         commands.resizeNode(id, node.width + 40, node.height + 24);
         commands.endNodeResize();
     };
+    const paste = () => {
+        const stamp = Date.now();
+        commands.pasteClipboard({
+            position: { x: 300, y: 180 },
+            createNodeId: (node, index) => `${node.type}-${stamp}-${index}`,
+            createConnectionId: (_, index) => `${title}-pasted-connection-${stamp}-${index}`,
+            mapNode: (node) => ({ ...node, title: `${node.title} Copy` }),
+        });
+    };
 
     return (
         <section>
@@ -76,6 +85,12 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                     </button>
                     <button disabled={selectedNodeIds.size !== 1} onClick={resize}>
                         放大
+                    </button>
+                    <button disabled={!selectedNodeIds.size} onClick={commands.copySelection}>
+                        复制
+                    </button>
+                    <button onClick={paste}>
+                        粘贴
                     </button>
                     <button disabled={!canUndo} onClick={commands.undo}>
                         撤销
@@ -134,7 +149,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                             />
                             <i style={{ background: accent }} />
                             独立实例<strong>{node.title.replace(`${title}-`, "")}</strong>
-                            <small>选择 · 拖动 · 缩放 · 连线</small>
+                            <small>拖动 · 缩放 · 连线 · 剪贴板</small>
                         </article>
                     ))}
                     {selectionRect ? <div style={{ position: "absolute", left: selectionRect.x, top: selectionRect.y, width: selectionRect.width, height: selectionRect.height, border: `1px dashed ${accent}`, pointerEvents: "none" }} /> : null}
@@ -156,14 +171,14 @@ function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 05</p>
+                <p>CORE / 06</p>
                 <h1>
                     一块画布，
                     <br />
                     任意产品。
                 </h1>
                 <aside>
-                    这个应用只组合 <code>@infinite-canvas/core</code>。两个实例的文档、视口、节点交互、连线和撤销历史完全隔离。
+                    这个应用只组合 <code>@infinite-canvas/core</code>。两个实例的文档、交互、连线、剪贴板和撤销历史完全隔离。
                 </aside>
             </div>
             <div className="grid">

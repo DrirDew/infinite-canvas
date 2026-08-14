@@ -144,3 +144,29 @@ test("connection interaction resolves targets without generating ids", () => {
     canvas.commands.addConnection({ id: "ab", ...result!.connection! });
     expect(canvas.commands.getDocument().connections).toEqual([connection("ab", "a", "b")]);
 });
+
+test("clipboard remaps groups and connections in one isolated transaction", () => {
+    const canvas = createCanvas({
+        nodes: [{ ...node("group"), type: "group", width: 300, height: 300 }, { ...node("child", { groupId: "group" }), position: { x: 50, y: 50 } }],
+        connections: [connection("edge", "group", "child")],
+    });
+    const other = createCanvas();
+    canvas.commands.selectNodes(["group", "child"]);
+    expect(canvas.commands.copySelection()?.connections).toEqual([connection("edge", "group", "child")]);
+    const pasted = canvas.commands.pasteClipboard({
+        position: { x: 1000, y: 1000 },
+        createNodeId: (current) => `copy-${current.id}`,
+        createConnectionId: (current) => `copy-${current.id}`,
+        mapNode: (current) => ({ ...current, title: `${current.title} Copy` }),
+    });
+    expect(pasted?.nodes.map(({ id, metadata, position }) => ({ id, metadata, position }))).toEqual([
+        { id: "copy-group", metadata: undefined, position: { x: 850, y: 850 } },
+        { id: "copy-child", metadata: { groupId: "copy-group" }, position: { x: 900, y: 900 } },
+    ]);
+    expect(pasted?.connections).toEqual([connection("copy-edge", "copy-group", "copy-child")]);
+    expect([...canvas.commands.getSelection().nodeIds]).toEqual(["copy-group", "copy-child"]);
+    expect(canvas.commands.getHistoryDocuments()).toHaveLength(1);
+    expect(other.commands.getClipboard()).toBeNull();
+    canvas.commands.undo();
+    expect(canvas.commands.getDocument().nodes).toHaveLength(2);
+});

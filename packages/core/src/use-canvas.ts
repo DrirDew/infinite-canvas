@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
-import { addDocumentConnections, addDocumentNodes, cleanCanvasSelection, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "./document";
+import { addDocumentConnections, addDocumentNodes, cleanCanvasSelection, createCanvasClipboard, pasteCanvasClipboard, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "./document";
 import { findConnectionDropTarget, findContainingGroupId, findGroupDropTarget, nodesInRect, normalizeConnection, snapNodesIntoGroup } from "./geometry";
-import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasCommands, type CanvasConnection, type CanvasConnectionDropResult, type CanvasDocument, type CanvasDocumentUpdater, type CanvasInteractionState, type CanvasNode, type CanvasNodePatch, type CanvasSelection, type ConnectionHandle, type Position, type UseCanvasOptions, type UseCanvasResult, type ViewportTransform, type ViewportUpdater } from "./types";
+import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasClipboard, type CanvasCommands, type CanvasConnection, type CanvasConnectionDropResult, type CanvasDocument, type CanvasDocumentUpdater, type CanvasInteractionState, type CanvasNode, type CanvasNodePatch, type CanvasPasteOptions, type CanvasSelection, type ConnectionHandle, type Position, type UseCanvasOptions, type UseCanvasResult, type ViewportTransform, type ViewportUpdater } from "./types";
 
 type CanvasHistory<TMetadata extends BaseCanvasNodeMetadata> = {
     past: CanvasDocument<TMetadata>[];
@@ -33,6 +33,7 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
     const historyRef = useRef<CanvasHistory<TMetadata>>(emptyHistory());
     const previewRef = useRef<CanvasDocument<TMetadata> | null>(null);
     const dragRef = useRef<CanvasDrag<TMetadata> | null>(null);
+    const clipboardRef = useRef<CanvasClipboard<TMetadata> | null>(null);
     const onChangeRef = useRef(onDocumentChange);
     const onViewportChangeRef = useRef(onViewportChange);
     onChangeRef.current = onDocumentChange;
@@ -229,6 +230,19 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
             cancelConnection() {
                 if (interactionRef.current.connectionInteraction) updateInteraction({ ...interactionRef.current, connectionInteraction: null });
             },
+            copySelection() {
+                clipboardRef.current = createCanvasClipboard(documentRef.current, selectionRef.current.nodeIds);
+                return clipboardRef.current;
+            },
+            pasteClipboard(options: CanvasPasteOptions<TMetadata>) {
+                const clipboard = clipboardRef.current;
+                if (!clipboard?.nodes.length) return null;
+                const { nodes, connections } = pasteCanvasClipboard(clipboard, options);
+                transaction((document) => ({ nodes: [...document.nodes, ...nodes], connections: [...document.connections, ...connections] }));
+                updateSelection({ nodeIds: new Set(nodes.map((node) => node.id)), connectionId: null });
+                return { nodes, connections };
+            },
+            getClipboard: () => clipboardRef.current,
             getDocument: () => documentRef.current,
             getViewport: () => viewportRef.current,
             getSelection: () => selectionRef.current,

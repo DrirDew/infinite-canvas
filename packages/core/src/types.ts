@@ -44,6 +44,14 @@ export type CanvasDocument<TMetadata extends BaseCanvasNodeMetadata = BaseCanvas
     nodes: CanvasNode<TMetadata>[];
     connections: CanvasConnection[];
 };
+export type CanvasClipboard<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = CanvasDocument<TMetadata>;
+export type CanvasPasteOptions<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
+    position: Position;
+    createNodeId: (node: CanvasNode<TMetadata>, index: number) => string;
+    createConnectionId: (connection: CanvasConnection, index: number) => string;
+    mapNode?: (node: CanvasNode<TMetadata>, index: number) => CanvasNode<TMetadata>;
+};
+export type CanvasShortcut = "undo" | "redo" | "select-all" | "copy" | "paste" | "delete" | "escape";
 export type CanvasSelection = {
     nodeIds: Set<string>;
     connectionId: string | null;
@@ -73,6 +81,9 @@ export type CanvasCommands<TMetadata extends BaseCanvasNodeMetadata = BaseCanvas
     moveConnection: (position: Position) => CanvasConnectionDropTarget | null;
     endConnection: (position: Position) => CanvasConnectionDropResult | null;
     cancelConnection: () => void;
+    copySelection: () => CanvasClipboard<TMetadata> | null;
+    pasteClipboard: (options: CanvasPasteOptions<TMetadata>) => CanvasClipboard<TMetadata> | null;
+    getClipboard: () => CanvasClipboard<TMetadata> | null;
     getDocument: () => CanvasDocument<TMetadata>;
     getViewport: () => ViewportTransform;
     getSelection: () => CanvasSelection;

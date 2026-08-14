@@ -1,4 +1,5 @@
-import type { BaseCanvasNodeMetadata, CanvasConnection, CanvasDocument, CanvasNode, CanvasNodePatch, CanvasSelection } from "./types";
+import { nodeBounds } from "./geometry";
+import type { BaseCanvasNodeMetadata, CanvasClipboard, CanvasConnection, CanvasDocument, CanvasNode, CanvasNodePatch, CanvasPasteOptions, CanvasSelection } from "./types";
 
 export const addDocumentNodes = <TMetadata extends BaseCanvasNodeMetadata>(document: CanvasDocument<TMetadata>, nodes: CanvasNode<TMetadata>[]) => (nodes.length ? { ...document, nodes: [...document.nodes, ...nodes] } : document);
 
@@ -41,4 +42,28 @@ export function cleanCanvasSelection<TMetadata extends BaseCanvasNodeMetadata>(d
     const selected = new Set([...selection.nodeIds].filter((id) => nodeIds.has(id)));
     const connectionId = selection.connectionId && connectionIds.has(selection.connectionId) ? selection.connectionId : null;
     return selected.size === selection.nodeIds.size && connectionId === selection.connectionId ? selection : { nodeIds: selected, connectionId };
+}
+
+export function createCanvasClipboard<TMetadata extends BaseCanvasNodeMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>): CanvasClipboard<TMetadata> | null {
+    const selected = new Set(ids);
+    const nodes = document.nodes.filter((node) => selected.has(node.id)).map((node) => ({ ...node, position: { ...node.position }, metadata: node.metadata ? { ...node.metadata } : undefined }));
+    return nodes.length ? { nodes, connections: document.connections.filter((connection) => selected.has(connection.fromNodeId) && selected.has(connection.toNodeId)).map((connection) => ({ ...connection })) } : null;
+}
+
+export function pasteCanvasClipboard<TMetadata extends BaseCanvasNodeMetadata>(clipboard: CanvasClipboard<TMetadata>, options: CanvasPasteOptions<TMetadata>): CanvasClipboard<TMetadata> {
+    const bounds = nodeBounds(clipboard.nodes);
+    const dx = options.position.x - (bounds.left + bounds.right) / 2;
+    const dy = options.position.y - (bounds.top + bounds.bottom) / 2;
+    const ids = new Map(clipboard.nodes.map((node, index) => [node.id, options.createNodeId(node, index)] as const));
+    const nodes = clipboard.nodes.map((node, index) => {
+        const groupId = node.metadata?.groupId;
+        const next = { ...node, id: ids.get(node.id)!, position: { x: node.position.x + dx, y: node.position.y + dy }, metadata: node.metadata ? ({ ...node.metadata, ...(groupId ? { groupId: ids.get(groupId) } : {}) } as TMetadata) : undefined };
+        return options.mapNode?.(next, index) || next;
+    });
+    const connections = clipboard.connections.flatMap<CanvasConnection>((connection, index) => {
+        const fromNodeId = ids.get(connection.fromNodeId);
+        const toNodeId = ids.get(connection.toNodeId);
+        return fromNodeId && toNodeId ? [{ ...connection, id: options.createConnectionId(connection, index), fromNodeId, toNodeId }] : [];
+    });
+    return { nodes, connections };
 }
