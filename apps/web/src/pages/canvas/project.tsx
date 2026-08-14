@@ -372,7 +372,7 @@ function InfiniteCanvasPage() {
         commands: canvasCommands,
         containerRef,
         onResizeStart: () => setExpandedImageNodeId(null),
-        onViewportChange: () => setContextMenu(null),
+        onViewportInput: () => setContextMenu(null),
         onConnectionSelect: () => setContextMenu(null),
         onConnectionContextMenu: (event, connection) => setContextMenu({ type: "connection", x: event.clientX, y: event.clientY, connectionId: connection.id }),
         onContainerResize: ({ width, height }) => {

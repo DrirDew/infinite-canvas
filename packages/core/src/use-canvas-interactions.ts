@@ -16,7 +16,7 @@ export type UseCanvasInteractionsOptions<TMetadata = unknown> = UseCanvasViewpor
 
 type Marquee = { start: Position; initialNodeIds: string[] };
 
-export function useCanvasInteractions<TMetadata>({ commands, containerRef, onContainerResize, onViewportChange, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration, onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelect: onConnectionSelected, onConnectionContextMenu: onConnectionMenu }: UseCanvasInteractionsOptions<TMetadata>) {
+export function useCanvasInteractions<TMetadata>({ commands, containerRef, onContainerResize, onViewportInput, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration, onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelect: onConnectionSelected, onConnectionContextMenu: onConnectionMenu }: UseCanvasInteractionsOptions<TMetadata>) {
     const [selectionRect, setSelectionRect] = useState<CanvasRect | null>(null);
     const commandsRef = useRef(commands);
     const callbacksRef = useRef({ onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelected, onConnectionMenu });
@@ -25,7 +25,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     const frameRef = useRef<number | null>(null);
     commandsRef.current = commands;
     callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelected, onConnectionMenu };
-    const viewport = useCanvasViewport({ commands, containerRef, onContainerResize, onViewportChange, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration });
+    const viewport = useCanvasViewport({ commands, containerRef, onContainerResize, onViewportInput, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration });
     const { toCanvas } = viewport;
     const selectNode = useCallback((event: Pick<PointerEvent, "shiftKey" | "metaKey" | "ctrlKey">, nodeId: string) => {
         const ids = new Set(commandsRef.current.getSelection().nodeIds);

@@ -7,21 +7,21 @@ export type UseCanvasViewportOptions<TMetadata = unknown> = CanvasViewportOption
     commands: CanvasCommands<TMetadata>;
     containerRef: RefObject<HTMLDivElement | null>;
     onContainerResize?: (size: CanvasSize) => void;
-    onViewportChange?: (viewport: ViewportTransform) => void;
+    onViewportInput?: (viewport: ViewportTransform) => void;
 };
 
-export function useCanvasViewport<TMetadata>({ commands, containerRef, onContainerResize, onViewportChange, minZoom = canvasDefaults.minZoom, maxZoom = canvasDefaults.maxZoom, focusCoverage = canvasDefaults.focusCoverage, focusMaxZoom = canvasDefaults.focusMaxZoom, focusDuration = canvasDefaults.focusDuration }: UseCanvasViewportOptions<TMetadata>) {
+export function useCanvasViewport<TMetadata>({ commands, containerRef, onContainerResize, onViewportInput, minZoom = canvasDefaults.minZoom, maxZoom = canvasDefaults.maxZoom, focusCoverage = canvasDefaults.focusCoverage, focusMaxZoom = canvasDefaults.focusMaxZoom, focusDuration = canvasDefaults.focusDuration }: UseCanvasViewportOptions<TMetadata>) {
     const lower = Math.max(0.001, minZoom);
     const upper = Math.max(lower, maxZoom);
     const options = { minZoom: lower, maxZoom: upper, focusCoverage: Math.max(0, focusCoverage), focusMaxZoom: Math.max(lower, Math.min(upper, focusMaxZoom)), focusDuration: Math.max(0, focusDuration) };
     const [containerSize, setContainerSize] = useState<CanvasSize>({ width: 0, height: 0 });
     const commandsRef = useRef(commands);
-    const callbacksRef = useRef({ onContainerResize, onViewportChange });
+    const callbacksRef = useRef({ onContainerResize, onViewportInput });
     const containerSizeRef = useRef(containerSize);
     const frameRef = useRef<number | null>(null);
     const optionsRef = useRef(options);
     commandsRef.current = commands;
-    callbacksRef.current = { onContainerResize, onViewportChange };
+    callbacksRef.current = { onContainerResize, onViewportInput };
     optionsRef.current = options;
 
     useLayoutEffect(() => {
@@ -64,7 +64,7 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
         (viewport: ViewportTransform) => {
             cancelViewportAnimation();
             const next = commandsRef.current.setViewport(viewport);
-            callbacksRef.current.onViewportChange?.(next);
+            callbacksRef.current.onViewportInput?.(next);
             return next;
         },
         [cancelViewportAnimation],
