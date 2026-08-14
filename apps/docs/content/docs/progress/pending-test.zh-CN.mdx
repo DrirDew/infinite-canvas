@@ -13,6 +13,7 @@ description: 当前版本已实现但仍需人工验证的变更项
 - Core 剪贴板与快捷键：Examples 两块画布的复制粘贴内容应互不影响；官方 Web 应保持多节点及内部连线复制、粘贴居中、分组关系重映射、一次粘贴一次撤销、全选、删除、Escape、macOS 与 Windows/Linux 撤销重做快捷键，以及系统剪贴板图片和文本导入行为不变。
 - Core 基础渲染：Examples 应展示专用未知节点占位；Examples 与官方 Web 的节点定位、四角缩放、源端口与目标端口、缺失插件占位、普通连线、活动连线预览、选中和关联高亮、右键命中、框选虚线在不同缩放下的粗细、节点缩略图颜色、小地图视口矩形及点击拖动导航应保持原有行为。
 - Core 节点角色：官方图片、文本、配置、视频和音频类型枚举移回 Web 后，渲染与行为应保持不变；通过工具栏或 Agent 创建的分组节点应借助 `role: "group"` 保持分组拖动、子节点联动、吸附和禁止连线行为。
+- Core Agent 适配：Agent 连线操作应拒绝分组及无效 Config 组合；通过 Agent 删除分组时应清理关联连线、解除子节点 `groupId`，并保持一次 Core transaction。
 - Core 主题来源：Web 删除重复主题定义后，画布、图片与视频工作台、Agent 画布预览、工具栏、弹出层、菜单、节点、小地图和插件面板的浅色及深色配色应保持不变。
 - 插件清单：官方插件列表不应再显示便利贴插件，发布的官方插件产物中也不应再包含 `sticky-note.js`。
 - Monorepo 基座：在仓库根目录安装一次依赖后应建立全部 Bun workspace 链接；`bun run dev`、文档开发、Canvas Agent 开发、官方插件构建、Docker、Vercel 和 GitHub Pages 应继续使用迁移后的 `apps/web`、`apps/docs`、`packages/canvas-agent`、`packages/plugin-sdk` 与 `plugins/user` 路径。

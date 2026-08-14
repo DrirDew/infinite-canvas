@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./document";
 export * from "./theme";
 export * from "./geometry";
 export * from "./shortcuts";

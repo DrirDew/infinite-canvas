@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { normalizeConnection } from "@infinite-canvas/core";
+import { normalizeConnection, removeDocumentConnections, removeDocumentNodes } from "@infinite-canvas/core";
 
 import i18n from "@/i18n";
 import { resolveCanvasConnection } from "@/lib/canvas/canvas-connection";
@@ -70,13 +70,12 @@ export function applyCanvasAgentOps(snapshot: CanvasAgentSnapshot, ops?: CanvasA
         }
         if (op.type === "delete_node") {
             const ids = new Set(op.ids || (op.id ? [op.id] : op.nodeType ? nodes.filter((node) => node.type === op.nodeType).map((node) => node.id) : []));
-            nodes = nodes.filter((node) => !ids.has(node.id));
-            connections = connections.filter((conn) => !ids.has(conn.fromNodeId) && !ids.has(conn.toNodeId));
+            ({ nodes, connections } = removeDocumentNodes({ nodes, connections }, ids));
             selectedNodeIds = selectedNodeIds.filter((id) => !ids.has(id));
         }
         if (op.type === "delete_connections") {
             const ids = new Set(op.ids || (op.id ? [op.id] : []));
-            connections = op.all ? [] : connections.filter((conn) => !ids.has(conn.id));
+            connections = op.all ? [] : removeDocumentConnections({ nodes, connections }, ids).connections;
         }
         if (op.type === "connect_nodes") {
             if (!op.fromNodeId || !op.toNodeId) return;
