@@ -173,6 +173,28 @@ test("dragging groups moves children and resizing creates one history entry", ()
     expect(canvas.commands.getHistoryDocuments()).toHaveLength(2);
 });
 
+test("cancels uncommitted previews before undoing history", () => {
+    const canvas = createCanvas({ nodes: [node("a")], connections: [] });
+    canvas.commands.startNodeResize("a");
+    canvas.commands.resizeNode("a", 200, 180);
+    canvas.commands.undo();
+    expect(canvas.commands.getDocument().nodes[0]).toMatchObject({ width: 100, height: 100 });
+    expect(canvas.commands.getHistoryDocuments()).toHaveLength(0);
+    expect(canvas.commands.getInteraction().isNodeResizing).toBe(false);
+});
+
+test("commits an active preview before a new transaction", () => {
+    const canvas = createCanvas({ nodes: [node("a")], connections: [] });
+    canvas.commands.startNodeResize("a");
+    canvas.commands.resizeNode("a", 200, 180);
+    canvas.commands.addNode(node("b"));
+    expect(canvas.commands.getHistoryDocuments()).toHaveLength(2);
+    expect(canvas.commands.getInteraction().isNodeResizing).toBe(false);
+    canvas.commands.undo();
+    expect(canvas.commands.getDocument().nodes).toHaveLength(1);
+    expect(canvas.commands.getDocument().nodes[0]).toMatchObject({ width: 200, height: 180 });
+});
+
 test("connection interaction resolves targets without generating ids", () => {
     const canvas = createCanvas({ nodes: [node("a"), { ...node("b"), position: { x: 200, y: 0 } }], connections: [] });
     const other = createCanvas({ nodes: [node("other")], connections: [] });

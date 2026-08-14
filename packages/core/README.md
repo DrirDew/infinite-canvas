@@ -38,6 +38,7 @@ const result = canvas.commands.endConnection(targetPosition);
 if (result?.connection) canvas.commands.addConnection({ id, ...result.connection });
 canvas.commands.copySelection();
 canvas.commands.pasteClipboard({ position, createNodeId, createConnectionId });
+canvas.commands.cancelPreview();
 canvas.commands.undo();
 interactions.focusNode(node.id);
 interactions.setZoom(1.5);
@@ -55,7 +56,7 @@ interactions.resetViewport();
 </InfiniteCanvas>;
 ```
 
-视口属于画布实例状态，不进入文档撤销历史。`useCanvasInteractions` 提供容器尺寸、坐标转换、画布中心点、中心缩放、复位和节点聚焦动画，并允许配置缩放范围、聚焦覆盖率、最大缩放和动画时长；`InfiniteCanvas` 可配置相同缩放范围与背景网格间距。画布、节点、缩放控制点和连线端口统一使用 Pointer Events。节点拖动、缩放、分组吸附、连线预览和画布剪贴板由 `useCanvas` 的稳定命令管理，连续节点预览和一次粘贴分别只生成一条文档历史。文档、视口、选择和交互状态分别可通过回调接入外部存储、检查器或状态面板。Core 默认按源/目标端口确定连线方向，接入应用可通过 `resolveConnection` 注入节点类型规则，通过 `canGroupNode` 控制节点与分组的有效组合，并通过 `historyLimit`、`dragThreshold`、`groupPadding`、`connectionHandleRadius` 和 `connectionNodePadding` 调整实例行为；默认值统一导出为 `canvasDefaults`。Core 不生成节点或连线 ID，连线与粘贴均由接入应用提供 ID。跨平台快捷键通过 `resolveCanvasShortcut` 识别，系统剪贴板媒体读取和持久化仍由接入应用负责。
+视口属于画布实例状态，不进入文档撤销历史。`useCanvasInteractions` 提供容器尺寸、坐标转换、画布中心点、中心缩放、复位和节点聚焦动画，并允许配置缩放范围、聚焦覆盖率、最大缩放和动画时长；`InfiniteCanvas` 可配置相同缩放范围与背景网格间距。画布、节点、缩放控制点和连线端口统一使用 Pointer Events。节点拖动、缩放、分组吸附、连线预览和画布剪贴板由 `useCanvas` 的稳定命令管理，连续节点预览和一次粘贴分别只生成一条文档历史；低层预览可显式提交或通过 `cancelPreview` 恢复起点，undo/redo 会先取消尚未提交的预览。文档、视口、选择和交互状态分别可通过回调接入外部存储、检查器或状态面板。Core 默认按源/目标端口确定连线方向，接入应用可通过 `resolveConnection` 注入节点类型规则，通过 `canGroupNode` 控制节点与分组的有效组合，并通过 `historyLimit`、`dragThreshold`、`groupPadding`、`connectionHandleRadius` 和 `connectionNodePadding` 调整实例行为；默认值统一导出为 `canvasDefaults`。Core 不生成节点或连线 ID，连线与粘贴均由接入应用提供 ID。跨平台快捷键通过 `resolveCanvasShortcut` 识别，系统剪贴板媒体读取和持久化仍由接入应用负责。
 
 仓库内运行 `bun run dev:examples` 可查看文档快照回调、自定义节点内容、未知节点占位和多实例隔离示例。
 

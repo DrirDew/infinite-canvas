@@ -100,11 +100,29 @@ export function useCanvas<TMetadata = unknown>({
             historyRef.current.future = [];
             updateHistoryState();
         };
+        const commitPreview = () => {
+            const previous = previewRef.current;
+            previewRef.current = null;
+            if (!previous || previous === documentRef.current) return;
+            pushHistory(previous);
+            onChangeRef.current?.(documentRef.current);
+        };
+        const cancelPreview = () => {
+            const previous = previewRef.current;
+            if (!previous) return;
+            previewRef.current = null;
+            documentRef.current = previous;
+            setDocumentState(previous);
+            cleanSelection(previous);
+            cleanInteraction(previous);
+        };
         const transaction = (updater: CanvasDocumentUpdater<TMetadata>) => {
+            const hadPreview = Boolean(previewRef.current);
+            commitPreview();
+            if (hadPreview) updateInteraction(DEFAULT_INTERACTION);
             const current = documentRef.current;
             const next = updater(current);
             if (next === current) return current;
-            previewRef.current = null;
             pushHistory(current);
             publish(next);
             cleanSelection(next);
@@ -127,13 +145,6 @@ export function useCanvas<TMetadata = unknown>({
                 cleanSelection(next);
             }
             return next;
-        };
-        const commitPreview = () => {
-            const previous = previewRef.current;
-            previewRef.current = null;
-            if (!previous || previous === documentRef.current) return;
-            pushHistory(previous);
-            onChangeRef.current?.(documentRef.current);
         };
         const moveNodeDrag = (pointer: Position, finalize = false) => {
             const drag = dragRef.current;
@@ -220,11 +231,7 @@ export function useCanvas<TMetadata = unknown>({
                 if (!drag) return { moved: false, clickedNodeId: null };
                 if (pointer) moveNodeDrag(pointer, true);
                 if (drag.moved && pointer) commitPreview();
-                else if (previewRef.current) {
-                    previewRef.current = null;
-                    documentRef.current = drag.document;
-                    setDocumentState(drag.document);
-                }
+                else cancelPreview();
                 const result = { moved: drag.moved, clickedNodeId: !drag.moved && drag.positions.size === 1 ? drag.positions.keys().next().value || null : null };
                 dragRef.current = null;
                 updateInteraction(DEFAULT_INTERACTION);
@@ -278,12 +285,22 @@ export function useCanvas<TMetadata = unknown>({
             transaction,
             setViewport,
             undo() {
+                if (previewRef.current) {
+                    cancelPreview();
+                    updateInteraction(DEFAULT_INTERACTION);
+                    return;
+                }
                 const previous = historyRef.current.past.pop();
                 if (!previous) return;
                 historyRef.current.future.push(documentRef.current);
                 restore(previous);
             },
             redo() {
+                if (previewRef.current) {
+                    cancelPreview();
+                    updateInteraction(DEFAULT_INTERACTION);
+                    return;
+                }
                 const next = historyRef.current.future.pop();
                 if (!next) return;
                 historyRef.current.past.push(documentRef.current);
@@ -291,6 +308,7 @@ export function useCanvas<TMetadata = unknown>({
             },
             preview,
             commitPreview,
+            cancelPreview,
         } satisfies CanvasCommands<TMetadata>;
     }, []);
 

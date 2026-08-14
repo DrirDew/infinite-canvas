@@ -104,6 +104,7 @@ export type CanvasCommands<TMetadata = unknown> = {
     redo: () => void;
     preview: (updater: CanvasDocumentUpdater<TMetadata>) => CanvasDocument<TMetadata>;
     commitPreview: () => void;
+    cancelPreview: () => void;
 };
 export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
     document?: CanvasDocument<TMetadata>;
