@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { addDocumentConnections, addDocumentNodes, cleanCanvasSelection, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "./document";
-import { findContainingGroupId, findGroupDropTarget, nodesInRect, snapNodesIntoGroup } from "./geometry";
-import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasCommands, type CanvasConnection, type CanvasDocument, type CanvasDocumentUpdater, type CanvasInteractionState, type CanvasNode, type CanvasNodePatch, type CanvasSelection, type Position, type UseCanvasOptions, type UseCanvasResult, type ViewportTransform, type ViewportUpdater } from "./types";
+import { findConnectionDropTarget, findContainingGroupId, findGroupDropTarget, nodesInRect, normalizeConnection, snapNodesIntoGroup } from "./geometry";
+import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasCommands, type CanvasConnection, type CanvasConnectionDropResult, type CanvasDocument, type CanvasDocumentUpdater, type CanvasInteractionState, type CanvasNode, type CanvasNodePatch, type CanvasSelection, type ConnectionHandle, type Position, type UseCanvasOptions, type UseCanvasResult, type ViewportTransform, type ViewportUpdater } from "./types";
 
 type CanvasHistory<TMetadata extends BaseCanvasNodeMetadata> = {
     past: CanvasDocument<TMetadata>[];
@@ -11,7 +11,7 @@ type CanvasDrag<TMetadata extends BaseCanvasNodeMetadata> = { start: Position; d
 
 const HISTORY_LIMIT = 50;
 const DEFAULT_VIEWPORT: ViewportTransform = { x: 0, y: 0, k: 1 };
-const DEFAULT_INTERACTION: CanvasInteractionState = { isNodeDragging: false, isNodeResizing: false, dropTargetGroupId: null };
+const DEFAULT_INTERACTION: CanvasInteractionState = { isNodeDragging: false, isNodeResizing: false, dropTargetGroupId: null, connectionInteraction: null };
 const emptySelection = (): CanvasSelection => ({ nodeIds: new Set(), connectionId: null });
 const emptyHistory = <TMetadata extends BaseCanvasNodeMetadata>(): CanvasHistory<TMetadata> => ({ past: [], future: [] });
 
@@ -59,6 +59,13 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
             const selection = cleanCanvasSelection(next, selectionRef.current);
             if (selection !== selectionRef.current) updateSelection(selection);
         };
+        const cleanInteraction = (next: CanvasDocument<TMetadata>) => {
+            const connection = interactionRef.current.connectionInteraction;
+            if (!connection) return;
+            const ids = new Set(next.nodes.map((node) => node.id));
+            if (!ids.has(connection.handle.nodeId)) updateInteraction({ ...interactionRef.current, connectionInteraction: null });
+            else if (connection.targetNodeId && !ids.has(connection.targetNodeId)) updateInteraction({ ...interactionRef.current, connectionInteraction: { ...connection, targetNodeId: null } });
+        };
         const publish = (next: CanvasDocument<TMetadata>) => {
             documentRef.current = next;
             setDocumentState(next);
@@ -77,12 +84,14 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
             pushHistory(current);
             publish(next);
             cleanSelection(next);
+            cleanInteraction(next);
             return next;
         };
         const restore = (next: CanvasDocument<TMetadata>) => {
             previewRef.current = null;
             publish(next);
             cleanSelection(next);
+            cleanInteraction(next);
             updateHistoryState();
         };
         const preview = (updater: CanvasDocumentUpdater<TMetadata>) => {
@@ -129,6 +138,13 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
             if (interactionRef.current.dropTargetGroupId !== dropTargetGroupId) updateInteraction({ ...interactionRef.current, dropTargetGroupId });
             return dropTargetGroupId;
         };
+        const moveConnection = (position: Position) => {
+            const current = interactionRef.current.connectionInteraction;
+            if (!current) return null;
+            const target = findConnectionDropTarget(documentRef.current.nodes, current.handle, position, viewportRef.current.k);
+            updateInteraction({ ...interactionRef.current, connectionInteraction: { handle: current.handle, pointer: position, targetNodeId: target.nodeId } });
+            return target;
+        };
 
         return {
             setDocument(next: CanvasDocument<TMetadata>) {
@@ -168,7 +184,7 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
                 const positions = new Map(documentRef.current.nodes.filter((node) => moved.has(node.id)).map((node) => [node.id, node.position] as const));
                 if (!positions.size) return;
                 dragRef.current = { start: pointer, document: documentRef.current, positions, moved: false };
-                updateInteraction({ isNodeDragging: true, isNodeResizing: false, dropTargetGroupId: null });
+                updateInteraction({ ...DEFAULT_INTERACTION, isNodeDragging: true });
             },
             moveNodeDrag: (pointer: Position) => moveNodeDrag(pointer),
             endNodeDrag(pointer?: Position) {
@@ -189,12 +205,29 @@ export function useCanvas<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasN
             startNodeResize(id: string) {
                 if (!documentRef.current.nodes.some((node) => node.id === id)) return;
                 commitPreview();
-                updateInteraction({ isNodeDragging: false, isNodeResizing: true, dropTargetGroupId: null });
+                updateInteraction({ ...DEFAULT_INTERACTION, isNodeResizing: true });
             },
             resizeNode: (id: string, width: number, height: number, position?: Position) => preview((document) => updateDocumentNode(document, id, (node) => ({ ...node, width, height, position: position || node.position }))),
             endNodeResize() {
                 commitPreview();
                 updateInteraction(DEFAULT_INTERACTION);
+            },
+            startConnection(handle: ConnectionHandle, position: Position) {
+                if (!documentRef.current.nodes.some((node) => node.id === handle.nodeId)) return;
+                updateInteraction({ ...DEFAULT_INTERACTION, connectionInteraction: { handle, pointer: position, targetNodeId: null } });
+            },
+            moveConnection,
+            endConnection(position: Position) {
+                const target = moveConnection(position);
+                const current = interactionRef.current.connectionInteraction;
+                if (!target || !current) return null;
+                const connection = target.nodeId ? normalizeConnection(current.handle.nodeId, target.nodeId, documentRef.current.nodes, current.handle.handleType) : null;
+                const result: CanvasConnectionDropResult = { ...target, handle: current.handle, position, connection };
+                updateInteraction({ ...interactionRef.current, connectionInteraction: null });
+                return result;
+            },
+            cancelConnection() {
+                if (interactionRef.current.connectionInteraction) updateInteraction({ ...interactionRef.current, connectionInteraction: null });
             },
             getDocument: () => documentRef.current,
             getViewport: () => viewportRef.current,

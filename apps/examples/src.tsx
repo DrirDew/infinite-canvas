@@ -5,10 +5,10 @@ import "./style.css";
 
 function Demo({ title, accent, initial }: { title: string; accent: string; initial: ViewportTransform }) {
     const ref = useRef<HTMLDivElement>(null);
-    const count = useRef(1);
+    const count = useRef(2);
     const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
     const [selectionRect, setSelectionRect] = useState<CanvasRect | null>(null);
-    const { document, viewport, selectedNodeIds, canUndo, canRedo, commands } = useCanvas({ document: initialDocument(title), viewport: initial });
+    const { document, viewport, selectedNodeIds, connectionInteraction, canUndo, canRedo, commands } = useCanvas({ document: initialDocument(title), viewport: initial });
     const toCanvas = useCallback(
         (clientX: number, clientY: number) => {
             const rect = ref.current?.getBoundingClientRect();
@@ -19,6 +19,10 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
 
     useEffect(() => {
         const move = (event: PointerEvent) => {
+            if (commands.getInteraction().connectionInteraction) {
+                commands.moveConnection(toCanvas(event.clientX, event.clientY));
+                return;
+            }
             if (commands.getInteraction().isNodeDragging) {
                 commands.moveNodeDrag({ x: event.clientX, y: event.clientY });
                 return;
@@ -29,6 +33,11 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
             commands.selectNodesInRect(rect);
         };
         const up = (event: PointerEvent) => {
+            const result = commands.endConnection(toCanvas(event.clientX, event.clientY));
+            if (result?.connection) {
+                const connection = result.connection;
+                if (!commands.getDocument().connections.some((item) => item.fromNodeId === connection.fromNodeId && item.toNodeId === connection.toNodeId)) commands.addConnection({ id: `${title}-connection-${Date.now()}`, ...connection });
+            }
             commands.endNodeDrag({ x: event.clientX, y: event.clientY });
             selectionStartRef.current = null;
             setSelectionRect(null);
@@ -39,7 +48,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", up);
         };
-    }, [commands, toCanvas]);
+    }, [commands, title, toCanvas]);
 
     const add = () => {
         const index = ++count.current;
@@ -93,6 +102,17 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                         setSelectionRect(normalizeRect(start, start));
                     }}
                 >
+                    <svg style={{ position: "absolute", inset: 0, width: 1000, height: 700, overflow: "visible", pointerEvents: "none" }}>
+                        {document.connections.map((connection) => {
+                            const from = document.nodes.find((node) => node.id === connection.fromNodeId)!;
+                            const to = document.nodes.find((node) => node.id === connection.toNodeId)!;
+                            return <line key={connection.id} x1={from.position.x + from.width} y1={from.position.y + from.height / 2} x2={to.position.x} y2={to.position.y + to.height / 2} stroke={accent} strokeWidth="3" />;
+                        })}
+                        {connectionInteraction ? (() => {
+                            const from = document.nodes.find((node) => node.id === connectionInteraction.handle.nodeId);
+                            return from ? <line x1={from.position.x + from.width} y1={from.position.y + from.height / 2} x2={connectionInteraction.pointer.x} y2={connectionInteraction.pointer.y} stroke={accent} strokeWidth="2" strokeDasharray="5 5" /> : null;
+                        })() : null}
+                    </svg>
                     {document.nodes.map((node) => (
                         <article
                             key={node.id}
@@ -104,9 +124,17 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                             }}
                             style={{ borderColor: selectedNodeIds.has(node.id) ? accent : "#aaa399", transform: `translate(${node.position.x}px,${node.position.y}px)`, width: node.width, height: node.height }}
                         >
+                            <button
+                                aria-label="创建连线"
+                                onPointerDown={(event) => {
+                                    event.stopPropagation();
+                                    commands.startConnection({ nodeId: node.id, handleType: "source" }, toCanvas(event.clientX, event.clientY));
+                                }}
+                                style={{ position: "absolute", right: -7, top: "50%", width: 14, height: 14, padding: 0, borderRadius: "50%", border: 0, background: accent, transform: "translateY(-50%)" }}
+                            />
                             <i style={{ background: accent }} />
                             独立实例<strong>{node.title.replace(`${title}-`, "")}</strong>
-                            <small>选择 · 拖动 · 缩放 · 历史</small>
+                            <small>选择 · 拖动 · 缩放 · 连线</small>
                         </article>
                     ))}
                     {selectionRect ? <div style={{ position: "absolute", left: selectionRect.x, top: selectionRect.y, width: selectionRect.width, height: selectionRect.height, border: `1px dashed ${accent}`, pointerEvents: "none" }} /> : null}
@@ -116,20 +144,26 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
     );
 }
 
-const initialDocument = (title: string): CanvasDocument => ({ nodes: [{ id: `${title}-1`, type: "demo", title: `${title}-1`, position: { x: 70, y: 60 }, width: 180, height: 112 }], connections: [] });
+const initialDocument = (title: string): CanvasDocument => ({
+    nodes: [
+        { id: `${title}-1`, type: "demo", title: `${title}-1`, position: { x: 70, y: 60 }, width: 180, height: 112 },
+        { id: `${title}-2`, type: "demo", title: `${title}-2`, position: { x: 340, y: 220 }, width: 180, height: 112 },
+    ],
+    connections: [],
+});
 
 function App() {
     return (
         <main>
             <div className="intro">
-                <p>CORE / 04</p>
+                <p>CORE / 05</p>
                 <h1>
                     一块画布，
                     <br />
                     任意产品。
                 </h1>
                 <aside>
-                    这个应用只组合 <code>@infinite-canvas/core</code>。两个实例的文档、视口、拖动、缩放和撤销历史完全隔离。
+                    这个应用只组合 <code>@infinite-canvas/core</code>。两个实例的文档、视口、节点交互、连线和撤销历史完全隔离。
                 </aside>
             </div>
             <div className="grid">

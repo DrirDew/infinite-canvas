@@ -1,4 +1,4 @@
-import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
+import { CanvasNodeType, type BaseCanvasNodeMetadata, type CanvasConnectionDropTarget, type CanvasNode, type CanvasRect, type CanvasResizeCorner, type ConnectionHandle, type Position, type ViewportTransform } from "./types";
 
 export function screenToCanvas(clientX: number, clientY: number, viewport: ViewportTransform, origin: Pick<DOMRect, "left" | "top"> = { left: 0, top: 0 }): Position {
     return { x: (clientX - origin.left - viewport.x) / viewport.k, y: (clientY - origin.top - viewport.y) / viewport.k };
@@ -91,6 +91,31 @@ export function getConnectionTargetAnchor<T extends BaseCanvasNodeMetadata>(node
         x: current.handleType === "source" ? node.position.x : node.position.x + node.width,
         y: node.position.y + node.height / 2,
     };
+}
+
+export function findConnectionDropTarget<T extends BaseCanvasNodeMetadata>(nodes: CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, handleRadius = 40, nodePadding = 32): CanvasConnectionDropTarget {
+    const radius = handleRadius / Math.max(scale, 0.05);
+    const padding = nodePadding / Math.max(scale, 0.05);
+    let isNearNode = false;
+    let nodeId: string | null = null;
+    let priority = Infinity;
+    [...nodes].reverse().forEach((node) => {
+        const anchor = getConnectionTargetAnchor(node, current);
+        const dx = position.x - anchor.x;
+        const dy = position.y - anchor.y;
+        const hitsHandle = dx * dx + dy * dy <= radius * radius;
+        const hitsInside = position.x >= node.position.x && position.x <= node.position.x + node.width && position.y >= node.position.y && position.y <= node.position.y + node.height;
+        const hitsExpanded = position.x >= node.position.x - padding && position.x <= node.position.x + node.width + padding && position.y >= node.position.y - padding && position.y <= node.position.y + node.height + padding;
+        if (!hitsHandle && !hitsInside && !hitsExpanded) return;
+        isNearNode = true;
+        if (node.id === current.nodeId || !normalizeConnection(current.nodeId, node.id, nodes, current.handleType)) return;
+        const nextPriority = hitsInside ? 0 : hitsHandle ? 1 : 2;
+        if (nextPriority < priority) {
+            nodeId = node.id;
+            priority = nextPriority;
+        }
+    });
+    return { nodeId, isNearNode };
 }
 
 export function normalizeConnection<T extends BaseCanvasNodeMetadata>(firstNodeId: string, secondNodeId: string, nodes: CanvasNode<T>[], firstHandleType: "source" | "target") {

@@ -5,7 +5,6 @@ export type CanvasTool = "select" | "pan";
 export type ViewportUpdater = ViewportTransform | ((viewport: ViewportTransform) => ViewportTransform);
 export type CanvasResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 export type CanvasNodeDragResult = { moved: boolean; clickedNodeId: string | null };
-export type CanvasInteractionState = { isNodeDragging: boolean; isNodeResizing: boolean; dropTargetGroupId: string | null };
 
 export enum CanvasNodeType {
     Image = "image",
@@ -37,6 +36,10 @@ export type ConnectionHandle = {
     nodeId: string;
     handleType: "source" | "target";
 };
+export type CanvasConnectionInteraction = { handle: ConnectionHandle; pointer: Position; targetNodeId: string | null };
+export type CanvasConnectionDropTarget = { nodeId: string | null; isNearNode: boolean };
+export type CanvasConnectionDropResult = CanvasConnectionDropTarget & { handle: ConnectionHandle; position: Position; connection: Omit<CanvasConnection, "id"> | null };
+export type CanvasInteractionState = { isNodeDragging: boolean; isNodeResizing: boolean; dropTargetGroupId: string | null; connectionInteraction: CanvasConnectionInteraction | null };
 export type CanvasDocument<TMetadata extends BaseCanvasNodeMetadata = BaseCanvasNodeMetadata> = {
     nodes: CanvasNode<TMetadata>[];
     connections: CanvasConnection[];
@@ -66,6 +69,10 @@ export type CanvasCommands<TMetadata extends BaseCanvasNodeMetadata = BaseCanvas
     startNodeResize: (id: string) => void;
     resizeNode: (id: string, width: number, height: number, position?: Position) => CanvasDocument<TMetadata>;
     endNodeResize: () => void;
+    startConnection: (handle: ConnectionHandle, position: Position) => void;
+    moveConnection: (position: Position) => CanvasConnectionDropTarget | null;
+    endConnection: (position: Position) => CanvasConnectionDropResult | null;
+    cancelConnection: () => void;
     getDocument: () => CanvasDocument<TMetadata>;
     getViewport: () => ViewportTransform;
     getSelection: () => CanvasSelection;
@@ -94,5 +101,6 @@ export type UseCanvasResult<TMetadata extends BaseCanvasNodeMetadata = BaseCanva
     isNodeDragging: boolean;
     isNodeResizing: boolean;
     dropTargetGroupId: string | null;
+    connectionInteraction: CanvasConnectionInteraction | null;
     commands: CanvasCommands<TMetadata>;
 };

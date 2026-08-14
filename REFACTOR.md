@@ -245,6 +245,13 @@ const canvas = useCanvas({ document, onDocumentChange });
 - Core 通过 `startNodeResize`、`resizeNode`、`endNodeResize` 管理缩放预览与历史，通过 `resizeNodeBounds` 计算四角缩放和比例锁定尺寸。
 - Web 继续渲染现有节点和控制点，只负责转发指针坐标与节点业务面板状态，不再拼装拖动、吸附或缩放文档。
 
+第三批完成连线交互：
+
+- Core 通过 `startConnection`、`moveConnection`、`endConnection`、`cancelConnection` 管理连线起点、预览指针、目标节点和取消状态。
+- Core 负责按视口比例计算端口与节点命中、排除自身和无效类型组合，并在结束时返回标准化连接端点。
+- Core 不生成连线 ID；Web 对有效端点去重并写入文档，落在空白处时继续负责显示“创建并连接节点”业务菜单。
+- 连线选择、删除和撤销重做继续复用 Core 文档与选择命令，现有 SVG 连线渲染暂留 Web，等基础渲染阶段统一迁移。
+
 ### 10.4 迁移基础渲染
 
 Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框、小地图和未知节点占位。节点具体内容通过节点定义或 `renderNode` 传入。

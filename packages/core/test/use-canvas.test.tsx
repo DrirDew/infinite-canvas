@@ -129,3 +129,18 @@ test("dragging groups moves children and resizing creates one history entry", ()
     expect(canvas.commands.getDocument().nodes[1]).toMatchObject({ width: 240, height: 180, position: { x: 120, y: 70 } });
     expect(canvas.commands.getHistoryDocuments()).toHaveLength(2);
 });
+
+test("connection interaction resolves targets without generating ids", () => {
+    const canvas = createCanvas({ nodes: [node("a"), { ...node("b"), position: { x: 200, y: 0 } }], connections: [] });
+    const other = createCanvas({ nodes: [node("other")], connections: [] });
+    canvas.commands.startConnection({ nodeId: "a", handleType: "source" }, { x: 100, y: 50 });
+    expect(canvas.commands.moveConnection({ x: 250, y: 50 })).toEqual({ nodeId: "b", isNearNode: true });
+    expect(canvas.commands.getInteraction().connectionInteraction?.targetNodeId).toBe("b");
+    expect(other.commands.getInteraction().connectionInteraction).toBeNull();
+    const result = canvas.commands.endConnection({ x: 250, y: 50 });
+    expect(result?.connection).toEqual({ fromNodeId: "a", toNodeId: "b" });
+    expect(canvas.commands.getInteraction().connectionInteraction).toBeNull();
+    expect(canvas.commands.getDocument().connections).toEqual([]);
+    canvas.commands.addConnection({ id: "ab", ...result!.connection! });
+    expect(canvas.commands.getDocument().connections).toEqual([connection("ab", "a", "b")]);
+});
