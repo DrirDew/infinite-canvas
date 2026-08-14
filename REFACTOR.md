@@ -315,6 +315,7 @@ Core 负责节点定位外壳、拖动与缩放控制点、连线层、选择框
 - Core 视口开放缩放范围、聚焦覆盖率、最大缩放、动画时长与背景网格间距配置。
 - Core 支持通过 `canGroupNode` 注入分组策略，预览命中和最终归组共享同一规则。
 - Core 增加 `headless` 与 `react` 子路径入口，纯文档和几何使用方无需加载 React 模块。
+- Core 画布、节点和连线起点统一使用 Pointer Events，并将公开入口命名统一为 `PointerDown`。
 
 ### 10.6 扩充 Examples
 

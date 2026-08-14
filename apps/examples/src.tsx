@@ -84,7 +84,7 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                     backgroundMode="dots"
                     onViewportChange={interactions.onViewportChange}
                     onCanvasDeselect={commands.clearSelection}
-                    onCanvasMouseDown={interactions.onCanvasMouseDown}
+                    onCanvasPointerDown={interactions.onCanvasPointerDown}
                 >
                     <CanvasConnectionLayer nodes={document.nodes} connections={document.connections} interaction={connectionInteraction} selectedConnectionId={selectedConnectionId} theme={canvasThemes.light} onConnectionSelect={interactions.onConnectionSelect} />
                     {document.nodes.map((node) => (
@@ -92,8 +92,8 @@ function Demo({ title, accent, initial }: { title: string; accent: string; initi
                             key={node.id}
                             node={node}
                             className="demo-node"
-                            onMouseDown={(event) => interactions.onNodeMouseDown(event, node.id)}
-                            onMouseDownCapture={(event) => interactions.onNodeSelectCapture(event, node.id)}
+                            onPointerDown={(event) => interactions.onNodePointerDown(event, node.id)}
+                            onPointerDownCapture={(event) => interactions.onNodePointerDownCapture(event, node.id)}
                             style={{ borderColor: selectedNodeIds.has(node.id) ? accent : "#aaa399" }}
                         >
                             <CanvasNodeConnectionHandles

@@ -27,7 +27,7 @@ export type InfiniteCanvasProps = {
     maxZoom?: number;
     ignoreSelector?: string;
     onViewportChange: (viewport: ViewportTransform) => void;
-    onCanvasMouseDown?: (event: PointerEvent<HTMLDivElement>) => void;
+    onCanvasPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
     onCanvasDeselect?: () => void;
     onCanvasDoubleClick?: (event: MouseEvent<HTMLDivElement>) => void;
     onContextMenu?: (event: MouseEvent<HTMLDivElement>) => void;
@@ -46,7 +46,7 @@ export function InfiniteCanvas({
     maxZoom = canvasDefaults.maxZoom,
     ignoreSelector = DEFAULT_IGNORE_SELECTOR,
     onViewportChange,
-    onCanvasMouseDown,
+    onCanvasPointerDown,
     onCanvasDeselect,
     onCanvasDoubleClick,
     onContextMenu,
@@ -157,7 +157,7 @@ export function InfiniteCanvas({
         } else if (event.button === 0 && background) {
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
-            onCanvasMouseDown?.(event);
+            onCanvasPointerDown?.(event);
         }
     };
     const wheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -178,7 +178,7 @@ export function InfiniteCanvas({
     return (
         <div
             ref={containerRef}
-            style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", userSelect: "none", background: theme.canvas.background, cursor: panning ? "grabbing" : activeTool === "pan" ? "grab" : undefined }}
+            style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", userSelect: "none", touchAction: "none", background: theme.canvas.background, cursor: panning ? "grabbing" : activeTool === "pan" ? "grab" : undefined }}
             onPointerDown={pointerDown}
             onDoubleClick={(event) => {
                 if (!ignored(event.target, ignoreSelector) && !(event.target instanceof Element && event.target.closest(NODE_SELECTOR))) onCanvasDoubleClick?.(event);

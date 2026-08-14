@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type CSSProperties, type HTMLAttributes, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type CSSProperties, type HTMLAttributes, type PointerEvent, type ReactNode } from "react";
 import { resizeNodeBounds } from "./geometry";
 import type { CanvasNode, CanvasResizeCorner } from "./types";
 import type { CanvasTheme } from "./theme";
@@ -71,27 +71,26 @@ export type CanvasNodeConnectionHandlesProps = {
     theme: CanvasTheme;
     source?: boolean;
     target?: boolean;
-    onConnectStart: (event: MouseEvent, nodeId: string, handleType: "source" | "target") => void;
+    onConnectStart: (event: PointerEvent, nodeId: string, handleType: "source" | "target") => void;
 };
 
 export function CanvasNodeConnectionHandles({ nodeId, visible, theme, source = true, target = true, onConnectStart }: CanvasNodeConnectionHandlesProps) {
     return (
         <>
-            {target ? <CanvasNodeConnectionHandle side="left" visible={visible} theme={theme} onMouseDown={(event) => onConnectStart(event, nodeId, "target")} /> : null}
-            {source ? <CanvasNodeConnectionHandle side="right" visible={visible} theme={theme} onMouseDown={(event) => onConnectStart(event, nodeId, "source")} /> : null}
+            {target ? <CanvasNodeConnectionHandle side="left" visible={visible} theme={theme} onPointerDown={(event) => onConnectStart(event, nodeId, "target")} /> : null}
+            {source ? <CanvasNodeConnectionHandle side="right" visible={visible} theme={theme} onPointerDown={(event) => onConnectStart(event, nodeId, "source")} /> : null}
         </>
     );
 }
 
-function CanvasNodeConnectionHandle({ side, visible, theme, onMouseDown }: { side: "left" | "right"; visible: boolean; theme: CanvasTheme; onMouseDown: (event: MouseEvent) => void }) {
+function CanvasNodeConnectionHandle({ side, visible, theme, onPointerDown }: { side: "left" | "right"; visible: boolean; theme: CanvasTheme; onPointerDown: (event: PointerEvent) => void }) {
     return (
         <div
             data-connection-handle={side === "left" ? "target" : "source"}
-            style={{ position: "absolute", top: "50%", [side]: -24, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, cursor: "crosshair", opacity: visible ? 1 : 0, pointerEvents: visible ? "auto" : "none", transform: "translateY(-50%)", transition: "opacity 150ms" }}
-            onPointerDown={(event) => event.stopPropagation()}
-            onMouseDown={(event) => {
+            style={{ position: "absolute", top: "50%", [side]: -24, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, cursor: "crosshair", touchAction: "none", opacity: visible ? 1 : 0, pointerEvents: visible ? "auto" : "none", transform: "translateY(-50%)", transition: "opacity 150ms" }}
+            onPointerDown={(event) => {
                 event.stopPropagation();
-                onMouseDown(event);
+                onPointerDown(event);
             }}
         >
             <div style={{ width: 12, height: 12, border: `2px solid ${theme.node.muted}`, borderRadius: "50%", background: theme.node.panel }} />

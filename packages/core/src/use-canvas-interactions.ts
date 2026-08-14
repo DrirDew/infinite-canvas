@@ -27,7 +27,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
     callbacksRef.current = { onCanvasPointerDown, onNodePointerDown, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelected, onConnectionMenu };
     const viewport = useCanvasViewport({ commands, containerRef, onContainerResize, onViewportChange, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration });
     const { toCanvas } = viewport;
-    const selectNode = useCallback((event: Pick<MouseEvent, "shiftKey" | "metaKey" | "ctrlKey">, nodeId: string) => {
+    const selectNode = useCallback((event: Pick<PointerEvent, "shiftKey" | "metaKey" | "ctrlKey">, nodeId: string) => {
         const ids = new Set(commandsRef.current.getSelection().nodeIds);
         if (event.shiftKey || event.metaKey || event.ctrlKey) {
             if (ids.has(nodeId)) ids.delete(nodeId);
@@ -39,8 +39,8 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
         commandsRef.current.selectNodes(ids);
         return ids;
     }, []);
-    const onNodeSelectCapture = useCallback(
-        (event: MouseEvent, nodeId: string) => {
+    const onNodePointerDownCapture = useCallback(
+        (event: PointerEvent, nodeId: string) => {
             if (event.button !== 0) return;
             callbacksRef.current.onNodePointerDown?.(nodeId);
             const pending = { nodeId, ids: selectNode(event, nodeId) };
@@ -52,8 +52,8 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
         },
         [selectNode],
     );
-    const onNodeMouseDown = useCallback(
-        (event: MouseEvent, nodeId: string) => {
+    const onNodePointerDown = useCallback(
+        (event: PointerEvent, nodeId: string) => {
             event.stopPropagation();
             const pending = pendingSelectionRef.current;
             const ids = pending?.nodeId === nodeId ? pending.ids : selectNode(event, nodeId);
@@ -62,7 +62,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
         },
         [selectNode],
     );
-    const onConnectionStart = useCallback((event: MouseEvent, nodeId: string, handleType: "source" | "target") => {
+    const onConnectionStart = useCallback((event: PointerEvent, nodeId: string, handleType: "source" | "target") => {
         event.stopPropagation();
         commandsRef.current.startConnection({ nodeId, handleType }, toCanvas(event.clientX, event.clientY));
     }, [toCanvas]);
@@ -80,7 +80,7 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
         commandsRef.current.selectConnection(connection.id);
         callbacksRef.current.onConnectionMenu?.(event, connection);
     }, []);
-    const onCanvasMouseDown = useCallback(
+    const onCanvasPointerDown = useCallback(
         (event: PointerEvent<HTMLDivElement>) => {
             callbacksRef.current.onCanvasPointerDown?.(event);
             if (event.button !== 0) return;
@@ -152,5 +152,5 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
         };
     }, [toCanvas]);
 
-    return { ...viewport, selectionRect, cancelSelection, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture, onConnectionStart, onConnectionSelect, onConnectionContextMenu, onNodeResizeStart, onNodeResize, onNodeResizeEnd };
+    return { ...viewport, selectionRect, cancelSelection, onCanvasPointerDown, onNodePointerDown, onNodePointerDownCapture, onConnectionStart, onConnectionSelect, onConnectionContextMenu, onNodeResizeStart, onNodeResize, onNodeResizeEnd };
 }

@@ -368,7 +368,7 @@ function InfiniteCanvasPage() {
         canvasCommands.cancelConnection();
     }, [canvasCommands]);
 
-    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onViewportChange: handleViewportChange, onCanvasMouseDown, onNodeMouseDown, onNodeSelectCapture, onConnectionStart: handleConnectStart, onConnectionSelect: handleConnectionSelect, onConnectionContextMenu: handleConnectionContextMenu, onNodeResizeStart: handleNodeResizeStart, onNodeResize: handleNodeResize, onNodeResizeEnd: handleNodeResizeEnd } = useCanvasInteractions({
+    const { containerSize: size, selectionRect, toCanvas: screenToCanvas, getCanvasCenter, resetViewport: resetCanvasViewport, setZoom: setCanvasZoom, focusNode: focusCanvasNode, cancelSelection: cancelCanvasSelection, onViewportChange: handleViewportChange, onCanvasPointerDown, onNodePointerDown, onNodePointerDownCapture, onConnectionStart: handleConnectStart, onConnectionSelect: handleConnectionSelect, onConnectionContextMenu: handleConnectionContextMenu, onNodeResizeStart: handleNodeResizeStart, onNodeResize: handleNodeResize, onNodeResizeEnd: handleNodeResizeEnd } = useCanvasInteractions({
         commands: canvasCommands,
         containerRef,
         onResizeStart: () => setExpandedImageNodeId(null),
@@ -1984,7 +1984,7 @@ function InfiniteCanvasPage() {
                     ignoreSelector="[data-canvas-no-zoom],.ant-modal,.ant-popover,.ant-dropdown,.ant-select-dropdown,.ant-picker-dropdown"
                     backgroundMode={backgroundMode}
                     onViewportChange={handleViewportChange}
-                    onCanvasMouseDown={onCanvasMouseDown}
+                    onCanvasPointerDown={onCanvasPointerDown}
                     onCanvasDeselect={deselectCanvas}
                     onCanvasDoubleClick={(event) => {
                         setContextMenu(null);
@@ -2025,8 +2025,8 @@ function InfiniteCanvasPage() {
                             registryVersion={nodeRegistryVersion}
                             renderPanel={renderNodePanel}
                             renderNodeContent={renderNodeContentPanel}
-                            onMouseDown={onNodeMouseDown}
-                            onSelectCapture={onNodeSelectCapture}
+                            onPointerDown={onNodePointerDown}
+                            onPointerDownCapture={onNodePointerDownCapture}
                             onHoverStart={handleNodeHoverStart}
                             onHoverEnd={handleNodeHoverEnd}
                             onConnectStart={handleConnectStart}
