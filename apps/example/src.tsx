@@ -50,7 +50,7 @@ const colors = { text: "#d6a84b", image: "#3f9d78", video: "#dc714e" };
 function App() {
     const containerRef = useRef<HTMLDivElement>(null);
     const idRef = useRef(0);
-    const [tool, setTool] = useState<"select" | "pan">("select");
+    const [tool, setTool] = useState<"select" | "pan">("pan");
     const [colorTheme, setColorTheme] = useState<CanvasColorTheme>("light");
     const [backgroundMode, setBackgroundMode] = useState<CanvasBackgroundMode>("dots");
     const [showMinimap, setShowMinimap] = useState(true);
@@ -140,7 +140,7 @@ function App() {
                     })}
                 </div>
                 <button className="upload-card" type="button" onClick={() => chooseMedia()}><Upload size={17} /><span><strong>导入媒体</strong><small>图片、视频或直接拖入画布</small></span></button>
-                <div className="guide-card"><span>画布交互</span><p>滚轮缩放 · 空格拖动画布<br />框选 / Shift 多选 · 拖拽端口连线</p><kbd>⌘ / Ctrl + Z</kbd><small>撤销上一步</small></div>
+                <div className="guide-card"><span>画布交互</span><p>默认拖动画布 · 滚轮缩放<br />切换选择后框选 / Shift 多选</p><kbd>⌘ / Ctrl + Z</kbd><small>撤销上一步</small></div>
             </aside>
 
             <section className="workspace">

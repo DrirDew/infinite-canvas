@@ -7,7 +7,7 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
-- Core example application: `bun run dev:example` should open the renamed `apps/example` application with editable text, uploadable image/video nodes, drag-and-drop media, selection, resize, connection, clipboard shortcuts, undo/redo, minimap, background and theme controls.
+- Core example application: `bun run dev:example` should open the renamed `apps/example` application in pan mode with editable text, uploadable image/video nodes, drag-and-drop media, selectable marquee mode, resize, connection, clipboard shortcuts, undo/redo, minimap, background and theme controls.
 - Core virtualization hook: with at least one thousand mixed image/video nodes, only viewport-local media DOM and adjacent connections should remain mounted while fast pan and zoom keep a sufficient overscan buffer.
 - Core SSR and frame scheduling: importing and server-rendering React entry points should not access browser globals or emit layout-effect warnings, while browser pointer moves still coalesce to the latest frame value.
 - Core controlled state: document-only, viewport-only, and fully controlled instances should publish command updates, accept authoritative replacements, preserve optimistic command reads, and clear stale history or interaction when the host replaces a document.
