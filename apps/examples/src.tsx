@@ -32,7 +32,7 @@ const initialDocument: CanvasDocument<DemoMetadata> = {
 function App() {
     const containerRef = useRef<HTMLDivElement>(null);
     const nextId = useRef(1);
-    const { document, viewport, selectedNodeIds, selectedConnectionId, connectionInteraction, canUndo, canRedo, commands } = useCanvas<DemoMetadata>({ document: initialDocument, viewport: { x: 110, y: 90, k: 0.82 } });
+    const { document, viewport, selectedNodeIds, selectedConnectionId, connectionInteraction, canUndo, canRedo, commands } = useCanvas<DemoMetadata>({ initialDocument, initialViewport: { x: 110, y: 90, k: 0.82 } });
     const interactions = useCanvasInteractions({
         commands,
         containerRef,

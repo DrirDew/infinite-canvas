@@ -19,29 +19,36 @@ export function findConnectionDropTarget<T>(nodes: readonly CanvasNode<T>[], cur
     let isNearNode = false;
     let nodeId: string | null = null;
     let priority = Infinity;
-    [...nodes].reverse().forEach((node) => {
+    const first = nodes.find((node) => node.id === current.nodeId);
+    if (!first) return { nodeId, isNearNode };
+    for (let index = nodes.length - 1; index >= 0; index--) {
+        const node = nodes[index]!;
         const anchor = getConnectionTargetAnchor(node, current);
         const dx = position.x - anchor.x;
         const dy = position.y - anchor.y;
         const hitsHandle = dx * dx + dy * dy <= radius * radius;
         const hitsInside = position.x >= node.position.x && position.x <= node.position.x + node.width && position.y >= node.position.y && position.y <= node.position.y + node.height;
         const hitsExpanded = position.x >= node.position.x - padding && position.x <= node.position.x + node.width + padding && position.y >= node.position.y - padding && position.y <= node.position.y + node.height + padding;
-        if (!hitsHandle && !hitsInside && !hitsExpanded) return;
+        if (!hitsHandle && !hitsInside && !hitsExpanded) continue;
         isNearNode = true;
-        if (node.id === current.nodeId || !normalizeConnection(current.nodeId, node.id, nodes, current.handleType, resolver)) return;
+        if (node.id === current.nodeId || !normalizeConnectionNodes(first, node, current.handleType, resolver)) continue;
         const nextPriority = hitsInside ? 0 : hitsHandle ? 1 : 2;
         if (nextPriority < priority) {
             nodeId = node.id;
             priority = nextPriority;
         }
-    });
+    }
     return { nodeId, isNearNode };
 }
 
 export function normalizeConnection<T>(firstNodeId: string, secondNodeId: string, nodes: readonly CanvasNode<T>[], firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
     const first = nodes.find((node) => node.id === firstNodeId);
     const second = nodes.find((node) => node.id === secondNodeId);
-    if (!first || !second || first.id === second.id || isGroupNode(first) || isGroupNode(second)) return null;
+    return first && second ? normalizeConnectionNodes(first, second, firstHandleType, resolver) : null;
+}
+
+function normalizeConnectionNodes<T>(first: CanvasNode<T>, second: CanvasNode<T>, firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
+    if (first.id === second.id || isGroupNode(first) || isGroupNode(second)) return null;
     const connection = resolver ? resolver(first, second, firstHandleType) : firstHandleType === "source" ? { fromNodeId: first.id, toNodeId: second.id } : { fromNodeId: second.id, toNodeId: first.id };
     return connection && connection.fromNodeId !== connection.toNodeId && [first.id, second.id].includes(connection.fromNodeId) && [first.id, second.id].includes(connection.toNodeId) ? connection : null;
 }

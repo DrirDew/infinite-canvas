@@ -17,7 +17,7 @@ const connection = (id: string, fromNodeId: string, toNodeId: string): CanvasCon
 function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connections: [] }, resolveConnection?: CanvasConnectionResolver<Metadata>, options?: CanvasOptions) {
     let canvas!: ReturnType<typeof useCanvas<Metadata>>;
     function Capture() {
-        canvas = useCanvas<Metadata>({ document, resolveConnection, ...options });
+        canvas = useCanvas<Metadata>({ initialDocument: document, resolveConnection, ...options });
         return null;
     }
     renderToString(<Capture />);

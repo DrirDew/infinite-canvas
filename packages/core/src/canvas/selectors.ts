@@ -36,7 +36,11 @@ export function getCanvasDownstreamNodes<TMetadata>(nodeId: string, nodes: reado
 export function findCanvasUpstreamNode<TMetadata>(nodeId: string, nodes: readonly CanvasNode<TMetadata>[], connections: readonly CanvasConnection[], predicate: (node: CanvasNode<TMetadata>) => boolean) {
     const byId = new Map(nodes.map((node) => [node.id, node]));
     const upstream = new Map<string, string[]>();
-    connections.forEach((connection) => upstream.set(connection.toNodeId, [...(upstream.get(connection.toNodeId) || []), connection.fromNodeId]));
+    connections.forEach((connection) => {
+        const ids = upstream.get(connection.toNodeId);
+        if (ids) ids.push(connection.fromNodeId);
+        else upstream.set(connection.toNodeId, [connection.fromNodeId]);
+    });
     const queue = [...(upstream.get(nodeId) || [])];
     const visited = new Set<string>();
     let index = 0;

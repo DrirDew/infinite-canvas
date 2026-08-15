@@ -16,8 +16,8 @@ export type CanvasViewportOptions = {
     focusDuration?: number;
 };
 export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
-    document?: CanvasDocument<TMetadata>;
-    viewport?: ViewportTransform;
+    initialDocument?: CanvasDocument<TMetadata>;
+    initialViewport?: ViewportTransform;
     onDocumentChange?: (document: CanvasDocument<TMetadata>) => void;
     onViewportChange?: (viewport: ViewportTransform) => void;
     onSelectionChange?: (selection: CanvasSelection) => void;

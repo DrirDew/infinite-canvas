@@ -38,19 +38,11 @@ export function findGroupDropTarget<T>(movedIds: ReadonlySet<string>, nodes: rea
     if (nodes.some((node) => movedIds.has(node.id) && isGroupNode(node))) return null;
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return null;
-    return (
-        [...nodes].reverse().find(
-            (group) =>
-                isGroupNode(group) &&
-                !movedIds.has(group.id) &&
-                moving.some((node) => {
-                    if (canGroupNode && !canGroupNode(node, group)) return false;
-                    const x = node.position.x + node.width / 2;
-                    const y = node.position.y + node.height / 2;
-                    return x >= group.position.x && x <= group.position.x + group.width && y >= group.position.y && y <= group.position.y + group.height;
-                }),
-        ) || null
-    );
+    for (let index = nodes.length - 1; index >= 0; index--) {
+        const group = nodes[index]!;
+        if (isGroupNode(group) && !movedIds.has(group.id) && moving.some((node) => (!canGroupNode || canGroupNode(node, group)) && node.position.x + node.width / 2 >= group.position.x && node.position.x + node.width / 2 <= group.position.x + group.width && node.position.y + node.height / 2 >= group.position.y && node.position.y + node.height / 2 <= group.position.y + group.height)) return group;
+    }
+    return null;
 }
 
 export function snapNodesIntoGroup<T>(movedIds: ReadonlySet<string>, nodes: readonly CanvasNode<T>[], group: CanvasNode<T>, padding = canvasDefaults.groupPadding) {
@@ -66,7 +58,10 @@ export function snapNodesIntoGroup<T>(movedIds: ReadonlySet<string>, nodes: read
 export function findContainingGroupId<T>(node: CanvasNode<T>, nodes: readonly CanvasNode<T>[], canGroupNode?: CanvasGroupResolver<T>) {
     const x = node.position.x + node.width / 2;
     const y = node.position.y + node.height / 2;
-    return [...nodes].reverse().find((group) => isGroupNode(group) && group.id !== node.id && (!canGroupNode || canGroupNode(node, group)) && x >= group.position.x && x <= group.position.x + group.width && y >= group.position.y && y <= group.position.y + group.height)?.id;
+    for (let index = nodes.length - 1; index >= 0; index--) {
+        const group = nodes[index]!;
+        if (isGroupNode(group) && group.id !== node.id && (!canGroupNode || canGroupNode(node, group)) && x >= group.position.x && x <= group.position.x + group.width && y >= group.position.y && y <= group.position.y + group.height) return group.id;
+    }
 }
 
 export function fitNodeSize(width: number, height: number, maxWidth = 640, maxHeight = 640) {

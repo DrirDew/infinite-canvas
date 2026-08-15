@@ -5,8 +5,8 @@ import { createCanvasHistory, createCanvasSelection, DEFAULT_INTERACTION, DEFAUL
 import type { CanvasClipboard, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, UseCanvasOptions, UseCanvasResult } from "../types.js";
 
 export function useCanvas<TMetadata = unknown>({
-    document: initialDocument = { nodes: [], connections: [] },
-    viewport: initialViewport = DEFAULT_VIEWPORT,
+    initialDocument = { nodes: [], connections: [] },
+    initialViewport = DEFAULT_VIEWPORT,
     onDocumentChange,
     onViewportChange,
     onSelectionChange,
@@ -20,8 +20,8 @@ export function useCanvas<TMetadata = unknown>({
     connectionNodePadding = canvasDefaults.connectionNodePadding,
 }: UseCanvasOptions<TMetadata> = {}): UseCanvasResult<TMetadata> {
     const behavior: CanvasBehavior = { historyLimit: Math.max(1, historyLimit), dragThreshold: Math.max(0, dragThreshold), groupPadding: Math.max(0, groupPadding), connectionHandleRadius: Math.max(0, connectionHandleRadius), connectionNodePadding: Math.max(0, connectionNodePadding) };
-    const [document, setDocument] = useState(initialDocument);
-    const [viewport, setViewport] = useState(initialViewport);
+    const [document, setDocument] = useState(() => initialDocument);
+    const [viewport, setViewport] = useState(() => initialViewport);
     const [selection, setSelection] = useState<CanvasSelection>(createCanvasSelection);
     const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
     const [interaction, setInteraction] = useState(DEFAULT_INTERACTION);

@@ -35,8 +35,8 @@ import { useRef } from "react";
 function Editor() {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvas = useCanvas({
-        document: { nodes: [], connections: [] },
-        viewport: { x: 0, y: 0, k: 1 },
+        initialDocument: { nodes: [], connections: [] },
+        initialViewport: { x: 0, y: 0, k: 1 },
         onDocumentChange: saveDocument,
     });
     const interactions = useCanvasInteractions({
@@ -96,7 +96,7 @@ function Editor() {
 - 节点与连线查询、几何和批量新增 API 接受 readonly 数组。
 - 选择结果使用 `ReadonlySet<string>`，修改选择必须调用命令。
 
-外部文档可先通过 `getCanvasDocumentIssues(document, resolveConnection, canGroupNode)` 校验。`setDocument` 用于加载新文档，并清空当前选择、交互和撤销重做历史。
+`initialDocument` 和 `initialViewport` 只用于创建实例。外部文档可先通过 `getCanvasDocumentIssues(document, resolveConnection, canGroupNode)` 校验；后续加载新文档使用 `setDocument`，并清空当前选择、交互和撤销重做历史。
 
 ## 命令与历史
 
