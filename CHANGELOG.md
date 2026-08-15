@@ -2,6 +2,7 @@
 
 ## Unreleased
 
++ [新增] Core 提供 `useCanvasVirtualization` 统一生成可见节点和连线裁剪 ID，官方 Web 与接入示例默认使用千节点虚拟化路径。
 + [优化] Core 抽出可测试的最新动画帧调度器统一高频指针合并，并避免视口测量 Hook 在服务端渲染时产生 layout effect 警告。
 + [新增] Core `useCanvas` 支持独立受控 document 与 viewport，便于接入 Zustand、Redux、协同编辑或其他宿主权威状态。
 + [新增] Core 连线与交互 handle 支持持久化宿主端口 ID，连接策略和路径渲染器可据此实现多端口节点。

@@ -29,6 +29,7 @@ import {
     canvasThemes,
     useCanvas,
     useCanvasInteractions,
+    useCanvasVirtualization,
 } from "@basketikun/infinite-canvas";
 import { useRef } from "react";
 
@@ -46,6 +47,7 @@ function Editor() {
             if (result.connection) canvas.commands.addConnection({ id: createId(), ...result.connection });
         },
     });
+    const { visibleNodes, visibleNodeIds } = useCanvasVirtualization(canvas.document.nodes, canvas.viewport, interactions.containerSize);
 
     return (
         <InfiniteCanvas
@@ -60,12 +62,13 @@ function Editor() {
             <CanvasConnectionLayer
                 nodes={canvas.document.nodes}
                 connections={canvas.document.connections}
+                visibleNodeIds={visibleNodeIds}
                 interaction={canvas.connectionInteraction}
                 selectedConnectionId={canvas.selectedConnectionId}
                 theme={canvasThemes.light}
                 onConnectionSelect={interactions.onConnectionSelect}
             />
-            {canvas.document.nodes.map((node) => (
+            {visibleNodes.map((node) => (
                 <CanvasNodeShell
                     key={node.id}
                     node={node}
@@ -140,6 +143,7 @@ function Editor() {
 - 同一画布表面的平移与编辑交互互斥，多实例的键盘状态、历史、剪贴板、指针和 body 光标互不影响。
 - Space 和 Control 工具切换只作用于当前聚焦画布，输入控件保留原生键盘行为。
 - 节点数达到阈值后，视口裁剪、框选、连线命中和节点 ID 查询会自动复用基于不可变节点快照的网格空间索引。
+- 大型图片/视频画布应使用 `useCanvasVirtualization(nodes, viewport, containerSize)` 渲染 `visibleNodes`，并将 `visibleNodeIds` 传给 `CanvasConnectionLayer`；默认会在视口外保留 280 世界单位缓冲，减少快速平移时的节点闪烁。
 
 跨平台快捷键通过 `resolveCanvasShortcut` 识别。系统剪贴板媒体读取、快捷键副作用和业务弹窗仍由宿主处理。
 

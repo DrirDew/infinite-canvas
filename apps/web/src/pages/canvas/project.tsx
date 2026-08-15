@@ -26,10 +26,10 @@ import {
     getCanvasRelations,
     InfiniteCanvas,
     nodeSizeFromRatio,
-    nodesInViewport,
     resolveCanvasShortcut,
     useCanvas,
     useCanvasInteractions,
+    useCanvasVirtualization,
     type CanvasBackgroundMode,
     type CanvasDocument,
 } from "@basketikun/infinite-canvas";
@@ -411,11 +411,7 @@ function InfiniteCanvasPage() {
         },
     });
 
-    const visibleNodes = useMemo(() => {
-        return nodesInViewport(nodes, viewport, size, 280);
-    }, [nodes, size.height, size.width, viewport.k, viewport.x, viewport.y]);
-    /** IDs used by the connection layer to avoid mounting SVG paths wholly outside the padded viewport. */
-    const visibleNodeIds = useMemo(() => new Set(visibleNodes.map((node) => node.id)), [visibleNodes]);
+    const { visibleNodes, visibleNodeIds } = useCanvasVirtualization(nodes, viewport, size);
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     // The toolbar follows a single selected node selected by click, creation, marquee, or keyboard.

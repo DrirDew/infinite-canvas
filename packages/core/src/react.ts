@@ -6,4 +6,5 @@ export * from "./render/infinite-canvas.js";
 export * from "./render/connection-layer.js";
 export * from "./render/selection-box.js";
 export * from "./render/minimap.js";
+export * from "./render/use-canvas-virtualization.js";
 export * from "./node.js";

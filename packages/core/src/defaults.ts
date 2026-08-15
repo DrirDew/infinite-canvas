@@ -10,6 +10,7 @@ export type CanvasDefaults = Required<CanvasBehaviorOptions & CanvasViewportOpti
     connectionPortOffset: number;
     connectionPortIndicatorSize: number;
     connectionStrokeHitWidth: number;
+    virtualizationPadding: number;
     minimapWidth: number;
     minimapHeight: number;
     minimapWorldPadding: number;
@@ -38,6 +39,7 @@ export const canvasDefaults: CanvasDefaults = {
     connectionPortOffset: 24,
     connectionPortIndicatorSize: 12,
     connectionStrokeHitWidth: 16,
+    virtualizationPadding: 280,
     minimapWidth: 240,
     minimapHeight: 160,
     minimapWorldPadding: 500,

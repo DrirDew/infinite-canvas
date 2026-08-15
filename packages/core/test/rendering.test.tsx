@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createRef } from "react";
 import { renderToString } from "react-dom/server";
-import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, CanvasUnknownNode, InfiniteCanvas, canvasThemes, type CanvasNode, type CanvasTheme } from "../src";
+import { CanvasConnectionLayer, CanvasMinimap, CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasSelectionBox, CanvasUnknownNode, InfiniteCanvas, canvasThemes, useCanvasVirtualization, type CanvasNode, type CanvasTheme } from "../src";
 
 const nodes: CanvasNode[] = [
     { id: "a", type: "test", title: "A", position: { x: 0, y: 0 }, width: 100, height: 100 },
@@ -60,4 +60,16 @@ test("renders core node shell, controls, and unknown placeholder", () => {
     expect(html).toContain('data-custom-handle="source"');
     expect(html).toContain('data-unknown-node-type="missing"');
     expect(html).toContain("No renderer is registered for missing.");
+});
+
+test("derives virtualized nodes and connection IDs for large documents", () => {
+    const documentNodes: CanvasNode[] = Array.from({ length: 1000 }, (_, index) => ({ id: `${index}`, type: "image", title: "", position: { x: index * 200, y: 0 }, width: 160, height: 120 }));
+    let visible: ReturnType<typeof useCanvasVirtualization> | null = null;
+    function Capture() {
+        visible = useCanvasVirtualization(documentNodes, { x: 0, y: 0, k: 1 }, { width: 800, height: 600 }, 0);
+        return null;
+    }
+    renderToString(<Capture />);
+    expect(visible?.visibleNodes.map((node) => node.id)).toEqual(["0", "1", "2", "3"]);
+    expect([...visible!.visibleNodeIds]).toEqual(["0", "1", "2", "3"]);
 });
