@@ -1,12 +1,16 @@
 import { docs } from 'collections/server';
-import { loader } from 'fumadocs-core/source';
+import { loader, type StaticSource } from 'fumadocs-core/source';
 import { docsContentRoute, docsRoute } from './shared';
 import { i18n } from './i18n';
 
 // See https://fumadocs.dev/docs/headless/source-api for more info
-export const source = loader({
+const docsSource = docs.toFumadocsSource() as StaticSource<{
+  pageData: (typeof docs.docs)[number];
+  metaData: (typeof docs.meta)[number];
+}>;
+
+export const source = loader<typeof docsSource, typeof i18n>(docsSource, {
   baseUrl: docsRoute,
-  source: docs.toFumadocsSource(),
   i18n,
   plugins: [],
 });

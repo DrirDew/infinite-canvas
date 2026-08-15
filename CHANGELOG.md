@@ -2,6 +2,7 @@
 
 ## Unreleased
 
++ [修复] Web、Docs 与 Examples 的独立 TypeScript 类型检查恢复通过，构建流程仍不捆绑类型检查。
 + [调整] Core npm 包名改为 `@basketikun/infinite-canvas`，其余工作区包统一使用 `@basketikun` scope，并同步更新内部依赖、示例与文档引用。
 + [调整] Core Examples 改为接近官方 Web 结构的单画布演示，并明确基础交互与宿主节点内容的职责边界。
 + [修复] Core 画布支持在项目数据恢复后延迟挂载容器，避免可视区域保持零尺寸导致节点不可见。
