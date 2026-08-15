@@ -14,8 +14,14 @@ export function hasValidCanvasViewport(viewport: ViewportTransform) {
 
 /** Validates and detaches an external viewport before it enters instance state. */
 export function createCanvasViewportSnapshot(viewport: ViewportTransform): ViewportTransform {
-    if (!hasValidCanvasViewport(viewport)) throw new TypeError(`Invalid canvas viewport: x=${viewport.x}, y=${viewport.y}, k=${viewport.k}`);
+    validateCanvasViewport(viewport);
     return { ...viewport };
+}
+
+/** Validates an immutable controlled viewport and returns the same authoritative reference. */
+export function validateCanvasViewport(viewport: ViewportTransform): ViewportTransform {
+    if (!hasValidCanvasViewport(viewport)) throw new TypeError(`Invalid canvas viewport: x=${viewport.x}, y=${viewport.y}, k=${viewport.k}`);
+    return viewport;
 }
 
 /** Converts a browser client coordinate into a canvas world coordinate. */

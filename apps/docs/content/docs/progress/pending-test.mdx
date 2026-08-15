@@ -7,6 +7,7 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+- Core controlled state: document-only, viewport-only, and fully controlled instances should publish command updates, accept authoritative replacements, preserve optimistic command reads, and clear stale history or interaction when the host replaces a document.
 - Core connection ports: source and target handle IDs should survive creation, validation, node updates, copy/paste, history, custom path rendering, undo, and redo.
 - Core viewport validation: initialization and command updates should reject NaN, Infinity, zero, or negative zoom values without corrupting the last valid viewport.
 - Core API documentation: generated declarations and editor tooltips should expose the new ownership, history, coordinate-system, and performance notes for public types and functions.

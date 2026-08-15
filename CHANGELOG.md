@@ -2,6 +2,7 @@
 
 ## Unreleased
 
++ [新增] Core `useCanvas` 支持独立受控 document 与 viewport，便于接入 Zustand、Redux、协同编辑或其他宿主权威状态。
 + [新增] Core 连线与交互 handle 支持持久化宿主端口 ID，连接策略和路径渲染器可据此实现多端口节点。
 + [修复] Core 初始化和运行时视口更新统一拒绝非有限平移与非正缩放，避免无效 viewport 破坏坐标和可见区域计算。
 + [优化] Core 公共模型、命令、几何、交互和渲染 API 补充契约型 JSDoc，说明坐标系、历史行为、数据所有权与性能语义。

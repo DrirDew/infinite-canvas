@@ -9,9 +9,15 @@ export function cloneCanvasDocument<TMetadata>(document: CanvasDocument<TMetadat
 
 /** Validates an external document and returns the detached snapshot accepted by a canvas instance. */
 export function createCanvasDocumentSnapshot<TMetadata>(document: CanvasDocument<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>, groupResolver?: CanvasGroupResolver<TMetadata>) {
+    validateCanvasDocument(document, resolver, groupResolver);
+    return cloneCanvasDocument(document);
+}
+
+/** Validates an immutable controlled document and returns the same authoritative reference. */
+export function validateCanvasDocument<TMetadata>(document: CanvasDocument<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>, groupResolver?: CanvasGroupResolver<TMetadata>) {
     const issues = getCanvasDocumentIssues(document, resolver, groupResolver);
     if (issues.length) throw new TypeError(`Invalid canvas document: ${issues.map((issue) => `${issue.type}:${issue.id}`).join(", ")}`);
-    return cloneCanvasDocument(document);
+    return document;
 }
 
 /** Adds unique, geometrically valid nodes and normalizes their group membership. */

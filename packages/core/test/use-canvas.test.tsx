@@ -24,7 +24,7 @@ function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connecti
     return canvas;
 }
 
-type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode" | "onDocumentChange" | "onViewportChange" | "onSelectionChange" | "onInteractionChange">;
+type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "document" | "viewport" | "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode" | "onDocumentChange" | "onViewportChange" | "onSelectionChange" | "onInteractionChange">;
 
 test("adds, updates, and removes nodes and connections", () => {
     const canvas = createCanvas();
@@ -134,6 +134,23 @@ test("document replacement publishes the new snapshot and resets history", () =>
     expect(snapshot).toBe(next);
     expect(canvas.commands.getDocument()).toBe(next);
     expect(canvas.commands.getHistoryDocuments()).toEqual([]);
+});
+
+test("supports authoritative controlled document and viewport snapshots", () => {
+    const authoritative = { nodes: [node("a")], connections: [] };
+    let requestedDocument: CanvasDocument<Metadata> | null = null;
+    let requestedViewport = { x: 20, y: 30, k: 2 };
+    const canvas = createCanvas(undefined, undefined, {
+        document: authoritative,
+        viewport: requestedViewport,
+        onDocumentChange: (document) => (requestedDocument = document),
+        onViewportChange: (viewport) => (requestedViewport = viewport),
+    });
+    canvas.commands.addNode(node("b"));
+    canvas.commands.setViewport({ x: 40, y: 50, k: 1.5 });
+    expect(requestedDocument?.nodes.map((item) => item.id)).toEqual(["a", "b"]);
+    expect(canvas.commands.getDocument()).toBe(requestedDocument);
+    expect(requestedViewport).toEqual({ x: 40, y: 50, k: 1.5 });
 });
 
 test("viewport and rectangle selection stay inside each instance", () => {

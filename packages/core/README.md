@@ -99,7 +99,9 @@ function Editor() {
 - 节点与连线查询、几何和批量新增 API 接受 readonly 数组。
 - 选择结果使用 `ReadonlySet<string>`，修改选择必须调用命令。
 
-`initialDocument` 和 `initialViewport` 只用于创建实例。Core 会拒绝包含无效 ID、分组、连线、坐标或尺寸的外部文档，也会拒绝非有限平移或非正缩放的视口；宿主可先通过 `getCanvasDocumentIssues(document, resolveConnection, canGroupNode)` 展示文档问题。后续加载新文档使用 `setDocument`，并清空当前选择、交互和撤销重做历史。
+`initialDocument` 和 `initialViewport` 只用于创建非受控实例。Core 会拒绝包含无效 ID、分组、连线、坐标或尺寸的外部文档，也会拒绝非有限平移或非正缩放的视口；宿主可先通过 `getCanvasDocumentIssues(document, resolveConnection, canGroupNode)` 展示文档问题。后续加载新文档使用 `setDocument`，并清空当前选择、交互和撤销重做历史。
+
+需要由 Zustand、Redux、协同层或其他宿主状态作为权威来源时，可传入 `document` 和/或 `viewport`。受控命令会立即更新命令快照并触发对应 change 回调，但渲染值最终以宿主传回的受控引用为准；宿主传入不同的权威文档引用时，Core 会清空旧文档的选择、临时交互和撤销重做历史。
 
 ## 命令与历史
 

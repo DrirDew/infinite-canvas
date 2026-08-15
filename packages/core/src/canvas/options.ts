@@ -19,6 +19,10 @@ export type CanvasViewportOptions = {
 };
 /** Initialization, policy, and subscription options for {@link useCanvas}. */
 export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
+    /** Authoritative controlled document. Omit to let the canvas instance own document state. */
+    document?: CanvasDocument<TMetadata>;
+    /** Authoritative controlled viewport. Omit to let the canvas instance own viewport state. */
+    viewport?: ViewportTransform;
     initialDocument?: CanvasDocument<TMetadata>;
     initialViewport?: ViewportTransform;
     onDocumentChange?: (document: CanvasDocument<TMetadata>) => void;
