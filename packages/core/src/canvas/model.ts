@@ -31,8 +31,8 @@ export type CanvasNode<TMetadata = unknown> = {
     readonly height: number;
     readonly metadata?: TMetadata;
 };
-/** An immutable directed connection between two nodes. */
-export type CanvasConnection = { readonly id: string; readonly fromNodeId: string; readonly toNodeId: string };
+/** An immutable directed connection between two nodes and optional host-defined ports. */
+export type CanvasConnection = { readonly id: string; readonly fromNodeId: string; readonly toNodeId: string; readonly fromHandleId?: string; readonly toHandleId?: string };
 /**
  * The authoritative immutable canvas snapshot.
  * Every edit must create a new document through a Core command or mutation helper.
@@ -42,12 +42,12 @@ export type CanvasDocument<TMetadata = unknown> = { readonly nodes: readonly Can
 export type CanvasClipboard<TMetadata = unknown> = CanvasDocument<TMetadata>;
 /** The current immutable node or connection selection. */
 export type CanvasSelection = { readonly nodeIds: ReadonlySet<string>; readonly connectionId: string | null };
-/** Resolves connection direction and host-specific connection rules. */
-export type CanvasConnectionResolver<TMetadata = unknown> = (first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>, firstHandleType: "source" | "target") => Omit<CanvasConnection, "id"> | null;
+/** Resolves connection direction, persistent port IDs, and host-specific connection rules. */
+export type CanvasConnectionResolver<TMetadata = unknown> = (first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>, firstHandleType: "source" | "target", firstHandleId?: string) => Omit<CanvasConnection, "id"> | null;
 /** Determines whether a node may belong to a group. */
 export type CanvasGroupResolver<TMetadata = unknown> = (node: CanvasNode<TMetadata>, group: CanvasNode<TMetadata>) => boolean;
-/** A source or target connection handle on a node. */
-export type ConnectionHandle = { readonly nodeId: string; readonly handleType: "source" | "target" };
+/** A source or target connection handle with an optional host-defined port ID. */
+export type ConnectionHandle = { readonly nodeId: string; readonly handleType: "source" | "target"; readonly handleId?: string };
 /** Transient state while the pointer is creating a connection. */
 export type CanvasConnectionInteraction = { readonly handle: ConnectionHandle; readonly pointer: Position; readonly targetNodeId: string | null };
 /** The nearest valid node discovered during connection targeting. */

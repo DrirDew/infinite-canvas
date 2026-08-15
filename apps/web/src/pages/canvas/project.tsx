@@ -349,7 +349,7 @@ function InfiniteCanvasPage() {
             const metadata = type === CanvasNodeType.Config ? { model: effectiveConfig.imageModel || effectiveConfig.model, size: effectiveConfig.size, count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count) } : undefined;
             const newNode = createCanvasNode(type, pending.position, metadata);
             const source = nodesRef.current.find((node) => node.id === pending.connection.nodeId);
-            const connection = source ? resolveCanvasConnection(source, newNode, pending.connection.handleType) : null;
+            const connection = source ? resolveCanvasConnection(source, newNode, pending.connection.handleType, pending.connection.handleId) : null;
             if (!connection) {
                 message.warning(t("canvas.projectPage.configConnection"));
                 return;

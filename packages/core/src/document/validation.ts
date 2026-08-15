@@ -42,7 +42,10 @@ export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMet
         if (!from || !to) issues.push({ type: "missing-connection-node", id: connection.id });
         else if (from.id === to.id) issues.push({ type: "self-connection", id: connection.id });
         else if (from.role === "group" || to.role === "group") issues.push({ type: "group-connection", id: connection.id });
-        else if (!normalizeConnection(from.id, to.id, document.nodes, "source", resolver)) issues.push({ type: "rejected-connection", id: connection.id });
+        else {
+            const normalized = normalizeConnection(from.id, to.id, document.nodes, "source", resolver, connection.fromHandleId, connection.toHandleId);
+            if (!normalized || normalized.fromNodeId !== connection.fromNodeId || normalized.toNodeId !== connection.toNodeId || normalized.fromHandleId !== connection.fromHandleId || normalized.toHandleId !== connection.toHandleId) issues.push({ type: "rejected-connection", id: connection.id });
+        }
     });
     return issues;
 }

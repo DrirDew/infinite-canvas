@@ -9,6 +9,7 @@ describe("core geometry", () => {
             { id: "config", type: "config", title: "", position: { x: 0, y: 0 }, width: 1, height: 1 },
         ];
         expect(normalizeConnection("image", "config", nodes, "source")).toEqual({ fromNodeId: "image", toNodeId: "config" });
+        expect(normalizeConnection("image", "config", nodes, "source", undefined, "image-output", "config-input")).toEqual({ fromNodeId: "image", toNodeId: "config", fromHandleId: "image-output", toHandleId: "config-input" });
         expect(normalizeConnection("image", "config", nodes, "target")).toEqual({ fromNodeId: "config", toNodeId: "image" });
         expect(normalizeConnection("image", "config", nodes, "source", () => null)).toBeNull();
         expect(normalizeConnection("image", "config", nodes, "source", () => ({ fromNodeId: "image", toNodeId: "missing" }))).toBeNull();

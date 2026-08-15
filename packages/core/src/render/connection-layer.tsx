@@ -18,7 +18,7 @@ export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     selectedConnectionId?: string | null;
     activeConnectionIds?: ReadonlySet<string>;
     theme: CanvasTheme;
-    resolvePath?: (source: CanvasNode<TMetadata>, target?: CanvasNode<TMetadata>, interaction?: CanvasConnectionInteraction) => string;
+    resolvePath?: (source: CanvasNode<TMetadata>, target?: CanvasNode<TMetadata>, interaction?: CanvasConnectionInteraction, connection?: CanvasConnection) => string;
     resolveStyle?: (connection: CanvasConnection, active: boolean) => CanvasConnectionStyle;
     previewStyle?: CanvasConnectionStyle;
     hitStrokeWidth?: number;
@@ -46,7 +46,7 @@ export function CanvasConnectionLayer<TMetadata>({ nodes, connections, visibleNo
                 const from = byId.get(connection.fromNodeId);
                 const to = byId.get(connection.toNodeId);
                 if (!from || !to) return null;
-                const path = resolvePath(from, to);
+                const path = resolvePath(from, to, undefined, connection);
                 const active = selectedConnectionId === connection.id || Boolean(activeConnectionIds?.has(connection.id));
                 const style = resolveStyle?.(connection, active) || { stroke: active ? theme.node.activeStroke : theme.node.muted, strokeWidth: active ? 3 : 2, strokeOpacity: active ? 1 : 0.82, style: { filter: active ? `drop-shadow(0 0 8px ${theme.node.activeStroke}66)` : undefined } };
                 return (

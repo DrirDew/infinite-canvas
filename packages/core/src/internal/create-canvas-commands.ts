@@ -122,7 +122,7 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
             const target = moveConnection(position);
             const current = interactionRef.current.connectionInteraction;
             if (!target || !current) return null;
-            const connection = target.nodeId ? normalizeConnection(current.handle.nodeId, target.nodeId, documentRef.current.nodes, current.handle.handleType, connectionResolverRef.current) : null;
+            const connection = target.nodeId ? normalizeConnection(current.handle.nodeId, target.nodeId, documentRef.current.nodes, current.handle.handleType, connectionResolverRef.current, current.handle.handleId) : null;
             const result: CanvasConnectionDropResult = { ...target, handle: current.handle, position, connection };
             updateInteraction({ ...interactionRef.current, connectionInteraction: null });
             return result;

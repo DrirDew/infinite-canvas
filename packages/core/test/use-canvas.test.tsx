@@ -201,7 +201,7 @@ test("publishes selection and interaction changes", () => {
         onInteractionChange: (interaction) => (connecting = Boolean(interaction.connectionInteraction)),
     });
     canvas.commands.selectNodes(["a"]);
-    canvas.commands.startConnection({ nodeId: "a", handleType: "source" }, { x: 100, y: 50 });
+    canvas.commands.startConnection({ nodeId: "a", handleType: "source", handleId: "output" }, { x: 100, y: 50 });
     expect(selected).toEqual(["a"]);
     expect(connecting).toBe(true);
     canvas.commands.cancelConnection();
@@ -269,16 +269,16 @@ test("commits an active preview before a new transaction", () => {
 test("connection interaction resolves targets without generating ids", () => {
     const canvas = createCanvas({ nodes: [node("a"), { ...node("b"), position: { x: 200, y: 0 } }], connections: [] });
     const other = createCanvas({ nodes: [node("other")], connections: [] });
-    canvas.commands.startConnection({ nodeId: "a", handleType: "source" }, { x: 100, y: 50 });
+    canvas.commands.startConnection({ nodeId: "a", handleType: "source", handleId: "output" }, { x: 100, y: 50 });
     expect(canvas.commands.moveConnection({ x: 250, y: 50 })).toEqual({ nodeId: "b", isNearNode: true });
     expect(canvas.commands.getInteraction().connectionInteraction?.targetNodeId).toBe("b");
     expect(other.commands.getInteraction().connectionInteraction).toBeNull();
     const result = canvas.commands.endConnection({ x: 250, y: 50 });
-    expect(result?.connection).toEqual({ fromNodeId: "a", toNodeId: "b" });
+    expect(result?.connection).toEqual({ fromNodeId: "a", toNodeId: "b", fromHandleId: "output" });
     expect(canvas.commands.getInteraction().connectionInteraction).toBeNull();
     expect(canvas.commands.getDocument().connections).toEqual([]);
     canvas.commands.addConnection({ id: "ab", ...result!.connection! });
-    expect(canvas.commands.getDocument().connections).toEqual([connection("ab", "a", "b")]);
+    expect(canvas.commands.getDocument().connections).toEqual([{ ...connection("ab", "a", "b"), fromHandleId: "output" }]);
     const blocked = createCanvas({ nodes: [node("a"), { ...node("b"), position: { x: 200, y: 0 } }], connections: [] }, () => null);
     blocked.commands.addConnection(connection("ab", "a", "b"));
     expect(blocked.commands.getDocument().connections).toEqual([]);

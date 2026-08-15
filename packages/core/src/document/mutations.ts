@@ -50,8 +50,8 @@ export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata
     if (sameCanvasNode(node, next)) nodes[index] = next = node;
     const connections = document.connections.flatMap((connection) => {
         if (connection.fromNodeId !== id && connection.toNodeId !== id) return [connection];
-        const normalized = normalizeConnection(connection.fromNodeId === id ? next.id : connection.fromNodeId, connection.toNodeId === id ? next.id : connection.toNodeId, nodes, "source", resolver);
-        return normalized ? [normalized.fromNodeId === connection.fromNodeId && normalized.toNodeId === connection.toNodeId ? connection : { ...connection, ...normalized }] : [];
+        const normalized = normalizeConnection(connection.fromNodeId === id ? next.id : connection.fromNodeId, connection.toNodeId === id ? next.id : connection.toNodeId, nodes, "source", resolver, connection.fromHandleId, connection.toHandleId);
+        return normalized ? [sameCanvasConnectionRoute(connection, normalized) ? connection : applyCanvasConnectionRoute(connection, normalized)] : [];
     });
     return nodes.every((item, itemIndex) => item === document.nodes[itemIndex]) && connections.length === document.connections.length && connections.every((connection, connectionIndex) => connection === document.connections[connectionIndex]) ? document : { ...document, nodes, connections };
 }
@@ -73,10 +73,10 @@ export function addDocumentConnections<TMetadata>(document: CanvasDocument<TMeta
     const ids = new Set(document.connections.map((connection) => connection.id));
     const added = connections.flatMap((connection) => {
         if (!connection.id || ids.has(connection.id)) return [];
-        const normalized = normalizeConnection(connection.fromNodeId, connection.toNodeId, document.nodes, "source", resolver);
+        const normalized = normalizeConnection(connection.fromNodeId, connection.toNodeId, document.nodes, "source", resolver, connection.fromHandleId, connection.toHandleId);
         if (!normalized) return [];
         ids.add(connection.id);
-        return [{ ...connection, ...normalized }];
+        return [applyCanvasConnectionRoute(connection, normalized)];
     });
     return added.length ? { ...document, connections: [...document.connections, ...added] } : document;
 }
@@ -99,3 +99,10 @@ export function cleanCanvasSelection<TMetadata>(document: CanvasDocument<TMetada
 }
 
 const sameCanvasNode = <TMetadata>(first: CanvasNode<TMetadata>, second: CanvasNode<TMetadata>) => first.id === second.id && first.type === second.type && first.role === second.role && first.groupId === second.groupId && first.title === second.title && first.position.x === second.position.x && first.position.y === second.position.y && first.width === second.width && first.height === second.height && first.metadata === second.metadata;
+/** Returns whether connection endpoints and persistent port IDs are unchanged. */
+const sameCanvasConnectionRoute = (first: Pick<CanvasConnection, "fromNodeId" | "toNodeId" | "fromHandleId" | "toHandleId">, second: Pick<CanvasConnection, "fromNodeId" | "toNodeId" | "fromHandleId" | "toHandleId">) => first.fromNodeId === second.fromNodeId && first.toNodeId === second.toNodeId && first.fromHandleId === second.fromHandleId && first.toHandleId === second.toHandleId;
+/** Applies an authoritative normalized route and clears port IDs omitted by host policy. */
+const applyCanvasConnectionRoute = (connection: CanvasConnection, route: Omit<CanvasConnection, "id">): CanvasConnection => {
+    const { fromHandleId: _fromHandleId, toHandleId: _toHandleId, ...identity } = connection;
+    return { ...identity, ...route };
+};

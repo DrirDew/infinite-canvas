@@ -62,10 +62,10 @@ export function useCanvasInteractions<TMetadata>({ commands, containerRef, onCon
         },
         [canStart, claimNode, selectNode],
     );
-    const onConnectionStart = useCallback((event: PointerEvent, nodeId: string, handleType: "source" | "target") => {
+    const onConnectionStart = useCallback((event: PointerEvent, nodeId: string, handleType: "source" | "target", handleId?: string) => {
         event.stopPropagation();
         if (event.button !== 0 || !canStart(event.pointerId)) return;
-        commandsRef.current.startConnection({ nodeId, handleType }, toCanvas(event.clientX, event.clientY));
+        commandsRef.current.startConnection({ nodeId, handleType, handleId }, toCanvas(event.clientX, event.clientY));
         if (commandsRef.current.getInteraction().connectionInteraction) claimConnection(event.pointerId);
     }, [canStart, claimConnection, toCanvas]);
     const onNodeResizeStart = useCallback((nodeId: string) => {

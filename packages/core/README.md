@@ -95,6 +95,7 @@ function Editor() {
 - 分组节点使用 `role: "group"`，子节点通过顶层 `groupId` 归属分组。
 - `metadata` 完全由宿主定义，不承载 Core 引擎字段。
 - Core 不生成节点或连线 ID。
+- 连线可通过 `fromHandleId`、`toHandleId` 持久化宿主端口；连接 resolver 可根据起始 handle ID 补齐另一端端口和方向。
 - 节点与连线查询、几何和批量新增 API 接受 readonly 数组。
 - 选择结果使用 `ReadonlySet<string>`，修改选择必须调用命令。
 
