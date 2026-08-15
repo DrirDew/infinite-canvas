@@ -148,7 +148,7 @@ test("supports authoritative controlled document and viewport snapshots", () => 
     });
     canvas.commands.addNode(node("b"));
     canvas.commands.setViewport({ x: 40, y: 50, k: 1.5 });
-    expect(requestedDocument?.nodes.map((item) => item.id)).toEqual(["a", "b"]);
+    expect((requestedDocument as CanvasDocument<Metadata>).nodes.map((item) => item.id)).toEqual(["a", "b"]);
     expect(canvas.commands.getDocument()).toBe(requestedDocument);
     expect(requestedViewport).toEqual({ x: 40, y: 50, k: 1.5 });
 });

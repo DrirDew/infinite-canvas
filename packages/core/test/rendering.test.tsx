@@ -70,6 +70,7 @@ test("derives virtualized nodes and connection IDs for large documents", () => {
         return null;
     }
     renderToString(<Capture />);
-    expect(visible?.visibleNodes.map((node) => node.id)).toEqual(["0", "1", "2", "3"]);
-    expect([...visible!.visibleNodeIds]).toEqual(["0", "1", "2", "3"]);
+    const result = visible as ReturnType<typeof useCanvasVirtualization>;
+    expect(result.visibleNodes.map((node) => node.id)).toEqual(["0", "1", "2", "3"]);
+    expect([...result.visibleNodeIds]).toEqual(["0", "1", "2", "3"]);
 });
