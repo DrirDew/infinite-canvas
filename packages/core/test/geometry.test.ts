@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { canvasToScreen, centerViewport, findConnectionDropTarget, fitNodeSize, fitViewportToNode, getCanvasNodeSpatialIndex, getConnectionPath, nodesInRect, nodesInViewport, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas, zoomViewport, zoomViewportAtPoint } from "../src";
+import { canvasToScreen, centerViewport, createCanvasViewportSnapshot, findConnectionDropTarget, fitNodeSize, fitViewportToNode, getCanvasNodeSpatialIndex, getConnectionPath, nodesInRect, nodesInViewport, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas, zoomViewport, zoomViewportAtPoint } from "../src";
 
 describe("core geometry", () => {
     test("keeps node ratios and connection direction", () => {
@@ -48,6 +48,8 @@ describe("core geometry", () => {
         expect(zoomViewportAtPoint({ x: 0, y: 0, k: 1 }, { x: 100, y: 50 }, 4, 0.5, 2)).toEqual({ x: -100, y: -50, k: 2 });
         expect(fitViewportToNode({ id: "node", type: "test", title: "", position: { x: 100, y: 50 }, width: 200, height: 100 }, size)).toEqual({ x: 200, y: 200, k: 1 });
         expect(fitViewportToNode({ id: "node", type: "test", title: "", position: { x: 100, y: 50 }, width: 200, height: 100 }, size, 0.25, 0.1, 0.5)).toEqual({ x: 300, y: 250, k: 0.5 });
+        expect(createCanvasViewportSnapshot({ x: 1, y: 2, k: 1 })).toEqual({ x: 1, y: 2, k: 1 });
+        expect(() => createCanvasViewportSnapshot({ x: 0, y: 0, k: 0 })).toThrow("Invalid canvas viewport");
     });
 
     test("resizes nodes from any corner with optional ratio locking", () => {

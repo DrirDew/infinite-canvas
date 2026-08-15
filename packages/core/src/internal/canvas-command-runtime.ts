@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { cleanCanvasSelection } from "../document.js";
 import type { CanvasClipboard, CanvasConnectionResolver, CanvasDocument, CanvasDocumentUpdater, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, ViewportTransform, ViewportUpdater } from "../types.js";
+import { createCanvasViewportSnapshot } from "../geometry.js";
 import { createCanvasHistory, DEFAULT_INTERACTION, type CanvasBehavior, type CanvasDrag, type CanvasHistory } from "./canvas-state.js";
 
 type HistoryState = { canUndo: boolean; canRedo: boolean };
@@ -42,7 +43,8 @@ export function createCanvasCommandRuntime<TMetadata>({ documentRef, viewportRef
         onInteractionChangeRef.current?.(next);
     };
     const setViewport = (updater: ViewportUpdater) => {
-        const next = typeof updater === "function" ? updater(viewportRef.current) : updater;
+        const value = typeof updater === "function" ? updater(viewportRef.current) : updater;
+        const next = createCanvasViewportSnapshot(value);
         if (next.x === viewportRef.current.x && next.y === viewportRef.current.y && next.k === viewportRef.current.k) return viewportRef.current;
         viewportRef.current = next;
         setViewportState(next);

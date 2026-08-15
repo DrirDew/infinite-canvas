@@ -7,6 +7,17 @@ export const CANVAS_MIN_ZOOM = canvasDefaults.minZoom;
 /** Default maximum zoom used by viewport helpers. */
 export const CANVAS_MAX_ZOOM = canvasDefaults.maxZoom;
 
+/** Returns whether a viewport contains finite translation and a positive finite zoom. */
+export function hasValidCanvasViewport(viewport: ViewportTransform) {
+    return Number.isFinite(viewport.x) && Number.isFinite(viewport.y) && Number.isFinite(viewport.k) && viewport.k > 0;
+}
+
+/** Validates and detaches an external viewport before it enters instance state. */
+export function createCanvasViewportSnapshot(viewport: ViewportTransform): ViewportTransform {
+    if (!hasValidCanvasViewport(viewport)) throw new TypeError(`Invalid canvas viewport: x=${viewport.x}, y=${viewport.y}, k=${viewport.k}`);
+    return { ...viewport };
+}
+
 /** Converts a browser client coordinate into a canvas world coordinate. */
 export function screenToCanvas(clientX: number, clientY: number, viewport: ViewportTransform, origin: CanvasViewportOrigin = { left: 0, top: 0 }): Position {
     return { x: (clientX - origin.left - viewport.x) / viewport.k, y: (clientY - origin.top - viewport.y) / viewport.k };

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { canvasDefaults } from "../defaults.js";
 import { createCanvasDocumentSnapshot } from "../document.js";
+import { createCanvasViewportSnapshot } from "../geometry.js";
 import { createCanvasCommands } from "../internal/create-canvas-commands.js";
 import { createCanvasHistory, createCanvasSelection, DEFAULT_INTERACTION, DEFAULT_VIEWPORT, type CanvasBehavior, type CanvasDrag, type CanvasHistory } from "../internal/canvas-state.js";
 import type { CanvasClipboard, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, UseCanvasOptions, UseCanvasResult } from "../types.js";
@@ -26,7 +27,7 @@ export function useCanvas<TMetadata = unknown>({
 }: UseCanvasOptions<TMetadata> = {}): UseCanvasResult<TMetadata> {
     const behavior: CanvasBehavior = { historyLimit: Math.max(1, historyLimit), dragThreshold: Math.max(0, dragThreshold), groupPadding: Math.max(0, groupPadding), connectionHandleRadius: Math.max(0, connectionHandleRadius), connectionNodePadding: Math.max(0, connectionNodePadding) };
     const [document, setDocument] = useState(() => createCanvasDocumentSnapshot(initialDocument, resolveConnection, canGroupNode));
-    const [viewport, setViewport] = useState(() => initialViewport);
+    const [viewport, setViewport] = useState(() => createCanvasViewportSnapshot(initialViewport));
     const [selection, setSelection] = useState<CanvasSelection>(createCanvasSelection);
     const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
     const [interaction, setInteraction] = useState(DEFAULT_INTERACTION);
