@@ -19,8 +19,8 @@ export type CanvasAgentOp =
 export type CanvasAgentSnapshot = {
     projectId: string;
     title: string;
-    nodes: CanvasNodeData[];
-    connections: CanvasConnection[];
+    nodes: readonly CanvasNodeData[];
+    connections: readonly CanvasConnection[];
     selectedNodeIds: string[];
     viewport: ViewportTransform;
 };

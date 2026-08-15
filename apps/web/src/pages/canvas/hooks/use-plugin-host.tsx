@@ -21,8 +21,8 @@ type PluginHostParams = {
     isAiConfigReady: (config: AiConfig, model: string) => boolean;
     openConfigDialog: (open: boolean) => void;
     theme: CanvasTheme;
-    nodesRef: MutableRefObject<CanvasNodeData[]>;
-    connectionsRef: MutableRefObject<CanvasConnection[]>;
+    nodesRef: MutableRefObject<readonly CanvasNodeData[]>;
+    connectionsRef: MutableRefObject<readonly CanvasConnection[]>;
     viewportRef: MutableRefObject<ViewportTransform>;
     updateNode: (id: string, patch: Partial<CanvasNodeData> | ((node: CanvasNodeData) => CanvasNodeData)) => unknown;
     setDialogNodeId: Dispatch<SetStateAction<string | null>>;

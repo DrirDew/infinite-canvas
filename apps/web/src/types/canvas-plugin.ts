@@ -49,10 +49,10 @@ export type CanvasNodeContext = {
     updateNode: (patch: Partial<Pick<CanvasNodeData, "title" | "width" | "height">>) => void;
     // Graph access.
     getNode: (id: string) => CanvasNodeData | null;
-    getNodes: () => CanvasNodeData[];
-    getConnections: () => CanvasConnection[];
-    getUpstream: () => CanvasNodeData[];
-    getDownstream: () => CanvasNodeData[];
+    getNodes: () => readonly CanvasNodeData[];
+    getConnections: () => readonly CanvasConnection[];
+    getUpstream: () => readonly CanvasNodeData[];
+    getDownstream: () => readonly CanvasNodeData[];
     // Canvas operations using the Agent instruction set for nodes, connections, selection, viewport, and generation.
     applyOps: (ops: CanvasAgentOp[]) => void;
     // Inter-node and inter-plugin communication.
@@ -76,10 +76,10 @@ export type PluginStorage = {
 // Node-independent host capabilities constructed by the canvas page and injected into the render chain.
 export type CanvasPluginHost = {
     getNode: (id: string) => CanvasNodeData | null;
-    getNodes: () => CanvasNodeData[];
-    getConnections: () => CanvasConnection[];
-    getUpstream: (nodeId: string) => CanvasNodeData[];
-    getDownstream: (nodeId: string) => CanvasNodeData[];
+    getNodes: () => readonly CanvasNodeData[];
+    getConnections: () => readonly CanvasConnection[];
+    getUpstream: (nodeId: string) => readonly CanvasNodeData[];
+    getDownstream: (nodeId: string) => readonly CanvasNodeData[];
     updateNode: (nodeId: string, patch: Partial<Pick<CanvasNodeData, "title" | "width" | "height">>) => void;
     updateMetadata: (nodeId: string, patch: CanvasNodeMetadata) => void;
     applyOps: (ops: CanvasAgentOp[]) => void;

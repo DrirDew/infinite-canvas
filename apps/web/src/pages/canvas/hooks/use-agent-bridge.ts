@@ -11,16 +11,16 @@ type GenerateNodeRef = MutableRefObject<((nodeId: string, mode: CanvasNodeGenera
 type AgentBridgeParams = {
     projectId: string;
     title: string | undefined;
-    nodes: CanvasNodeData[];
-    connections: CanvasConnection[];
+    nodes: readonly CanvasNodeData[];
+    connections: readonly CanvasConnection[];
     selectedNodeIds: ReadonlySet<string>;
     viewport: ViewportTransform;
-    nodesRef: MutableRefObject<CanvasNodeData[]>;
-    connectionsRef: MutableRefObject<CanvasConnection[]>;
+    nodesRef: MutableRefObject<readonly CanvasNodeData[]>;
+    connectionsRef: MutableRefObject<readonly CanvasConnection[]>;
     selectedNodeIdsRef: MutableRefObject<ReadonlySet<string>>;
     viewportRef: MutableRefObject<ViewportTransform>;
     generateNodeRef: GenerateNodeRef;
-    transaction: (updater: (document: { nodes: CanvasNodeData[]; connections: CanvasConnection[] }) => { nodes: CanvasNodeData[]; connections: CanvasConnection[] }) => unknown;
+    transaction: (updater: (document: { readonly nodes: readonly CanvasNodeData[]; readonly connections: readonly CanvasConnection[] }) => { readonly nodes: readonly CanvasNodeData[]; readonly connections: readonly CanvasConnection[] }) => unknown;
     selectNodes: (ids: Iterable<string>) => void;
     setViewport: Dispatch<SetStateAction<ViewportTransform>>;
     setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;

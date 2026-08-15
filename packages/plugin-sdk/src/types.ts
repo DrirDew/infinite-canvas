@@ -220,10 +220,10 @@ export type CanvasNodeContext = {
     updateNode: (patch: Partial<Pick<CanvasNodeData, "title" | "width" | "height">>) => void;
     // 图访问
     getNode: (id: string) => CanvasNodeData | null;
-    getNodes: () => CanvasNodeData[];
-    getConnections: () => CanvasConnection[];
-    getUpstream: () => CanvasNodeData[];
-    getDownstream: () => CanvasNodeData[];
+    getNodes: () => readonly CanvasNodeData[];
+    getConnections: () => readonly CanvasConnection[];
+    getUpstream: () => readonly CanvasNodeData[];
+    getDownstream: () => readonly CanvasNodeData[];
     // 画布操作(复用 Agent 指令集)
     applyOps: (ops: CanvasAgentOp[]) => void;
     // 节点间/插件间通信

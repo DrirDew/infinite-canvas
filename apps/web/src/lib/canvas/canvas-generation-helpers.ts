@@ -43,7 +43,7 @@ export async function resolveMetadataReferences(metadata: CanvasNodeMetadata) {
     return references.every(Boolean) ? (references as ReferenceImage[]) : null;
 }
 
-export async function hydrateCanvasImages(nodes: CanvasNodeData[]) {
+export async function hydrateCanvasImages(nodes: readonly CanvasNodeData[]) {
     return Promise.all(
         nodes.map(async (node) => {
             const metadata = node.metadata;
@@ -113,7 +113,7 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
     };
 }
 
-export function resetInterruptedGeneration(nodes: CanvasNodeData[]) {
+export function resetInterruptedGeneration(nodes: readonly CanvasNodeData[]) {
     return nodes.map((node) =>
         node.metadata?.status === "loading"
             ? {
@@ -133,7 +133,7 @@ export function isGenerationCanceled(error: unknown) {
     return error instanceof Error && (error.message === i18n.t("common.requestCanceled") || error.name === "AbortError");
 }
 
-export function findRetrySourceNode(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]) {
+export function findRetrySourceNode(nodeId: string, nodes: readonly CanvasNodeData[], connections: readonly CanvasConnection[]) {
     return findCanvasUpstreamNode(nodeId, nodes, connections, (node) => node.type === CanvasNodeType.Config);
 }
 

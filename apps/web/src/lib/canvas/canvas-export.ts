@@ -31,7 +31,7 @@ export async function exportCanvasProjects(projects: CanvasProject[], fileName =
     saveAs(zip, `${safeFileName(fileName)}.zip`);
 }
 
-export async function exportCanvasNodes(nodes: CanvasNodeData[], fileName = i18n.t("canvas.export.defaultNodesName")) {
+export async function exportCanvasNodes(nodes: readonly CanvasNodeData[], fileName = i18n.t("canvas.export.defaultNodesName")) {
     const zipFiles: { name: string; data: BlobPart }[] = [];
     const used = new Set<string>();
     const uniqueName = (base: string, ext: string) => {

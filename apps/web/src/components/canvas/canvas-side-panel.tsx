@@ -27,7 +27,7 @@ const PANEL_EASE = [0.22, 1, 0.36, 1] as const;
 type PanelTab = "canvas" | "assets" | "prompts";
 
 type Props = {
-    nodes: CanvasNodeData[];
+    nodes: readonly CanvasNodeData[];
     selectedNodeIds: ReadonlySet<string>;
     onFocusNode: (nodeId: string) => void;
     onPreviewNode: (nodeId: string) => void;
@@ -139,7 +139,7 @@ function nodePreviewText(node: CanvasNodeData) {
     return getNodeDefinition(node.type)?.title || node.type;
 }
 
-function CanvasNodesTab({ nodes, selectedNodeIds, onFocusNode, onPreviewNode, theme }: { nodes: CanvasNodeData[]; selectedNodeIds: ReadonlySet<string>; onFocusNode: (nodeId: string) => void; onPreviewNode: (nodeId: string) => void; theme: CanvasTheme }) {
+function CanvasNodesTab({ nodes, selectedNodeIds, onFocusNode, onPreviewNode, theme }: { nodes: readonly CanvasNodeData[]; selectedNodeIds: ReadonlySet<string>; onFocusNode: (nodeId: string) => void; onPreviewNode: (nodeId: string) => void; theme: CanvasTheme }) {
     const { message } = App.useApp();
     const { t } = useTranslation();
     const [keyword, setKeyword] = useState("");
