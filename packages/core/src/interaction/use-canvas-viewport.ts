@@ -4,6 +4,9 @@ import { centerViewport, fitViewportToNode, screenToCanvas, zoomViewport } from 
 import { subscribeWindowEvent } from "../internal/window-events.js";
 import type { CanvasCommands, CanvasSize, CanvasViewportOptions, ViewportTransform } from "../types.js";
 
+/** Uses layout timing in browsers without producing server-rendering warnings. */
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 /** Container measurement, viewport input, and focus-animation options. */
 export type UseCanvasViewportOptions<TMetadata = unknown> = CanvasViewportOptions & {
     commands: CanvasCommands<TMetadata>;
@@ -29,7 +32,7 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
     callbacksRef.current = { onContainerResize, onViewportInput };
     optionsRef.current = options;
 
-    useLayoutEffect(() => {
+    useIsomorphicLayoutEffect(() => {
         const element = containerRef.current;
         if (containerElementRef.current === element) return;
         resizeObserverRef.current?.disconnect();
@@ -49,7 +52,7 @@ export function useCanvasViewport<TMetadata>({ commands, containerRef, onContain
         resizeObserverRef.current = observer;
     });
 
-    useLayoutEffect(() => () => resizeObserverRef.current?.disconnect(), []);
+    useIsomorphicLayoutEffect(() => () => resizeObserverRef.current?.disconnect(), []);
 
     const toCanvas = useCallback(
         (clientX: number, clientY: number) => {

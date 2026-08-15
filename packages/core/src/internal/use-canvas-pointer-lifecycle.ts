@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { normalizeRect } from "../geometry.js";
 import type { CanvasCommands, CanvasConnectionDropResult, CanvasRect, Position } from "../types.js";
+import { createLatestAnimationFrame } from "./latest-animation-frame.js";
 import { acquireCanvasPointer, canOwnCanvasPointer, releaseCanvasPointer } from "./pointer-ownership.js";
 import { subscribeWindowEvent } from "./window-events.js";
 
 type PointerOwner = { id: number; kind: "marquee" | "node" | "connection" };
 type Marquee = { start: Position; initialNodeIds: string[] };
 
+/** Coordinates one pointer-owned edit lifecycle across the canvas and window boundaries. */
 export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, toCanvas, onNodeClick, onConnectionEnd }: { commands: CanvasCommands<TMetadata>; containerRef: RefObject<HTMLDivElement | null>; toCanvas: (clientX: number, clientY: number) => Position; onNodeClick?: (nodeId: string) => void; onConnectionEnd?: (result: CanvasConnectionDropResult) => void }) {
     const [selectionRect, setSelectionRect] = useState<CanvasRect | null>(null);
     const commandsRef = useRef(commands);
@@ -15,9 +17,6 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
     const surfaceRef = useRef<Element | null>(null);
     const ownerRef = useRef<PointerOwner | null>(null);
     const marqueeRef = useRef<Marquee | null>(null);
-    const frameRef = useRef<number | null>(null);
-    /** Latest client coordinate waiting for the next animation frame. */
-    const pendingPointerRef = useRef<Position | null>(null);
     commandsRef.current = commands;
     callbacksRef.current = { onNodeClick, onConnectionEnd };
 
@@ -51,20 +50,6 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
     }, []);
 
     useEffect(() => {
-        /** Cancels pending frame work without committing its transient coordinate. */
-        const clearFrame = () => {
-            if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-            frameRef.current = null;
-            pendingPointerRef.current = null;
-        };
-        const clear = () => {
-            clearFrame();
-            if (surfaceRef.current) releaseCanvasPointer(surfaceRef.current, tokenRef.current);
-            surfaceRef.current = null;
-            ownerRef.current = null;
-            marqueeRef.current = null;
-            setSelectionRect(null);
-        };
         /** Applies one coalesced pointer coordinate to the active interaction. */
         const applyMove = (pointer: Position) => {
             const owner = ownerRef.current;
@@ -78,23 +63,25 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
             current.selectNodesInRect(rect, marquee.initialNodeIds);
             setSelectionRect(rect);
         };
+        const moveFrame = createLatestAnimationFrame(applyMove);
+        const clear = () => {
+            moveFrame.clear();
+            if (surfaceRef.current) releaseCanvasPointer(surfaceRef.current, tokenRef.current);
+            surfaceRef.current = null;
+            ownerRef.current = null;
+            marqueeRef.current = null;
+            setSelectionRect(null);
+        };
         /** Keeps only the newest pointer coordinate and processes it at most once per frame. */
         const move = (event: globalThis.PointerEvent) => {
             const owner = ownerRef.current;
             if (!owner || event.pointerId !== owner.id) return;
-            pendingPointerRef.current = { x: event.clientX, y: event.clientY };
-            if (frameRef.current !== null) return;
-            frameRef.current = requestAnimationFrame(() => {
-                frameRef.current = null;
-                const pointer = pendingPointerRef.current;
-                pendingPointerRef.current = null;
-                if (pointer) applyMove(pointer);
-            });
+            moveFrame.push({ x: event.clientX, y: event.clientY });
         };
         const up = (event: globalThis.PointerEvent) => {
             const owner = ownerRef.current;
             if (!owner || event.pointerId !== owner.id) return;
-            clearFrame();
+            moveFrame.clear();
             if (owner.kind === "node") {
                 const drag = commandsRef.current.endNodeDrag({ x: event.clientX, y: event.clientY });
                 if (drag.clickedNodeId) callbacksRef.current.onNodeClick?.(drag.clickedNodeId);
@@ -117,7 +104,7 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
         const unsubscribe = [subscribeWindowEvent("pointermove", move), subscribeWindowEvent("pointerup", up), subscribeWindowEvent("pointercancel", cancel), subscribeWindowEvent("blur", cancel)];
         return () => {
             unsubscribe.forEach((dispose) => dispose());
-            clearFrame();
+            moveFrame.clear();
             if (ownerRef.current?.kind === "node") commandsRef.current.endNodeDrag();
             else if (ownerRef.current?.kind === "connection") commandsRef.current.cancelConnection();
             if (surfaceRef.current) releaseCanvasPointer(surfaceRef.current, tokenRef.current);
