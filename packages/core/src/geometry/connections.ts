@@ -1,6 +1,7 @@
 import { canvasDefaults } from "../defaults.js";
 import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, ConnectionHandle, Position } from "../types.js";
 import { isGroupNode } from "./nodes.js";
+import { CANVAS_SPATIAL_INDEX_THRESHOLD, getCanvasNodeSpatialIndex } from "./spatial-index.js";
 
 export function getConnectionTargetAnchor<T>(node: CanvasNode<T>, current: ConnectionHandle) {
     return { x: current.handleType === "source" ? node.position.x : node.position.x + node.width, y: node.position.y + node.height / 2 };
@@ -19,10 +20,13 @@ export function findConnectionDropTarget<T>(nodes: readonly CanvasNode<T>[], cur
     let isNearNode = false;
     let nodeId: string | null = null;
     let priority = Infinity;
-    const first = nodes.find((node) => node.id === current.nodeId);
+    const index = nodes.length >= CANVAS_SPATIAL_INDEX_THRESHOLD ? getCanvasNodeSpatialIndex(nodes) : null;
+    const first = index?.get(current.nodeId) || nodes.find((node) => node.id === current.nodeId);
     if (!first) return { nodeId, isNearNode };
-    for (let index = nodes.length - 1; index >= 0; index--) {
-        const node = nodes[index]!;
+    const extent = Math.max(radius, padding) + 1;
+    const candidates = index?.query({ x: position.x - extent, y: position.y - extent, width: extent * 2, height: extent * 2 }) || nodes;
+    for (let index = candidates.length - 1; index >= 0; index--) {
+        const node = candidates[index]!;
         const anchor = getConnectionTargetAnchor(node, current);
         const dx = position.x - anchor.x;
         const dy = position.y - anchor.y;
@@ -42,8 +46,9 @@ export function findConnectionDropTarget<T>(nodes: readonly CanvasNode<T>[], cur
 }
 
 export function normalizeConnection<T>(firstNodeId: string, secondNodeId: string, nodes: readonly CanvasNode<T>[], firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
-    const first = nodes.find((node) => node.id === firstNodeId);
-    const second = nodes.find((node) => node.id === secondNodeId);
+    const index = nodes.length >= CANVAS_SPATIAL_INDEX_THRESHOLD ? getCanvasNodeSpatialIndex(nodes) : null;
+    const first = index?.get(firstNodeId) || nodes.find((node) => node.id === firstNodeId);
+    const second = index?.get(secondNodeId) || nodes.find((node) => node.id === secondNodeId);
     return first && second ? normalizeConnectionNodes(first, second, firstHandleType, resolver) : null;
 }
 

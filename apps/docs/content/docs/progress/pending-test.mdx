@@ -7,5 +7,6 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+- Core large-canvas spatial index: pan, zoom, marquee selection, connection targeting, group nodes, and off-screen image or video node culling should preserve document order and hit behavior with at least one thousand nodes.
 - Core immutable document contract: loading or adding externally owned nodes should not retain mutable array, node, or position references, and invalid coordinates or dimensions should be reported or rejected.
 - Core initialization and interaction optimization: consumers should initialize instances with `initialDocument` and `initialViewport`, continue loading later snapshots through commands, and preserve connection targeting, group drop targeting, undo, redo, and upstream-node lookup behavior.

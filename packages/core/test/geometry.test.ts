@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { canvasToScreen, centerViewport, findConnectionDropTarget, fitNodeSize, fitViewportToNode, getConnectionPath, nodesInRect, nodesInViewport, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas, zoomViewport, zoomViewportAtPoint } from "../src";
+import { canvasToScreen, centerViewport, findConnectionDropTarget, fitNodeSize, fitViewportToNode, getCanvasNodeSpatialIndex, getConnectionPath, nodesInRect, nodesInViewport, normalizeConnection, normalizeRect, resizeNodeBounds, screenToCanvas, zoomViewport, zoomViewportAtPoint } from "../src";
 
 describe("core geometry", () => {
     test("keeps node ratios and connection direction", () => {
@@ -30,6 +30,14 @@ describe("core geometry", () => {
             ).map((node) => node.id),
         ).toEqual(["inside"]);
         expect(nodesInViewport([{ id: "visible", type: "test", title: "", position: { x: 0, y: 0 }, width: 40, height: 40 }], viewport, { width: 200, height: 200 })).toHaveLength(1);
+    });
+
+    test("indexes large immutable node snapshots for repeated viewport queries", () => {
+        const nodes = Array.from({ length: 1000 }, (_, index) => ({ id: `${index}`, type: "image", title: "", position: { x: (index % 50) * 200, y: Math.floor(index / 50) * 200 }, width: 160, height: 120 }));
+        const index = getCanvasNodeSpatialIndex(nodes);
+        expect(getCanvasNodeSpatialIndex(nodes)).toBe(index);
+        expect(index.get("500")?.id).toBe("500");
+        expect(nodesInRect(nodes, { x: 0, y: 0, width: 400, height: 400 }).map((node) => node.id)).toEqual(["0", "1", "50", "51"]);
     });
 
     test("centers, zooms, and fits viewport targets", () => {

@@ -1,5 +1,6 @@
 import { canvasDefaults } from "../defaults.js";
 import type { CanvasGroupResolver, CanvasNode, CanvasRect, CanvasResizeCorner, Position } from "../types.js";
+import { CANVAS_SPATIAL_INDEX_THRESHOLD, getCanvasNodeSpatialIndex, nodeIntersectsRect } from "./spatial-index.js";
 
 export function normalizeRect(start: Position, end: Position): CanvasRect {
     return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
@@ -21,8 +22,9 @@ export function resizeNodeBounds(node: Pick<CanvasNode, "position" | "width" | "
     return { width, height, position: { x: fromLeft ? right - width : node.position.x, y: fromTop ? bottom - height : node.position.y } };
 }
 
+/** Returns nodes intersecting a world rectangle while preserving document order. */
 export function nodesInRect<T>(nodes: readonly CanvasNode<T>[], rect: CanvasRect) {
-    return nodes.filter((node) => rect.x < node.position.x + node.width && rect.x + rect.width > node.position.x && rect.y < node.position.y + node.height && rect.y + rect.height > node.position.y);
+    return nodes.length < CANVAS_SPATIAL_INDEX_THRESHOLD ? nodes.filter((node) => nodeIntersectsRect(node, rect)) : getCanvasNodeSpatialIndex(nodes).query(rect);
 }
 
 export function nodeBounds<T>(nodes: readonly CanvasNode<T>[]) {
