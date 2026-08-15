@@ -10,6 +10,8 @@ const defaultConnectionAriaLabel = (connection: CanvasConnection) => `Connection
 export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     nodes: readonly CanvasNode<TMetadata>[];
     connections: readonly CanvasConnection[];
+    /** Limits rendering to connections adjacent to visible nodes, while retaining selected and active connections. */
+    visibleNodeIds?: ReadonlySet<string>;
     interaction?: CanvasConnectionInteraction | null;
     selectedConnectionId?: string | null;
     activeConnectionIds?: ReadonlySet<string>;
@@ -27,13 +29,18 @@ export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     onConnectionContextMenu?: (event: MouseEvent<SVGPathElement>, connection: CanvasConnection) => void;
 };
 
-export function CanvasConnectionLayer<TMetadata>({ nodes, connections, interaction, selectedConnectionId, activeConnectionIds, theme, resolvePath = getConnectionPath, resolveStyle, previewStyle, hitStrokeWidth = canvasDefaults.connectionStrokeHitWidth, className, style, connectionTabIndex = 0, getConnectionAriaLabel = defaultConnectionAriaLabel, onConnectionSelect, onConnectionKeyDown, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
+/** Renders persistent and transient SVG connections in canvas world coordinates. */
+export function CanvasConnectionLayer<TMetadata>({ nodes, connections, visibleNodeIds, interaction, selectedConnectionId, activeConnectionIds, theme, resolvePath = getConnectionPath, resolveStyle, previewStyle, hitStrokeWidth = canvasDefaults.connectionStrokeHitWidth, className, style, connectionTabIndex = 0, getConnectionAriaLabel = defaultConnectionAriaLabel, onConnectionSelect, onConnectionKeyDown, onConnectionContextMenu }: CanvasConnectionLayerProps<TMetadata>) {
     const byId = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
+    const renderedConnections = useMemo(
+        () => visibleNodeIds ? connections.filter((connection) => visibleNodeIds.has(connection.fromNodeId) || visibleNodeIds.has(connection.toNodeId) || selectedConnectionId === connection.id || Boolean(activeConnectionIds?.has(connection.id))) : connections,
+        [activeConnectionIds, connections, selectedConnectionId, visibleNodeIds],
+    );
     const source = interaction ? byId.get(interaction.handle.nodeId) : undefined;
     const target = interaction?.targetNodeId ? byId.get(interaction.targetNodeId) : undefined;
     return (
         <svg data-canvas-connections className={className} style={{ position: "absolute", left: 0, top: 0, width: 1, height: 1, overflow: "visible", pointerEvents: "none", transform: "translateZ(0)", zIndex: 0, ...style }}>
-            {connections.map((connection) => {
+            {renderedConnections.map((connection) => {
                 const from = byId.get(connection.fromNodeId);
                 const to = byId.get(connection.toNodeId);
                 if (!from || !to) return null;

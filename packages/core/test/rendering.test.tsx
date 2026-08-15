@@ -24,6 +24,8 @@ test("renders core connection, selection, and minimap layers", () => {
     expect(selectedConnectionHtml).toContain('data-connection-id="ab"');
     expect(selectedConnectionHtml).toContain('role="button" tabindex="0" aria-label="A to B" aria-pressed="true"');
     expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} resolvePath={() => "M 0 0 L 1 1"} />)).toContain('d="M 0 0 L 1 1"');
+    expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} visibleNodeIds={new Set()} theme={canvasThemes.light} />)).not.toContain('data-connection-id="ab"');
+    expect(renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} visibleNodeIds={new Set()} selectedConnectionId="ab" theme={canvasThemes.light} />)).toContain('data-connection-id="ab"');
     const connectionHtml = renderToString(<CanvasConnectionLayer nodes={nodes} connections={[{ id: "ab", fromNodeId: "a", toNodeId: "b" }]} theme={canvasThemes.light} hitStrokeWidth={24} className="custom-connections" style={{ zIndex: 2 }} resolveStyle={() => ({ stroke: "red", strokeWidth: 5, strokeDasharray: "2 2" })} />);
     expect(connectionHtml).toContain('class="custom-connections"');
     expect(connectionHtml).toContain('data-canvas-connections="true"');

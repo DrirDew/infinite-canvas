@@ -414,6 +414,8 @@ function InfiniteCanvasPage() {
     const visibleNodes = useMemo(() => {
         return nodesInViewport(nodes, viewport, size, 280);
     }, [nodes, size.height, size.width, viewport.k, viewport.x, viewport.y]);
+    /** IDs used by the connection layer to avoid mounting SVG paths wholly outside the padded viewport. */
+    const visibleNodeIds = useMemo(() => new Set(visibleNodes.map((node) => node.id)), [visibleNodes]);
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
     // The toolbar follows a single selected node selected by click, creation, marquee, or keyboard.
@@ -1996,6 +1998,7 @@ function InfiniteCanvasPage() {
                     <CanvasConnectionLayer
                         nodes={nodes}
                         connections={connections}
+                        visibleNodeIds={visibleNodeIds}
                         interaction={connectionInteraction}
                         selectedConnectionId={selectedConnectionId}
                         activeConnectionIds={relatedHighlight.connectionIds}
