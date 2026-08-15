@@ -1,7 +1,7 @@
 import { useCallback, useRef, type MouseEvent, type PointerEvent } from "react";
 import { useCanvasPointerLifecycle } from "../internal/use-canvas-pointer-lifecycle.js";
 import { useCanvasViewport, type UseCanvasViewportOptions } from "./use-canvas-viewport.js";
-import type { CanvasConnection, CanvasConnectionDropResult, Position } from "../types.js";
+import type { CanvasConnection, CanvasConnectionDropResult, Position } from "../canvas/model.js";
 
 /** Host callbacks and viewport options used to bind pointer interactions. */
 export type UseCanvasInteractionsOptions<TMetadata = unknown> = UseCanvasViewportOptions<TMetadata> & {

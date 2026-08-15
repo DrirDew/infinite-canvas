@@ -1,4 +1,4 @@
-import type { CanvasShortcut, CanvasShortcutEvent } from "../types.js";
+import type { CanvasShortcut, CanvasShortcutEvent } from "../canvas/model.js";
 
 /** Resolves a platform-neutral keyboard event into a Core canvas action. */
 export function resolveCanvasShortcut(event: CanvasShortcutEvent): CanvasShortcut | null {

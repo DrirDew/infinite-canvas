@@ -1,4 +1,4 @@
-import type { CanvasNode, CanvasRect } from "../types.js";
+import type { CanvasNode, CanvasRect } from "../canvas/model.js";
 
 /** Default world-space cell size used to partition large canvas documents. */
 export const CANVAS_SPATIAL_INDEX_CELL_SIZE = 512;

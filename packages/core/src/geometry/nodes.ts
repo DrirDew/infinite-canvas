@@ -1,5 +1,5 @@
 import { canvasDefaults } from "../defaults.js";
-import type { CanvasGroupResolver, CanvasNode, CanvasRect, CanvasResizeCorner, Position } from "../types.js";
+import type { CanvasGroupResolver, CanvasNode, CanvasRect, CanvasResizeCorner, Position } from "../canvas/model.js";
 import { CANVAS_SPATIAL_INDEX_THRESHOLD, getCanvasNodeSpatialIndex, nodeIntersectsRect } from "./spatial-index.js";
 
 /** Normalizes two world points into a positive axis-aligned rectangle. */

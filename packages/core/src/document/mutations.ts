@@ -1,5 +1,6 @@
-import { normalizeConnection } from "../geometry.js";
-import type { CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode, CanvasNodePatch, CanvasSelection } from "../types.js";
+import { normalizeConnection } from "../geometry/connections.js";
+import type { CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode, CanvasSelection } from "../canvas/model.js";
+import type { CanvasNodePatch } from "../canvas/commands.js";
 import { getCanvasDocumentIssues, hasValidCanvasNodeGeometry } from "./validation.js";
 
 /** Creates a detached structural snapshot while preserving host-owned metadata references. */

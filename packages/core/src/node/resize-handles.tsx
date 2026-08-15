@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { canvasDefaults } from "../defaults.js";
-import { resizeNodeBounds } from "../geometry.js";
+import { resizeNodeBounds } from "../geometry/nodes.js";
 import { subscribeWindowEvent } from "../internal/window-events.js";
-import type { CanvasNode, CanvasResizeCorner } from "../types.js";
+import type { CanvasNode, CanvasResizeCorner } from "../canvas/model.js";
 
 /** Layout, geometry, rendering, and lifecycle options for node resize handles. */
 export type CanvasNodeResizeHandlesProps<TMetadata = unknown> = {

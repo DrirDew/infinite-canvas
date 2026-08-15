@@ -24,7 +24,7 @@ function createCanvas(document: CanvasDocument<Metadata> = { nodes: [], connecti
     return canvas;
 }
 
-type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "document" | "viewport" | "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode" | "onDocumentChange" | "onViewportChange" | "onSelectionChange" | "onInteractionChange">;
+type CanvasOptions = Pick<UseCanvasOptions<Metadata>, "document" | "viewport" | "historyLimit" | "dragThreshold" | "groupPadding" | "connectionHandleRadius" | "connectionNodePadding" | "canGroupNode" | "onDocumentChange" | "onViewportChange" | "onSelectionChange" | "onInteractionChange" | "policies" | "listeners">;
 
 test("adds, updates, and removes nodes and connections", () => {
     const canvas = createCanvas();
@@ -225,6 +225,21 @@ test("publishes selection and interaction changes", () => {
     expect(connecting).toBe(false);
 });
 
+test("accepts grouped policies and listeners", () => {
+    let documents = 0;
+    let selected: string[] = [];
+    const canvas = createCanvas({ nodes: [node("a"), { ...node("group"), role: "group" }], connections: [] }, undefined, {
+        policies: { grouping: () => false },
+        listeners: { document: () => documents++, selection: (selection) => (selected = [...selection.nodeIds]) },
+    });
+    canvas.commands.updateNode("a", { groupId: "group" });
+    canvas.commands.addNode(node("b"));
+    canvas.commands.selectNodes(["a"]);
+    expect(canvas.commands.getDocument().nodes[0].groupId).toBeUndefined();
+    expect(documents).toBe(1);
+    expect(selected).toEqual(["a"]);
+});
+
 test("skips repeated selection and viewport notifications", () => {
     let selectionChanges = 0;
     let viewportChanges = 0;
@@ -239,12 +254,14 @@ test("skips repeated selection and viewport notifications", () => {
 test("dragging groups moves children and resizing creates one history entry", () => {
     const canvas = createCanvas({ nodes: [{ ...node("group"), type: "group", role: "group" }, { ...node("child"), groupId: "group" }], connections: [] });
     canvas.commands.startNodeDrag(["group"], { x: 0, y: 0 });
+    expect(canvas.commands.getInteraction().kind).toBe("node-drag");
     canvas.commands.endNodeDrag({ x: 100, y: 50 });
     expect(canvas.commands.getDocument().nodes.map(({ position }) => position)).toEqual([
         { x: 100, y: 50 },
         { x: 100, y: 50 },
     ]);
     canvas.commands.startNodeResize("child");
+    expect(canvas.commands.getInteraction().kind).toBe("node-resize");
     canvas.commands.resizeNode("child", 240, 180, { x: 120, y: 70 });
     canvas.commands.endNodeResize();
     expect(canvas.commands.getDocument().nodes[1]).toMatchObject({ width: 240, height: 180, position: { x: 120, y: 70 } });
@@ -283,10 +300,27 @@ test("commits an active preview before a new transaction", () => {
     expect(canvas.commands.getDocument().nodes[0]).toMatchObject({ width: 200, height: 180 });
 });
 
+test("rejects invalid transaction documents without changing history", () => {
+    const canvas = createCanvas({ nodes: [node("a")], connections: [] });
+    expect(() => canvas.commands.transaction((document) => ({ ...document, nodes: [{ ...document.nodes[0], width: 0 }] }))).toThrow(TypeError);
+    expect(canvas.commands.getDocument().nodes[0].width).toBe(100);
+    expect(canvas.commands.getHistoryDocuments()).toEqual([]);
+});
+
+test("restores the previous document when an invalid preview is committed", () => {
+    const canvas = createCanvas({ nodes: [node("a")], connections: [] });
+    canvas.commands.preview((document) => ({ ...document, nodes: [{ ...document.nodes[0], height: 0 }] }));
+    expect(() => canvas.commands.commitPreview()).toThrow(TypeError);
+    expect(canvas.commands.getDocument().nodes[0].height).toBe(100);
+    expect(canvas.commands.getInteraction().kind).toBe("idle");
+    expect(canvas.commands.getHistoryDocuments()).toEqual([]);
+});
+
 test("connection interaction resolves targets without generating ids", () => {
     const canvas = createCanvas({ nodes: [node("a"), { ...node("b"), position: { x: 200, y: 0 } }], connections: [] });
     const other = createCanvas({ nodes: [node("other")], connections: [] });
     canvas.commands.startConnection({ nodeId: "a", handleType: "source", handleId: "output" }, { x: 100, y: 50 });
+    expect(canvas.commands.getInteraction().kind).toBe("connection");
     expect(canvas.commands.moveConnection({ x: 250, y: 50 })).toEqual({ nodeId: "b", isNearNode: true });
     expect(canvas.commands.getInteraction().connectionInteraction?.targetNodeId).toBe("b");
     expect(other.commands.getInteraction().connectionInteraction).toBeNull();

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { canvasDefaults } from "../defaults.js";
-import { nodesInViewport } from "../geometry.js";
-import type { CanvasNode, CanvasSize, ViewportTransform } from "../types.js";
+import { nodesInViewport } from "../geometry/viewport.js";
+import type { CanvasNode, CanvasSize, ViewportTransform } from "../canvas/model.js";
 
 /** The viewport-local nodes and IDs used to limit heavy node and connection DOM. */
 export type CanvasVirtualizationResult<TMetadata = unknown> = { visibleNodes: readonly CanvasNode<TMetadata>[]; visibleNodeIds: ReadonlySet<string> };

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type PointerEvent, type RefObject, type WheelEvent } from "react";
-import { zoomViewportAtPoint } from "../geometry.js";
-import type { CanvasTool, ViewportTransform } from "../types.js";
+import { zoomViewportAtPoint } from "../geometry/viewport.js";
+import type { CanvasTool, ViewportTransform } from "../canvas/model.js";
 import { acquireBodyCursor, releaseBodyCursor } from "./body-cursor.js";
 import { acquireCanvasPointer, canOwnCanvasPointer, releaseCanvasPointer } from "./pointer-ownership.js";
 import { subscribeWindowEvent } from "./window-events.js";

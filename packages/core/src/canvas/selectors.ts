@@ -1,4 +1,4 @@
-import type { CanvasConnection, CanvasNode } from "../types.js";
+import type { CanvasConnection, CanvasNode } from "./model.js";
 
 /** Counts direct children for every group ID in one pass. */
 export function countCanvasGroupChildren<TMetadata>(nodes: readonly CanvasNode<TMetadata>[]) {

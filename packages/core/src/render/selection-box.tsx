@@ -1,6 +1,6 @@
 import type { CSSProperties, SVGAttributes } from "react";
 import type { CanvasTheme } from "../theme.js";
-import type { CanvasRect } from "../types.js";
+import type { CanvasRect } from "../canvas/model.js";
 
 /** Props for a scale-independent marquee selection rectangle. */
 export type CanvasSelectionBoxProps = {

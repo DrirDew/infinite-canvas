@@ -1,6 +1,16 @@
 import type { CanvasCommands } from "./commands.js";
 import type { CanvasConnectionInteraction, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, ViewportTransform } from "./model.js";
 
+/** Host policies used to validate and normalize canvas relationships. */
+export type CanvasPolicies<TMetadata = unknown> = { connection?: CanvasConnectionResolver<TMetadata>; grouping?: CanvasGroupResolver<TMetadata> };
+/** Instance listeners notified after committed canvas state changes. */
+export type CanvasListeners<TMetadata = unknown> = {
+    document?: (document: CanvasDocument<TMetadata>) => void;
+    viewport?: (viewport: ViewportTransform) => void;
+    selection?: (selection: CanvasSelection) => void;
+    interaction?: (interaction: CanvasInteractionState) => void;
+};
+
 /** Tunable editing behavior owned by one canvas instance. */
 export type CanvasBehaviorOptions = {
     historyLimit?: number;
@@ -29,6 +39,8 @@ export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
     onViewportChange?: (viewport: ViewportTransform) => void;
     onSelectionChange?: (selection: CanvasSelection) => void;
     onInteractionChange?: (interaction: CanvasInteractionState) => void;
+    listeners?: CanvasListeners<TMetadata>;
+    policies?: CanvasPolicies<TMetadata>;
     resolveConnection?: CanvasConnectionResolver<TMetadata>;
     canGroupNode?: CanvasGroupResolver<TMetadata>;
 };
@@ -36,6 +48,8 @@ export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
 export type UseCanvasResult<TMetadata = unknown> = {
     document: CanvasDocument<TMetadata>;
     viewport: ViewportTransform;
+    interaction: CanvasInteractionState;
+    interactionKind: CanvasInteractionState["kind"];
     selectedNodeIds: ReadonlySet<string>;
     selectedConnectionId: string | null;
     canUndo: boolean;

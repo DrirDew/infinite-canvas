@@ -80,7 +80,7 @@ export type CanvasCommands<TMetadata = unknown> = {
     getInteraction: () => CanvasInteractionState;
     /** Returns the document snapshots currently retained by undo and redo history. */
     getHistoryDocuments: () => CanvasDocument<TMetadata>[];
-    /** Applies one atomic immutable document update and records one history entry. */
+    /** Applies one validated atomic immutable document update and records one history entry. */
     transaction: (updater: CanvasDocumentUpdater<TMetadata>) => CanvasDocument<TMetadata>;
     /** Updates the viewport outside document history. */
     setViewport: (updater: ViewportUpdater) => ViewportTransform;
@@ -90,7 +90,7 @@ export type CanvasCommands<TMetadata = unknown> = {
     redo: () => void;
     /** Publishes a transient document without notifying persistent document listeners. */
     preview: (updater: CanvasDocumentUpdater<TMetadata>) => CanvasDocument<TMetadata>;
-    /** Commits the active preview as one history entry. */
+    /** Validates and commits the active preview, restoring the previous document when invalid. */
     commitPreview: () => void;
     /** Restores the document from before the active preview. */
     cancelPreview: () => void;

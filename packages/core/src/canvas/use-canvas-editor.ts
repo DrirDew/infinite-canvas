@@ -1,4 +1,4 @@
-import type { UseCanvasOptions } from "../types.js";
+import type { UseCanvasOptions } from "./options.js";
 import { useCanvas } from "./use-canvas.js";
 import { useCanvasInteractions, type UseCanvasInteractionsOptions } from "../interaction/use-canvas-interactions.js";
 

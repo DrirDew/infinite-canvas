@@ -2,7 +2,7 @@ import type { CSSProperties, DragEvent, MouseEvent, PointerEvent, ReactNode, Ref
 import { canvasDefaults } from "../defaults.js";
 import { CANVAS_NODE_SELECTOR, DEFAULT_CANVAS_IGNORE_SELECTOR, isCanvasInputIgnored, useCanvasSurfaceInput } from "../internal/use-canvas-surface-input.js";
 import type { CanvasBackgroundMode, CanvasTheme } from "../theme.js";
-import type { CanvasTool, ViewportTransform } from "../types.js";
+import type { CanvasTool, ViewportTransform } from "../canvas/model.js";
 
 /** Props for the viewport surface, background, and transformed world-content layer. */
 export type InfiniteCanvasProps = {

@@ -1,5 +1,5 @@
 import { canvasDefaults } from "../defaults.js";
-import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, ConnectionHandle, Position } from "../types.js";
+import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasConnectionResolver, CanvasNode, ConnectionHandle, Position } from "../canvas/model.js";
 import { isGroupNode } from "./nodes.js";
 import { CANVAS_SPATIAL_INDEX_THRESHOLD, getCanvasNodeSpatialIndex } from "./spatial-index.js";
 

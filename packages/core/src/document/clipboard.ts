@@ -1,5 +1,6 @@
-import { nodeBounds } from "../geometry.js";
-import type { CanvasClipboard, CanvasConnection, CanvasDocument, CanvasPasteOptions } from "../types.js";
+import { nodeBounds } from "../geometry/nodes.js";
+import type { CanvasClipboard, CanvasConnection, CanvasDocument } from "../canvas/model.js";
+import type { CanvasPasteOptions } from "../canvas/commands.js";
 
 /** Copies selected nodes and connections whose endpoints are both selected. */
 export function createCanvasClipboard<TMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>): CanvasClipboard<TMetadata> | null {

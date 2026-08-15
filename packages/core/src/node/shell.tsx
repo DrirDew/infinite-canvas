@@ -1,5 +1,5 @@
 import type { HTMLAttributes } from "react";
-import type { CanvasNode } from "../types.js";
+import type { CanvasNode } from "../canvas/model.js";
 
 /** Standard div attributes plus the node snapshot used for world positioning. */
 export type CanvasNodeShellProps<TMetadata = unknown> = HTMLAttributes<HTMLDivElement> & { node: CanvasNode<TMetadata> };

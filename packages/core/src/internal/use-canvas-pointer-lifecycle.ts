@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { normalizeRect } from "../geometry.js";
-import type { CanvasCommands, CanvasConnectionDropResult, CanvasRect, Position } from "../types.js";
+import { normalizeRect } from "../geometry/nodes.js";
+import type { CanvasCommands } from "../canvas/commands.js";
+import type { CanvasConnectionDropResult, CanvasRect, Position } from "../canvas/model.js";
 import { createLatestAnimationFrame } from "./latest-animation-frame.js";
 import { acquireCanvasPointer, canOwnCanvasPointer, releaseCanvasPointer } from "./pointer-ownership.js";
 import { subscribeWindowEvent } from "./window-events.js";

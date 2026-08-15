@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { canvasDefaults } from "../defaults.js";
-import { centerViewport, fitViewportToNode, screenToCanvas, zoomViewport } from "../geometry.js";
+import { centerViewport, fitViewportToNode, screenToCanvas, zoomViewport } from "../geometry/viewport.js";
 import { subscribeWindowEvent } from "../internal/window-events.js";
-import type { CanvasCommands, CanvasSize, CanvasViewportOptions, ViewportTransform } from "../types.js";
+import type { CanvasCommands } from "../canvas/commands.js";
+import type { CanvasSize, ViewportTransform } from "../canvas/model.js";
+import type { CanvasViewportOptions } from "../canvas/options.js";
 
 /** Uses layout timing in browsers without producing server-rendering warnings. */
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;

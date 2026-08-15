@@ -1,5 +1,5 @@
-import { normalizeConnection } from "../geometry.js";
-import type { CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode } from "../types.js";
+import { normalizeConnection } from "../geometry/connections.js";
+import type { CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode } from "../canvas/model.js";
 
 /** A machine-readable problem found while validating an external document. */
 export type CanvasDocumentIssue = {

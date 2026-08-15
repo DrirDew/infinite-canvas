@@ -1,8 +1,8 @@
 import { useMemo, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { canvasDefaults } from "../defaults.js";
-import { nodeBounds } from "../geometry.js";
+import { nodeBounds } from "../geometry/nodes.js";
 import type { CanvasTheme } from "../theme.js";
-import type { CanvasNode, CanvasSize, ViewportTransform } from "../types.js";
+import type { CanvasNode, CanvasSize, ViewportTransform } from "../canvas/model.js";
 
 /** Props for the interactive overview of document bounds and the current viewport. */
 export type CanvasMinimapProps<TMetadata = unknown> = {

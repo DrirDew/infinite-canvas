@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { canvasDefaults } from "../defaults.js";
-import { createCanvasDocumentSnapshot, validateCanvasDocument } from "../document.js";
-import { createCanvasViewportSnapshot, validateCanvasViewport } from "../geometry.js";
+import { createCanvasDocumentSnapshot, validateCanvasDocument } from "../document/mutations.js";
+import { createCanvasViewportSnapshot, validateCanvasViewport } from "../geometry/viewport.js";
 import { createCanvasCommands } from "../internal/create-canvas-commands.js";
 import { createCanvasHistory, createCanvasSelection, DEFAULT_INTERACTION, DEFAULT_VIEWPORT, type CanvasBehavior, type CanvasDrag, type CanvasHistory } from "../internal/canvas-state.js";
-import type { CanvasClipboard, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, UseCanvasOptions, UseCanvasResult } from "../types.js";
+import type { CanvasClipboard, CanvasDocument, CanvasInteractionState, CanvasSelection } from "./model.js";
+import type { CanvasListeners, CanvasPolicies, UseCanvasOptions, UseCanvasResult } from "./options.js";
 
 /**
  * Creates one isolated canvas instance with immutable document history and stable commands.
@@ -19,6 +20,8 @@ export function useCanvas<TMetadata = unknown>({
     onViewportChange,
     onSelectionChange,
     onInteractionChange,
+    listeners: optionListeners,
+    policies,
     resolveConnection,
     canGroupNode,
     historyLimit = canvasDefaults.historyLimit,
@@ -27,17 +30,19 @@ export function useCanvas<TMetadata = unknown>({
     connectionHandleRadius = canvasDefaults.connectionHandleRadius,
     connectionNodePadding = canvasDefaults.connectionNodePadding,
 }: UseCanvasOptions<TMetadata> = {}): UseCanvasResult<TMetadata> {
+    const activePolicies: CanvasPolicies<TMetadata> = { connection: policies?.connection ?? resolveConnection, grouping: policies?.grouping ?? canGroupNode };
+    const listeners: CanvasListeners<TMetadata> = { document: optionListeners?.document ?? onDocumentChange, viewport: optionListeners?.viewport ?? onViewportChange, selection: optionListeners?.selection ?? onSelectionChange, interaction: optionListeners?.interaction ?? onInteractionChange };
     const behavior: CanvasBehavior = { historyLimit: Math.max(1, historyLimit), dragThreshold: Math.max(0, dragThreshold), groupPadding: Math.max(0, groupPadding), connectionHandleRadius: Math.max(0, connectionHandleRadius), connectionNodePadding: Math.max(0, connectionNodePadding) };
-    const [documentState, setDocumentState] = useState(() => createCanvasDocumentSnapshot(initialDocument, resolveConnection, canGroupNode));
+    const [documentState, setDocumentState] = useState(() => createCanvasDocumentSnapshot(initialDocument, activePolicies.connection, activePolicies.grouping));
     const [viewportState, setViewportState] = useState(() => createCanvasViewportSnapshot(initialViewport));
     const [selection, setSelection] = useState<CanvasSelection>(createCanvasSelection);
     const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
-    const [interaction, setInteraction] = useState(DEFAULT_INTERACTION);
+    const [interaction, setInteraction] = useState<CanvasInteractionState>(DEFAULT_INTERACTION);
     /** Caches validation by controlled document identity instead of rescanning it on every render. */
-    const controlledDocumentRef = useRef<{ source?: CanvasDocument<TMetadata>; value?: CanvasDocument<TMetadata> }>({});
+    const controlledDocumentRef = useRef<{ source?: CanvasDocument<TMetadata>; policies?: CanvasPolicies<TMetadata>; value?: CanvasDocument<TMetadata> }>({});
     /** Caches validation by controlled viewport identity. */
     const controlledViewportRef = useRef<{ source?: typeof controlledViewport; value?: typeof controlledViewport }>({});
-    if (controlledDocument !== undefined && controlledDocumentRef.current.source !== controlledDocument) controlledDocumentRef.current = { source: controlledDocument, value: validateCanvasDocument(controlledDocument, resolveConnection, canGroupNode) };
+    if (controlledDocument !== undefined && (controlledDocumentRef.current.source !== controlledDocument || controlledDocumentRef.current.policies?.connection !== activePolicies.connection || controlledDocumentRef.current.policies?.grouping !== activePolicies.grouping)) controlledDocumentRef.current = { source: controlledDocument, policies: activePolicies, value: validateCanvasDocument(controlledDocument, activePolicies.connection, activePolicies.grouping) };
     if (controlledViewport !== undefined && controlledViewportRef.current.source !== controlledViewport) controlledViewportRef.current = { source: controlledViewport, value: validateCanvasViewport(controlledViewport) };
     const document = controlledDocument === undefined ? documentState : controlledDocumentRef.current.value!;
     const viewport = controlledViewport === undefined ? viewportState : controlledViewportRef.current.value!;
@@ -49,12 +54,8 @@ export function useCanvas<TMetadata = unknown>({
     const previewRef = useRef<CanvasDocument<TMetadata> | null>(null);
     const dragRef = useRef<CanvasDrag<TMetadata> | null>(null);
     const clipboardRef = useRef<CanvasClipboard<TMetadata> | null>(null);
-    const onDocumentChangeRef = useRef(onDocumentChange);
-    const onViewportChangeRef = useRef(onViewportChange);
-    const onSelectionChangeRef = useRef(onSelectionChange);
-    const onInteractionChangeRef = useRef(onInteractionChange);
-    const connectionResolverRef = useRef<CanvasConnectionResolver<TMetadata> | undefined>(resolveConnection);
-    const groupResolverRef = useRef<CanvasGroupResolver<TMetadata> | undefined>(canGroupNode);
+    const listenersRef = useRef(listeners);
+    const policiesRef = useRef(activePolicies);
     const behaviorRef = useRef(behavior);
     /** Lets stable commands decide at call time whether React state is controlled. */
     const controlledRef = useRef({ document: controlledDocument !== undefined, viewport: controlledViewport !== undefined });
@@ -65,12 +66,8 @@ export function useCanvas<TMetadata = unknown>({
     const setViewport: typeof setViewportState = (next) => {
         if (!controlledRef.current.viewport) setViewportState(next);
     };
-    onDocumentChangeRef.current = onDocumentChange;
-    onViewportChangeRef.current = onViewportChange;
-    onSelectionChangeRef.current = onSelectionChange;
-    onInteractionChangeRef.current = onInteractionChange;
-    connectionResolverRef.current = resolveConnection;
-    groupResolverRef.current = canGroupNode;
+    listenersRef.current = listeners;
+    policiesRef.current = activePolicies;
     behaviorRef.current = behavior;
 
     const commands = useMemo(
@@ -84,12 +81,8 @@ export function useCanvas<TMetadata = unknown>({
                 previewRef,
                 dragRef,
                 clipboardRef,
-                onDocumentChangeRef,
-                onViewportChangeRef,
-                onSelectionChangeRef,
-                onInteractionChangeRef,
-                connectionResolverRef,
-                groupResolverRef,
+                listenersRef,
+                policiesRef,
                 behaviorRef,
                 setDocument,
                 setViewport,
@@ -114,8 +107,8 @@ export function useCanvas<TMetadata = unknown>({
         setSelection(nextSelection);
         setInteraction(DEFAULT_INTERACTION);
         setHistoryState({ canUndo: false, canRedo: false });
-        onSelectionChangeRef.current?.(nextSelection);
-        onInteractionChangeRef.current?.(DEFAULT_INTERACTION);
+        listenersRef.current.selection?.(nextSelection);
+        listenersRef.current.interaction?.(DEFAULT_INTERACTION);
     }, [controlledDocument, document]);
 
     useEffect(() => {
@@ -124,5 +117,5 @@ export function useCanvas<TMetadata = unknown>({
         viewportRef.current = viewport;
     }, [controlledViewport, viewport]);
 
-    return { document, viewport, selectedNodeIds: selection.nodeIds, selectedConnectionId: selection.connectionId, ...historyState, ...interaction, commands };
+    return { document, viewport, interaction, interactionKind: interaction.kind, selectedNodeIds: selection.nodeIds, selectedConnectionId: selection.connectionId, ...historyState, isNodeDragging: interaction.isNodeDragging, isNodeResizing: interaction.isNodeResizing, dropTargetGroupId: interaction.dropTargetGroupId, connectionInteraction: interaction.connectionInteraction, commands };
 }

@@ -1,8 +1,8 @@
 import { useMemo, type CSSProperties, type KeyboardEvent, type MouseEvent, type SVGAttributes } from "react";
 import { canvasDefaults } from "../defaults.js";
-import { getConnectionPath } from "../geometry.js";
+import { getConnectionPath } from "../geometry/connections.js";
 import type { CanvasTheme } from "../theme.js";
-import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "../types.js";
+import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "../canvas/model.js";
 
 /** SVG stroke attributes that hosts may resolve for each connection. */
 export type CanvasConnectionStyle = Pick<SVGAttributes<SVGPathElement>, "stroke" | "strokeWidth" | "strokeOpacity" | "strokeDasharray" | "style">;

@@ -1,5 +1,5 @@
 import { canvasDefaults } from "../defaults.js";
-import type { CanvasNode, CanvasSize, CanvasViewportOrigin, Position, ViewportTransform } from "../types.js";
+import type { CanvasNode, CanvasSize, CanvasViewportOrigin, Position, ViewportTransform } from "../canvas/model.js";
 import { nodesInRect } from "./nodes.js";
 
 /** Default minimum zoom used by viewport helpers. */

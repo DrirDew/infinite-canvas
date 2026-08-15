@@ -115,15 +115,19 @@ function Editor() {
 - 交互：节点拖动与缩放、连线开始/移动/结束/取消。
 - 剪贴板：`copySelection`、`pasteClipboard`，不访问系统剪贴板。
 - 历史：`undo`、`redo`、`preview`、`commitPreview`、`cancelPreview`。
-- 原子修改：`transaction(updater)`，一次修改多个节点和连线只产生一条历史。
+- 原子修改：`transaction(updater)`，一次修改多个节点和连线只产生一条历史，并在发布前校验最终文档。
 - 快照读取：`getDocument`、`getViewport`、`getSelection`、`getInteraction`、`getHistoryDocuments`。
 
 连续拖动和缩放只在结束时提交一条历史。粘贴、批量生成和切图等宿主业务应使用 `transaction` 或对应批量命令。
+
+临时交互由 `CanvasInteractionState.kind` 表达为 `idle`、`node-drag`、`node-resize` 或 `connection`，同一实例只会有一种活动编辑模式；原有 `isNodeDragging`、`isNodeResizing`、`dropTargetGroupId` 和 `connectionInteraction` 字段继续可用。
 
 ## 策略与回调
 
 `useCanvas` 支持以下接入点：
 
+- `policies`：集中配置 `connection` 与 `grouping` 规则，便于宿主继续扩展画布策略；原有 `resolveConnection`、`canGroupNode` 参数仍可直接使用。
+- `listeners`：集中订阅 `document`、`viewport`、`selection` 与 `interaction` 变化；原有独立回调仍可直接使用。
 - `onDocumentChange`：保存最新文档快照。
 - `onViewportChange`、`onSelectionChange`、`onInteractionChange`：同步外部检查器或状态面板。
 - `resolveConnection`：注入节点类型、端口方向和禁连规则。

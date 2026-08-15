@@ -54,8 +54,12 @@ export type CanvasConnectionInteraction = { readonly handle: ConnectionHandle; r
 export type CanvasConnectionDropTarget = { readonly nodeId: string | null; readonly isNearNode: boolean };
 /** The host-facing result produced when a connection interaction ends. */
 export type CanvasConnectionDropResult = CanvasConnectionDropTarget & { readonly handle: ConnectionHandle; readonly position: Position; readonly connection: Omit<CanvasConnection, "id"> | null };
-/** Transient interaction state excluded from document history. */
-export type CanvasInteractionState = { readonly isNodeDragging: boolean; readonly isNodeResizing: boolean; readonly dropTargetGroupId: string | null; readonly connectionInteraction: CanvasConnectionInteraction | null };
+/** The single active editing mode, excluded from history and retaining convenient boolean fields. */
+export type CanvasInteractionState =
+    | { readonly kind: "idle"; readonly isNodeDragging: false; readonly isNodeResizing: false; readonly dropTargetGroupId: null; readonly connectionInteraction: null }
+    | { readonly kind: "node-drag"; readonly isNodeDragging: true; readonly isNodeResizing: false; readonly dropTargetGroupId: string | null; readonly connectionInteraction: null }
+    | { readonly kind: "node-resize"; readonly isNodeDragging: false; readonly isNodeResizing: true; readonly dropTargetGroupId: null; readonly connectionInteraction: null }
+    | { readonly kind: "connection"; readonly isNodeDragging: false; readonly isNodeResizing: false; readonly dropTargetGroupId: null; readonly connectionInteraction: CanvasConnectionInteraction };
 /** Describes whether a node gesture moved or resolved as a click. */
 export type CanvasNodeDragResult = { readonly moved: boolean; readonly clickedNodeId: string | null };
 /** A normalized keyboard action understood by a canvas host. */

@@ -1,4 +1,4 @@
-import type { CanvasBehaviorOptions, CanvasViewportOptions } from "./types.js";
+import type { CanvasBehaviorOptions, CanvasViewportOptions } from "./canvas/options.js";
 
 /** Public defaults shared by geometry, interaction, and rendering helpers. */
 export type CanvasDefaults = Required<CanvasBehaviorOptions & CanvasViewportOptions> & {
