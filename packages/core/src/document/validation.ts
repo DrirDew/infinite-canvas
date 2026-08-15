@@ -1,11 +1,21 @@
 import { normalizeConnection } from "../geometry.js";
-import type { CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver } from "../types.js";
+import type { CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode } from "../types.js";
 
+/** A machine-readable problem found while validating an external document. */
 export type CanvasDocumentIssue = {
-    type: "empty-node-id" | "duplicate-node-id" | "invalid-group" | "rejected-group" | "empty-connection-id" | "duplicate-connection-id" | "missing-connection-node" | "self-connection" | "group-connection" | "rejected-connection";
+    type: "empty-node-id" | "duplicate-node-id" | "invalid-node-position" | "invalid-node-size" | "invalid-group" | "rejected-group" | "empty-connection-id" | "duplicate-connection-id" | "missing-connection-node" | "self-connection" | "group-connection" | "rejected-connection";
     id: string;
 };
 
+/** Returns whether a node has finite coordinates and strictly positive finite dimensions. */
+export function hasValidCanvasNodeGeometry<TMetadata>(node: CanvasNode<TMetadata>) {
+    return Number.isFinite(node.position.x) && Number.isFinite(node.position.y) && Number.isFinite(node.width) && Number.isFinite(node.height) && node.width > 0 && node.height > 0;
+}
+
+/**
+ * Reports structural and geometric document problems without mutating the input.
+ * Hosts can use the returned issue list before loading persisted or remote data.
+ */
 export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>, groupResolver?: CanvasGroupResolver<TMetadata>) {
     const issues: CanvasDocumentIssue[] = [];
     const nodeIds = new Set<string>();
@@ -13,6 +23,8 @@ export function getCanvasDocumentIssues<TMetadata>(document: CanvasDocument<TMet
         if (!node.id) issues.push({ type: "empty-node-id", id: node.id });
         else if (nodeIds.has(node.id)) issues.push({ type: "duplicate-node-id", id: node.id });
         else nodeIds.add(node.id);
+        if (!Number.isFinite(node.position.x) || !Number.isFinite(node.position.y)) issues.push({ type: "invalid-node-position", id: node.id });
+        if (!Number.isFinite(node.width) || !Number.isFinite(node.height) || node.width <= 0 || node.height <= 0) issues.push({ type: "invalid-node-size", id: node.id });
     });
     const nodes = new Map(document.nodes.map((node) => [node.id, node]));
     document.nodes.forEach((node) => {

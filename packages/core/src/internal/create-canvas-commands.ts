@@ -1,4 +1,4 @@
-import { addDocumentConnections, addDocumentNodes, createCanvasClipboard, pasteCanvasClipboard, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "../document.js";
+import { addDocumentConnections, addDocumentNodes, createCanvasClipboard, createCanvasDocumentSnapshot, pasteCanvasClipboard, removeDocumentConnections, removeDocumentNodes, updateDocumentNode } from "../document.js";
 import { findConnectionDropTarget, findContainingGroupId, findGroupDropTarget, isGroupNode, nodesInRect, normalizeConnection, snapNodesIntoGroup } from "../geometry.js";
 import type { CanvasCommands, CanvasConnection, CanvasConnectionDropResult, CanvasNode, CanvasNodePatch, CanvasPasteOptions, ConnectionHandle, Position } from "../types.js";
 import { createCanvasCommandRuntime, type CanvasCommandContext } from "./canvas-command-runtime.js";
@@ -47,7 +47,7 @@ export function createCanvasCommands<TMetadata>(context: CanvasCommandContext<TM
             historyRef.current = createCanvasHistory();
             previewRef.current = null;
             dragRef.current = null;
-            publish(next);
+            publish(createCanvasDocumentSnapshot(next, connectionResolverRef.current, groupResolverRef.current));
             updateSelection(createCanvasSelection(), true);
             updateInteraction(DEFAULT_INTERACTION);
             updateHistoryState();

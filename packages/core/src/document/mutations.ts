@@ -1,10 +1,24 @@
 import { normalizeConnection } from "../geometry.js";
 import type { CanvasConnection, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasNode, CanvasNodePatch, CanvasSelection } from "../types.js";
+import { getCanvasDocumentIssues, hasValidCanvasNodeGeometry } from "./validation.js";
 
+/** Creates a detached structural snapshot while preserving host-owned metadata references. */
+export function cloneCanvasDocument<TMetadata>(document: CanvasDocument<TMetadata>): CanvasDocument<TMetadata> {
+    return { nodes: document.nodes.map((node) => ({ ...node, position: { ...node.position } })), connections: document.connections.map((connection) => ({ ...connection })) };
+}
+
+/** Validates an external document and returns the detached snapshot accepted by a canvas instance. */
+export function createCanvasDocumentSnapshot<TMetadata>(document: CanvasDocument<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>, groupResolver?: CanvasGroupResolver<TMetadata>) {
+    const issues = getCanvasDocumentIssues(document, resolver, groupResolver);
+    if (issues.length) throw new TypeError(`Invalid canvas document: ${issues.map((issue) => `${issue.type}:${issue.id}`).join(", ")}`);
+    return cloneCanvasDocument(document);
+}
+
+/** Adds unique, geometrically valid nodes and normalizes their group membership. */
 export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, nodes: readonly CanvasNode<TMetadata>[], groupResolver?: CanvasGroupResolver<TMetadata>) {
     const ids = new Set(document.nodes.map((node) => node.id));
     let added = nodes.filter((node) => {
-        if (!node.id || ids.has(node.id)) return false;
+        if (!node.id || ids.has(node.id) || !hasValidCanvasNodeGeometry(node)) return false;
         ids.add(node.id);
         return true;
     });
@@ -12,18 +26,19 @@ export function addDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>,
     added = added.map((node) => {
         const group = node.groupId ? available.get(node.groupId) : undefined;
         const valid = group?.role === "group" && node.groupId !== node.id && (!groupResolver || groupResolver(node, group));
-        return node.groupId && !valid ? { ...node, groupId: undefined } : node;
+        return { ...node, position: { ...node.position }, groupId: node.groupId && !valid ? undefined : node.groupId };
     });
     return added.length ? { ...document, nodes: [...document.nodes, ...added] } : document;
 }
 
+/** Updates one node while preserving document IDs, geometry, groups, and connections. */
 export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata>, id: string, patch: CanvasNodePatch<TMetadata>, resolver?: CanvasConnectionResolver<TMetadata>, groupResolver?: CanvasGroupResolver<TMetadata>) {
     const index = document.nodes.findIndex((node) => node.id === id);
     if (index < 0) return document;
     const node = document.nodes[index];
     let next = typeof patch === "function" ? patch(node) : { ...node, ...patch };
     if (next === node) return document;
-    if (!next.id || (next.id !== id && document.nodes.some((item) => item.id === next.id))) return document;
+    if (!next.id || !hasValidCanvasNodeGeometry(next) || (next.id !== id && document.nodes.some((item) => item.id === next.id))) return document;
     const nodes = document.nodes.map((item, itemIndex) => {
         if (itemIndex === index) return next;
         if (item.groupId !== id) return item;

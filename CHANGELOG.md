@@ -2,6 +2,7 @@
 
 ## Unreleased
 
++ [优化] Core 画布文档改为只读快照契约，外部数据进入实例时自动断开结构引用，并拒绝非有限坐标和非正节点尺寸。
 + [优化] Core 明确区分实例初始化参数与运行时命令，并减少连线命中和关系遍历中的重复查找。
 + [修复] Web、Docs 与 Examples 的独立 TypeScript 类型检查恢复通过，构建流程仍不捆绑类型检查。
 + [调整] Core npm 包名改为 `@basketikun/infinite-canvas`，其余工作区包统一使用 `@basketikun` scope，并同步更新内部依赖、示例与文档引用。

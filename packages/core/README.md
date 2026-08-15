@@ -89,6 +89,8 @@ function Editor() {
 
 `CanvasDocument<TMetadata>` 只包含节点和连线。文档是撤销重做的完整快照，视口、选择和临时交互状态不进入历史。
 
+文档、节点、连线、坐标和选择在类型层面均为只读快照。宿主必须通过 Core 命令或纯 mutation helper 创建新快照，不要原地修改 `getDocument()` 的返回值。Core 在加载外部文档和新增节点时会断开数组、节点与坐标引用，但不会深拷贝宿主拥有的 `metadata`。
+
 - 节点 `type` 是宿主定义的普通字符串。
 - 分组节点使用 `role: "group"`，子节点通过顶层 `groupId` 归属分组。
 - `metadata` 完全由宿主定义，不承载 Core 引擎字段。
@@ -96,7 +98,7 @@ function Editor() {
 - 节点与连线查询、几何和批量新增 API 接受 readonly 数组。
 - 选择结果使用 `ReadonlySet<string>`，修改选择必须调用命令。
 
-`initialDocument` 和 `initialViewport` 只用于创建实例。外部文档可先通过 `getCanvasDocumentIssues(document, resolveConnection, canGroupNode)` 校验；后续加载新文档使用 `setDocument`，并清空当前选择、交互和撤销重做历史。
+`initialDocument` 和 `initialViewport` 只用于创建实例。Core 会拒绝包含无效 ID、分组、连线、坐标或尺寸的外部文档；宿主可先通过 `getCanvasDocumentIssues(document, resolveConnection, canGroupNode)` 展示具体问题。后续加载新文档使用 `setDocument`，并清空当前选择、交互和撤销重做历史。
 
 ## 命令与历史
 

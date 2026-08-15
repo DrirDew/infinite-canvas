@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { getCanvasDocumentIssues, updateDocumentNode, type CanvasDocument, type CanvasNode } from "../src";
+import { addDocumentNodes, cloneCanvasDocument, createCanvasDocumentSnapshot, getCanvasDocumentIssues, updateDocumentNode, type CanvasDocument, type CanvasNode } from "../src";
 
 const node = (id: string): CanvasNode => ({ id, type: "item", title: "", position: { x: 0, y: 0 }, width: 10, height: 10 });
 
@@ -31,4 +31,16 @@ test("keeps node updates structurally valid", () => {
         nodes: [{ id: "renamed" }, { id: "child", groupId: "renamed" }, { id: "other" }],
     });
     expect(updateDocumentNode(document, "child", { role: "group" }).connections).toEqual([]);
+    expect(updateDocumentNode(document, "child", { width: 0 })).toBe(document);
+});
+
+test("rejects invalid node geometry and detaches external snapshots", () => {
+    const document: CanvasDocument = { nodes: [node("a")], connections: [] };
+    expect(getCanvasDocumentIssues({ nodes: [{ ...node("bad"), position: { x: Number.NaN, y: 0 }, height: 0 }], connections: [] }).map((issue) => issue.type)).toEqual(["invalid-node-position", "invalid-node-size"]);
+    expect(addDocumentNodes(document, [{ ...node("bad"), width: -1 }])).toBe(document);
+    const clone = cloneCanvasDocument(document);
+    expect(clone).not.toBe(document);
+    expect(clone.nodes[0]).not.toBe(document.nodes[0]);
+    expect(clone.nodes[0]?.position).not.toBe(document.nodes[0]?.position);
+    expect(() => createCanvasDocumentSnapshot({ nodes: [{ ...node("bad"), width: 0 }], connections: [] })).toThrow("invalid-node-size:bad");
 });
