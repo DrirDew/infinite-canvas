@@ -4,7 +4,7 @@
     "workspaces": ["apps/*", "packages/*", "plugins/user/*", "plugins/registry"],
     "scripts": {
         "dev": "bun --cwd apps/web dev",
-        "dev:examples": "bun --cwd apps/examples dev",
+        "dev:example": "bun --cwd apps/example dev",
         "build": "bun --cwd apps/web build",
         "dev:docs": "bun --cwd apps/docs dev",
         "build:plugins": "bun --cwd plugins/registry build"

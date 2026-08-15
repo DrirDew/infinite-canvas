@@ -1,0 +1,76 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600&display=swap");
+
+:root { font-family: "Noto Sans SC", sans-serif; color-scheme: light dark; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 860px; overflow: hidden; }
+button, textarea, input { font: inherit; }
+button { color: inherit; }
+.example-shell { display: grid; grid-template-columns: 248px 1fr; height: 100vh; color: var(--text); background: var(--canvas-bg); }
+.library-panel { position: relative; z-index: 80; display: flex; min-height: 0; flex-direction: column; padding: 22px 14px 18px; border-right: 1px solid var(--border); background: color-mix(in srgb, var(--panel) 95%, transparent); }
+.brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 25px; }
+.brand-mark { display: grid; width: 31px; height: 31px; place-items: center; border: 1px solid var(--border); border-radius: 10px; color: var(--active); font: 500 21px/1 "DM Mono", monospace; }
+.brand > span:last-child { display: grid; gap: 2px; }
+.brand strong { font-size: 13px; letter-spacing: -.01em; }
+.brand small { color: var(--muted); font: 500 8px/1.2 "DM Mono", monospace; letter-spacing: .14em; }
+.panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 11px 9px; color: var(--muted); font-size: 11px; }
+.panel-heading small { opacity: .72; }
+.node-library { display: grid; gap: 3px; }
+.node-library button, .upload-card { border: 0; background: transparent; cursor: pointer; }
+.node-library button { display: grid; grid-template-columns: 34px 1fr 16px; align-items: center; gap: 10px; padding: 10px 9px; border-radius: 10px; text-align: left; transition: background .16s ease, transform .16s ease; }
+.node-library button:hover { background: color-mix(in srgb, var(--soft) 72%, transparent); transform: translateX(2px); }
+.library-icon { display: grid; width: 32px; height: 32px; place-items: center; }
+.node-library button > span:nth-child(2), .upload-card > span { display: grid; gap: 3px; }
+.node-library strong, .upload-card strong { font-size: 12px; font-weight: 600; }
+.node-library small, .upload-card small { color: var(--muted); font-size: 9px; }
+.add-mark { color: var(--muted); font-weight: 300; opacity: 0; transition: opacity .16s; }
+.node-library button:hover .add-mark { opacity: 1; }
+.upload-card { display: flex; align-items: center; gap: 12px; margin: 15px 7px 0; padding: 13px 10px; border-top: 1px solid var(--border); color: var(--muted); text-align: left; }
+.upload-card:hover { color: var(--text); }
+.guide-card { margin: auto 5px 0; padding: 15px; border: 1px solid var(--border); border-radius: 13px; color: var(--muted); font-size: 9px; }
+.guide-card > span { color: var(--text); font-size: 10px; font-weight: 600; }
+.guide-card p { margin: 9px 0 13px; line-height: 1.8; }
+.guide-card kbd { padding: 4px 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--soft); color: var(--text); font: 9px "DM Mono", monospace; }
+.guide-card > small { margin-left: 7px; font-size: 8px; }
+.workspace { position: relative; min-width: 0; overflow: hidden; }
+.topbar { position: absolute; z-index: 70; top: 0; right: 0; left: 0; display: flex; height: 56px; align-items: center; justify-content: space-between; padding: 0 21px; background: linear-gradient(to bottom, color-mix(in srgb, var(--canvas-bg) 94%, transparent), transparent); pointer-events: none; }
+.topbar div { display: flex; align-items: center; gap: 9px; }
+.topbar strong { font-size: 12px; }
+.topbar span, .topbar small { color: var(--muted); font-size: 9px; }
+.topbar button { display: grid; width: 32px; height: 32px; margin-left: 3px; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer; pointer-events: auto; }
+.topbar button:hover { background: var(--soft); }
+.live-dot { width: 5px; height: 5px; border-radius: 50%; background: #58a87b; box-shadow: 0 0 9px #58a87b88; }
+.example-node { z-index: 10; display: flex; overflow: visible; flex-direction: column; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); box-shadow: 0 14px 42px var(--shadow); cursor: grab; transition: border-color .16s ease, box-shadow .16s ease; }
+.example-node:active { cursor: grabbing; }
+.example-node.selected { z-index: 20; border-color: var(--active); box-shadow: 0 0 0 1px color-mix(in srgb, var(--active) 18%, transparent), 0 18px 52px var(--shadow); }
+.node-label { position: absolute; top: -28px; left: 5px; display: flex; max-width: calc(100% - 10px); align-items: center; gap: 8px; color: var(--muted); white-space: nowrap; }
+.node-label span { display: flex; min-width: 0; align-items: center; gap: 6px; overflow: hidden; font-size: 10px; font-weight: 600; text-overflow: ellipsis; }
+.node-label small { color: var(--muted); font: 8px "DM Mono", monospace; opacity: .6; text-transform: uppercase; }
+.node-body { min-height: 0; flex: 1; overflow: hidden; border-radius: 15px; background: var(--panel); }
+.text-node .node-body { padding: 8px; }
+.node-body textarea { width: 100%; height: 100%; resize: none; border: 0; outline: 0; padding: 12px; color: var(--text); background: transparent; font-size: 12px; line-height: 1.75; user-select: text; }
+.node-body textarea::placeholder { color: var(--muted); }
+.node-body img, .node-body video { display: block; width: 100%; height: 100%; border-radius: 15px; object-fit: cover; }
+.node-body video { background: #111; }
+.media-empty { display: grid; width: 100%; height: 100%; place-content: center; justify-items: center; gap: 8px; border: 0; border-radius: 15px; color: var(--muted); background: linear-gradient(135deg, color-mix(in srgb, var(--soft) 52%, transparent), transparent); cursor: pointer; }
+.media-empty strong { color: var(--text); font-size: 11px; }
+.media-empty small { font-size: 9px; }
+.resize-handle { display: block; width: 8px; height: 8px; border: 1.5px solid var(--active); border-radius: 50%; background: var(--panel); }
+.connection-handle { display: grid; width: 17px; height: 17px; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--text); background: var(--panel); box-shadow: 0 3px 10px var(--shadow); }
+.selection-toolbar { position: absolute; z-index: 76; display: flex; transform: translate(-50%, -100%); gap: 2px; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--panel) 94%, transparent); box-shadow: 0 10px 30px var(--shadow); backdrop-filter: blur(14px); }
+.selection-toolbar button { display: flex; height: 29px; align-items: center; gap: 5px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; font-size: 9px; cursor: pointer; }
+.selection-toolbar button:hover { background: var(--soft); }
+.selection-toolbar .danger:hover, .canvas-dock .danger:hover { color: #d65e50; }
+.canvas-dock, .viewport-controls { position: absolute; z-index: 72; bottom: 20px; display: flex; align-items: center; border: 1px solid var(--border); background: color-mix(in srgb, var(--panel) 94%, transparent); box-shadow: 0 14px 38px var(--shadow); backdrop-filter: blur(16px); }
+.canvas-dock { left: 50%; height: 50px; transform: translateX(-50%); gap: 3px; padding: 6px; border-radius: 14px; }
+.canvas-dock button, .viewport-controls button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
+.canvas-dock button svg { width: 17px; height: 17px; }
+.canvas-dock button:hover, .canvas-dock button.active, .viewport-controls button:hover, .viewport-controls button.active { background: var(--soft); }
+.canvas-dock button:disabled { opacity: .25; cursor: default; }
+.canvas-dock i { width: 1px; height: 21px; margin: 0 3px; background: var(--border); }
+.viewport-controls { left: 18px; height: 46px; gap: 4px; padding: 5px 7px; border-radius: 13px; }
+.viewport-controls button { width: 31px; height: 31px; }
+.viewport-controls input { width: 82px; accent-color: var(--active); }
+.viewport-controls output { width: 34px; color: var(--muted); font: 9px "DM Mono", monospace; }
+.minimap { right: 18px !important; bottom: 20px !important; left: auto !important; border-color: var(--border) !important; border-radius: 13px !important; background: color-mix(in srgb, var(--panel) 94%, transparent) !important; box-shadow: 0 14px 38px var(--shadow) !important; }
+@media (max-width: 1080px) { .example-shell { grid-template-columns: 210px 1fr; } .library-panel { padding-inline: 9px; } .minimap { display: none !important; } }
+@media (max-height: 650px) { .guide-card { display: none; } }

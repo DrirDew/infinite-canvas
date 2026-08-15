@@ -186,6 +186,6 @@ Core 负责画布文档、实例状态、历史、视口、几何、基础交互
 - `internal/use-canvas-surface-input.ts` / `use-canvas-pointer-lifecycle.ts` / `pointer-ownership.ts` / `window-events.ts`：画布表面输入、编辑指针生命周期、实例所有权和共享全局事件。
 - 根目录的 `types.ts`、`document.ts`、`geometry.ts`、`node.tsx`、`headless.ts`、`react.ts` 和 `index.ts` 只保留统一导出入口；`theme.ts` 与 `defaults.ts` 保存跨模块公共定义。
 
-仓库内运行 `bun run dev:examples` 可查看接近官方 Web 结构的单画布示例，包含宿主节点、选择、拖动、缩放、连线、小地图和撤销重做。
+仓库内运行 `bun run dev:example` 可查看接近官方 Web 结构的单画布示例，包含文本、图片、视频节点，以及选择、拖动、缩放、连线、媒体导入、小地图和撤销重做。
 
 包内的 `bun run test:types:headless` 使用不包含 DOM 和 React 全局类型的独立 TypeScript 配置验证 headless 消费者契约。

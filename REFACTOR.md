@@ -12,7 +12,7 @@
 
 - `@basketikun/infinite-canvas`：可独立发布和嵌入的 React 画布引擎。
 - `apps/web`：基于 Core 构建的完整 AI 创作应用，也是唯一的插件宿主。
-- `apps/examples`：只引入 Core 的独立演示项目。
+- `apps/example`：只引入 Core 的独立演示项目。
 - `@basketikun/plugin-sdk`：面向 Web 应用插件的开发契约，不属于 Core。
 - `@basketikun/canvas-agent`：连接网页与本地 Codex / Claude Code、提供 MCP 和本地服务。
 - Agent Panel：独立的 Agent 对话 Web UI，通过适配器独立运行或嵌入官方 Web。
@@ -62,7 +62,7 @@ flowchart LR
     SDK --> User
 ```
 
-`apps/examples` 只依赖 Core，用于验证 Core 可以脱离官方 Web 独立使用。第三方应用可以直接安装 Core，并在自己的应用层建立不同的插件或 Agent 体系。
+`apps/example` 只依赖 Core，用于验证 Core 可以脱离官方 Web 独立使用。第三方应用可以直接安装 Core，并在自己的应用层建立不同的插件或 Agent 体系。
 
 ## 4. Core 画布引擎（已完成）
 
