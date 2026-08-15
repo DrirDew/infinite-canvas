@@ -16,6 +16,8 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
     const ownerRef = useRef<PointerOwner | null>(null);
     const marqueeRef = useRef<Marquee | null>(null);
     const frameRef = useRef<number | null>(null);
+    /** Latest client coordinate waiting for the next animation frame. */
+    const pendingPointerRef = useRef<Position | null>(null);
     commandsRef.current = commands;
     callbacksRef.current = { onNodeClick, onConnectionEnd };
 
@@ -49,9 +51,11 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
     }, []);
 
     useEffect(() => {
+        /** Cancels pending frame work without committing its transient coordinate. */
         const clearFrame = () => {
             if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
             frameRef.current = null;
+            pendingPointerRef.current = null;
         };
         const clear = () => {
             clearFrame();
@@ -61,24 +65,31 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
             marqueeRef.current = null;
             setSelectionRect(null);
         };
+        /** Applies one coalesced pointer coordinate to the active interaction. */
+        const applyMove = (pointer: Position) => {
+            const owner = ownerRef.current;
+            if (!owner) return;
+            const current = commandsRef.current;
+            if (owner.kind === "connection") return void current.moveConnection(toCanvas(pointer.x, pointer.y));
+            if (owner.kind === "node") return void current.moveNodeDrag(pointer);
+            const marquee = marqueeRef.current;
+            if (!marquee) return;
+            const rect = normalizeRect(marquee.start, toCanvas(pointer.x, pointer.y));
+            current.selectNodesInRect(rect, marquee.initialNodeIds);
+            setSelectionRect(rect);
+        };
+        /** Keeps only the newest pointer coordinate and processes it at most once per frame. */
         const move = (event: globalThis.PointerEvent) => {
             const owner = ownerRef.current;
             if (!owner || event.pointerId !== owner.id) return;
-            const current = commandsRef.current;
-            if (owner.kind === "connection") return void current.moveConnection(toCanvas(event.clientX, event.clientY));
-            if (owner.kind === "node") {
-                clearFrame();
-                frameRef.current = requestAnimationFrame(() => {
-                    current.moveNodeDrag({ x: event.clientX, y: event.clientY });
-                    frameRef.current = null;
-                });
-                return;
-            }
-            const marquee = marqueeRef.current;
-            if (!marquee) return;
-            const rect = normalizeRect(marquee.start, toCanvas(event.clientX, event.clientY));
-            current.selectNodesInRect(rect, marquee.initialNodeIds);
-            setSelectionRect(rect);
+            pendingPointerRef.current = { x: event.clientX, y: event.clientY };
+            if (frameRef.current !== null) return;
+            frameRef.current = requestAnimationFrame(() => {
+                frameRef.current = null;
+                const pointer = pendingPointerRef.current;
+                pendingPointerRef.current = null;
+                if (pointer) applyMove(pointer);
+            });
         };
         const up = (event: globalThis.PointerEvent) => {
             const owner = ownerRef.current;
@@ -90,6 +101,9 @@ export function useCanvasPointerLifecycle<TMetadata>({ commands, containerRef, t
             } else if (owner.kind === "connection") {
                 const result = commandsRef.current.endConnection(toCanvas(event.clientX, event.clientY));
                 if (result) callbacksRef.current.onConnectionEnd?.(result);
+            } else {
+                const marquee = marqueeRef.current;
+                if (marquee) commandsRef.current.selectNodesInRect(normalizeRect(marquee.start, toCanvas(event.clientX, event.clientY)), marquee.initialNodeIds);
             }
             clear();
         };
