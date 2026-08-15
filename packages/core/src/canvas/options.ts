@@ -1,6 +1,7 @@
 import type { CanvasCommands } from "./commands.js";
 import type { CanvasConnectionInteraction, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, ViewportTransform } from "./model.js";
 
+/** Tunable editing behavior owned by one canvas instance. */
 export type CanvasBehaviorOptions = {
     historyLimit?: number;
     dragThreshold?: number;
@@ -8,6 +9,7 @@ export type CanvasBehaviorOptions = {
     connectionHandleRadius?: number;
     connectionNodePadding?: number;
 };
+/** Tunable viewport bounds and focus animation behavior. */
 export type CanvasViewportOptions = {
     minZoom?: number;
     maxZoom?: number;
@@ -15,6 +17,7 @@ export type CanvasViewportOptions = {
     focusMaxZoom?: number;
     focusDuration?: number;
 };
+/** Initialization, policy, and subscription options for {@link useCanvas}. */
 export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
     initialDocument?: CanvasDocument<TMetadata>;
     initialViewport?: ViewportTransform;
@@ -25,6 +28,7 @@ export type UseCanvasOptions<TMetadata = unknown> = CanvasBehaviorOptions & {
     resolveConnection?: CanvasConnectionResolver<TMetadata>;
     canGroupNode?: CanvasGroupResolver<TMetadata>;
 };
+/** Reactive canvas state plus the stable imperative command object. */
 export type UseCanvasResult<TMetadata = unknown> = {
     document: CanvasDocument<TMetadata>;
     viewport: ViewportTransform;

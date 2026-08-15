@@ -56,6 +56,7 @@ export function updateDocumentNode<TMetadata>(document: CanvasDocument<TMetadata
     return nodes.every((item, itemIndex) => item === document.nodes[itemIndex]) && connections.length === document.connections.length && connections.every((connection, connectionIndex) => connection === document.connections[connectionIndex]) ? document : { ...document, nodes, connections };
 }
 
+/** Removes nodes, incident connections, and references from surviving group children. */
 export function removeDocumentNodes<TMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>) {
     const removed = new Set(ids);
     if (!removed.size) return document;
@@ -67,6 +68,7 @@ export function removeDocumentNodes<TMetadata>(document: CanvasDocument<TMetadat
     };
 }
 
+/** Adds unique connections whose endpoints and host policies are valid. */
 export function addDocumentConnections<TMetadata>(document: CanvasDocument<TMetadata>, connections: readonly CanvasConnection[], resolver?: CanvasConnectionResolver<TMetadata>) {
     const ids = new Set(document.connections.map((connection) => connection.id));
     const added = connections.flatMap((connection) => {
@@ -79,6 +81,7 @@ export function addDocumentConnections<TMetadata>(document: CanvasDocument<TMeta
     return added.length ? { ...document, connections: [...document.connections, ...added] } : document;
 }
 
+/** Removes connections by ID while preserving the original snapshot for no-op edits. */
 export function removeDocumentConnections<TMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>) {
     const removed = new Set(ids);
     if (!removed.size) return document;
@@ -86,6 +89,7 @@ export function removeDocumentConnections<TMetadata>(document: CanvasDocument<TM
     return connections.length === document.connections.length ? document : { ...document, connections };
 }
 
+/** Removes selected IDs that no longer exist in the supplied document. */
 export function cleanCanvasSelection<TMetadata>(document: CanvasDocument<TMetadata>, selection: CanvasSelection): CanvasSelection {
     const nodeIds = new Set(document.nodes.map((node) => node.id));
     const connectionIds = new Set(document.connections.map((connection) => connection.id));

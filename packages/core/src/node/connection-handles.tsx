@@ -2,6 +2,7 @@ import type { PointerEvent, ReactNode } from "react";
 import { canvasDefaults } from "../defaults.js";
 import type { CanvasTheme } from "../theme.js";
 
+/** Layout, visibility, rendering, and pointer options for node connection handles. */
 export type CanvasNodeConnectionHandlesProps = {
     nodeId: string;
     visible: boolean;
@@ -15,6 +16,7 @@ export type CanvasNodeConnectionHandlesProps = {
     onConnectStart: (event: PointerEvent, nodeId: string, handleType: "source" | "target") => void;
 };
 
+/** Renders scale-independent source and target hit areas on a node. */
 export function CanvasNodeConnectionHandles({ nodeId, visible, theme, source = true, target = true, hitSize = canvasDefaults.connectionPortHitSize, offset = canvasDefaults.connectionPortOffset, indicatorSize = canvasDefaults.connectionPortIndicatorSize, renderHandle, onConnectStart }: CanvasNodeConnectionHandlesProps) {
     hitSize = Math.max(0, hitSize);
     indicatorSize = Math.max(0, indicatorSize);

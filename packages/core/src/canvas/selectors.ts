@@ -1,5 +1,6 @@
 import type { CanvasConnection, CanvasNode } from "../types.js";
 
+/** Counts direct children for every group ID in one pass. */
 export function countCanvasGroupChildren<TMetadata>(nodes: readonly CanvasNode<TMetadata>[]) {
     const counts = new Map<string, number>();
     nodes.forEach((node) => {
@@ -9,6 +10,7 @@ export function countCanvasGroupChildren<TMetadata>(nodes: readonly CanvasNode<T
     return counts;
 }
 
+/** Returns the active node and directly connected nodes and connections. */
 export function getCanvasRelations(activeNodeId: string | null, connections: readonly CanvasConnection[]) {
     const nodeIds = new Set<string>();
     const connectionIds = new Set<string>();
@@ -23,16 +25,19 @@ export function getCanvasRelations(activeNodeId: string | null, connections: rea
     return { nodeIds, connectionIds };
 }
 
+/** Returns direct upstream nodes in connection order. */
 export function getCanvasUpstreamNodes<TMetadata>(nodeId: string, nodes: readonly CanvasNode<TMetadata>[], connections: readonly CanvasConnection[]) {
     const byId = new Map(nodes.map((node) => [node.id, node]));
     return connections.flatMap((connection) => (connection.toNodeId === nodeId && byId.has(connection.fromNodeId) ? [byId.get(connection.fromNodeId)!] : []));
 }
 
+/** Returns direct downstream nodes in connection order. */
 export function getCanvasDownstreamNodes<TMetadata>(nodeId: string, nodes: readonly CanvasNode<TMetadata>[], connections: readonly CanvasConnection[]) {
     const byId = new Map(nodes.map((node) => [node.id, node]));
     return connections.flatMap((connection) => (connection.fromNodeId === nodeId && byId.has(connection.toNodeId) ? [byId.get(connection.toNodeId)!] : []));
 }
 
+/** Performs breadth-first upstream traversal and returns the first matching node. */
 export function findCanvasUpstreamNode<TMetadata>(nodeId: string, nodes: readonly CanvasNode<TMetadata>[], connections: readonly CanvasConnection[], predicate: (node: CanvasNode<TMetadata>) => boolean) {
     const byId = new Map(nodes.map((node) => [node.id, node]));
     const upstream = new Map<string, string[]>();

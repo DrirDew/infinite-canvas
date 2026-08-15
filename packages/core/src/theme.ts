@@ -1,11 +1,15 @@
+/** Built-in color scheme names. */
 export type CanvasColorTheme = "light" | "dark";
+/** Built-in infinite-canvas background patterns. */
 export type CanvasBackgroundMode = "dots" | "lines" | "blank";
+/** Semantic canvas colors consumed by Core render components. */
 export type CanvasTheme = {
     canvas: { background: string; dot: string; line: string; selectionStroke: string; selectionFill: string };
     node: { label: string; fill: string; panel: string; stroke: string; activeStroke: string; placeholder: string; text: string; muted: string; faint: string };
     toolbar: { panel: string; border: string; item: string; itemHover: string; activeBg: string; activeText: string };
 };
 
+/** Built-in light and dark themes that hosts may use or copy. */
 export const canvasThemes: Record<CanvasColorTheme, CanvasTheme> = {
     light: {
         canvas: {

@@ -1,12 +1,14 @@
 import { nodeBounds } from "../geometry.js";
 import type { CanvasClipboard, CanvasConnection, CanvasDocument, CanvasPasteOptions } from "../types.js";
 
+/** Copies selected nodes and connections whose endpoints are both selected. */
 export function createCanvasClipboard<TMetadata>(document: CanvasDocument<TMetadata>, ids: Iterable<string>): CanvasClipboard<TMetadata> | null {
     const selected = new Set(ids);
     const nodes = document.nodes.filter((node) => selected.has(node.id)).map((node) => ({ ...node, position: { ...node.position } }));
     return nodes.length ? { nodes, connections: document.connections.filter((connection) => selected.has(connection.fromNodeId) && selected.has(connection.toNodeId)).map((connection) => ({ ...connection })) } : null;
 }
 
+/** Remaps clipboard IDs and centers the pasted fragment at a world coordinate. */
 export function pasteCanvasClipboard<TMetadata>(clipboard: CanvasClipboard<TMetadata>, options: CanvasPasteOptions<TMetadata>): CanvasClipboard<TMetadata> {
     const bounds = nodeBounds(clipboard.nodes);
     const dx = options.position.x - (bounds.left + bounds.right) / 2;

@@ -2,10 +2,12 @@ import { canvasDefaults } from "../defaults.js";
 import type { CanvasGroupResolver, CanvasNode, CanvasRect, CanvasResizeCorner, Position } from "../types.js";
 import { CANVAS_SPATIAL_INDEX_THRESHOLD, getCanvasNodeSpatialIndex, nodeIntersectsRect } from "./spatial-index.js";
 
+/** Normalizes two world points into a positive axis-aligned rectangle. */
 export function normalizeRect(start: Position, end: Position): CanvasRect {
     return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
 }
 
+/** Computes resized node bounds for one corner with optional aspect-ratio locking. */
 export function resizeNodeBounds(node: Pick<CanvasNode, "position" | "width" | "height">, corner: CanvasResizeCorner, delta: Position, keepRatio = false, ratio = node.width / node.height, minWidth = canvasDefaults.resizeMinWidth, minHeight = canvasDefaults.resizeMinHeight) {
     const fromLeft = corner.includes("left");
     const fromTop = corner.includes("top");
@@ -27,6 +29,7 @@ export function nodesInRect<T>(nodes: readonly CanvasNode<T>[], rect: CanvasRect
     return nodes.length < CANVAS_SPATIAL_INDEX_THRESHOLD ? nodes.filter((node) => nodeIntersectsRect(node, rect)) : getCanvasNodeSpatialIndex(nodes).query(rect);
 }
 
+/** Returns the world-space bounds enclosing all supplied nodes. */
 export function nodeBounds<T>(nodes: readonly CanvasNode<T>[]) {
     return nodes.reduce(
         (acc, node) => ({ left: Math.min(acc.left, node.position.x), top: Math.min(acc.top, node.position.y), right: Math.max(acc.right, node.position.x + node.width), bottom: Math.max(acc.bottom, node.position.y + node.height) }),
@@ -34,8 +37,10 @@ export function nodeBounds<T>(nodes: readonly CanvasNode<T>[]) {
     );
 }
 
+/** Returns whether a node participates in Core group behavior. */
 export const isGroupNode = <T,>(node: CanvasNode<T>) => node.role === "group";
 
+/** Finds the topmost group accepting at least one moved node center. */
 export function findGroupDropTarget<T>(movedIds: ReadonlySet<string>, nodes: readonly CanvasNode<T>[], canGroupNode?: CanvasGroupResolver<T>) {
     if (nodes.some((node) => movedIds.has(node.id) && isGroupNode(node))) return null;
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
@@ -47,6 +52,7 @@ export function findGroupDropTarget<T>(movedIds: ReadonlySet<string>, nodes: rea
     return null;
 }
 
+/** Moves selected nodes inside a group and assigns their group ID. */
 export function snapNodesIntoGroup<T>(movedIds: ReadonlySet<string>, nodes: readonly CanvasNode<T>[], group: CanvasNode<T>, padding = canvasDefaults.groupPadding) {
     const moving = nodes.filter((node) => movedIds.has(node.id) && !isGroupNode(node));
     if (!moving.length) return [...nodes];
@@ -57,6 +63,7 @@ export function snapNodesIntoGroup<T>(movedIds: ReadonlySet<string>, nodes: read
     return nodes.map((node) => (!movedIds.has(node.id) || isGroupNode(node) ? node : { ...node, position: { x: node.position.x + dx, y: node.position.y + dy }, groupId: group.id }));
 }
 
+/** Finds the topmost group containing a node center. */
 export function findContainingGroupId<T>(node: CanvasNode<T>, nodes: readonly CanvasNode<T>[], canGroupNode?: CanvasGroupResolver<T>) {
     const x = node.position.x + node.width / 2;
     const y = node.position.y + node.height / 2;
@@ -66,6 +73,7 @@ export function findContainingGroupId<T>(node: CanvasNode<T>, nodes: readonly Ca
     }
 }
 
+/** Fits a media size within maximum bounds without changing its aspect ratio. */
 export function fitNodeSize(width: number, height: number, maxWidth = 640, maxHeight = 640) {
     const w = Math.max(1, width);
     const h = Math.max(1, height);
@@ -73,6 +81,7 @@ export function fitNodeSize(width: number, height: number, maxWidth = 640, maxHe
     return { width: w * scale, height: h * scale };
 }
 
+/** Parses an `x` or `:` ratio string into a size bounded by the supplied base box. */
 export function nodeSizeFromRatio(size: string, baseWidth: number, baseHeight: number) {
     const match = size?.match(/^(\d+)(?:x|:)(\d+)/);
     if (!match) return null;

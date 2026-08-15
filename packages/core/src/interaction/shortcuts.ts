@@ -1,5 +1,6 @@
 import type { CanvasShortcut, CanvasShortcutEvent } from "../types.js";
 
+/** Resolves a platform-neutral keyboard event into a Core canvas action. */
 export function resolveCanvasShortcut(event: CanvasShortcutEvent): CanvasShortcut | null {
     const key = event.key.toLowerCase();
     const modifier = event.metaKey || event.ctrlKey;

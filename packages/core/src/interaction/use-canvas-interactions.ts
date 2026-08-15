@@ -3,6 +3,7 @@ import { useCanvasPointerLifecycle } from "../internal/use-canvas-pointer-lifecy
 import { useCanvasViewport, type UseCanvasViewportOptions } from "./use-canvas-viewport.js";
 import type { CanvasConnection, CanvasConnectionDropResult, Position } from "../types.js";
 
+/** Host callbacks and viewport options used to bind pointer interactions. */
 export type UseCanvasInteractionsOptions<TMetadata = unknown> = UseCanvasViewportOptions<TMetadata> & {
     onCanvasPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
     onNodePointerDown?: (nodeId: string) => void;
@@ -14,6 +15,7 @@ export type UseCanvasInteractionsOptions<TMetadata = unknown> = UseCanvasViewpor
     onConnectionContextMenu?: (event: MouseEvent<SVGPathElement>, connection: CanvasConnection) => void;
 };
 
+/** Creates stable event handlers for selection, drag, resize, connection, and viewport input. */
 export function useCanvasInteractions<TMetadata>({ commands, containerRef, onContainerResize, onViewportInput, minZoom, maxZoom, focusCoverage, focusMaxZoom, focusDuration, onCanvasPointerDown: onCanvasPointerDownCallback, onNodePointerDown: onNodePointerDownCallback, onNodeSelectionChange, onNodeClick, onConnectionEnd, onResizeStart, onConnectionSelect: onConnectionSelected, onConnectionContextMenu: onConnectionMenu }: UseCanvasInteractionsOptions<TMetadata>) {
     const commandsRef = useRef(commands);
     const callbacksRef = useRef({ onCanvasPointerDown: onCanvasPointerDownCallback, onNodePointerDown: onNodePointerDownCallback, onNodeSelectionChange, onResizeStart, onConnectionSelected, onConnectionMenu });

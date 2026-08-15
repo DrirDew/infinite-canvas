@@ -4,6 +4,7 @@ import { resizeNodeBounds } from "../geometry.js";
 import { subscribeWindowEvent } from "../internal/window-events.js";
 import type { CanvasNode, CanvasResizeCorner } from "../types.js";
 
+/** Layout, geometry, rendering, and lifecycle options for node resize handles. */
 export type CanvasNodeResizeHandlesProps<TMetadata = unknown> = {
     node: CanvasNode<TMetadata>;
     scale: number;
@@ -26,6 +27,7 @@ const resizeHandleStyles = (offset: number): Record<CanvasResizeCorner, CSSPrope
     "bottom-right": { right: offset, bottom: offset, cursor: "nwse-resize" },
 });
 
+/** Renders four scale-independent resize handles and emits immutable node bounds. */
 export function CanvasNodeResizeHandles<TMetadata>({ node, scale, keepAspectRatio = false, ratio = node.width / (node.height || 1), minWidth = canvasDefaults.resizeMinWidth, minHeight = canvasDefaults.resizeMinHeight, handleSize = canvasDefaults.resizeHandleSize, renderHandle, onResizeStart, onResize, onResizeEnd, onResizeCancel }: CanvasNodeResizeHandlesProps<TMetadata>) {
     handleSize = Math.max(0, handleSize);
     const resize = useRef({ active: false, pointerId: 0, nodeId: "", corner: "bottom-right" as CanvasResizeCorner, x: 0, y: 0, left: 0, top: 0, width: 0, height: 0, scale: 1, minWidth: 24, minHeight: 24, keepAspectRatio: false, ratio: 1, dispose: [] as (() => void)[] });

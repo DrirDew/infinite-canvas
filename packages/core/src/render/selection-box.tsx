@@ -2,6 +2,7 @@ import type { CSSProperties, SVGAttributes } from "react";
 import type { CanvasTheme } from "../theme.js";
 import type { CanvasRect } from "../types.js";
 
+/** Props for a scale-independent marquee selection rectangle. */
 export type CanvasSelectionBoxProps = {
     rect: CanvasRect;
     scale: number;
@@ -11,6 +12,7 @@ export type CanvasSelectionBoxProps = {
     rectProps?: SVGAttributes<SVGRectElement>;
 };
 
+/** Renders a world-coordinate selection rectangle with screen-consistent stroke width. */
 export function CanvasSelectionBox({ rect, scale, theme, className, style, rectProps }: CanvasSelectionBoxProps) {
     return (
         <svg data-canvas-selection className={className} style={{ position: "absolute", zIndex: 100, overflow: "visible", pointerEvents: "none", left: rect.x, top: rect.y, width: rect.width, height: rect.height, ...style }}>

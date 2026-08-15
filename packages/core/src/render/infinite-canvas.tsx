@@ -4,6 +4,7 @@ import { CANVAS_NODE_SELECTOR, DEFAULT_CANVAS_IGNORE_SELECTOR, isCanvasInputIgno
 import type { CanvasBackgroundMode, CanvasTheme } from "../theme.js";
 import type { CanvasTool, ViewportTransform } from "../types.js";
 
+/** Props for the viewport surface, background, and transformed world-content layer. */
 export type InfiniteCanvasProps = {
     containerRef: RefObject<HTMLDivElement | null>;
     viewport: ViewportTransform;
@@ -30,8 +31,10 @@ export type InfiniteCanvasProps = {
     onDrop?: (event: DragEvent<HTMLDivElement>) => void;
     children?: ReactNode;
 };
+/** Values supplied to a custom background renderer. */
 export type CanvasBackgroundRenderContext = { viewport: ViewportTransform; theme: CanvasTheme; mode: CanvasBackgroundMode; gridSize: number };
 
+/** Renders the focusable infinite-canvas surface and applies viewport transforms. */
 export function InfiniteCanvas({
     containerRef,
     viewport,

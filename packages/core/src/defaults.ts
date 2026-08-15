@@ -1,5 +1,6 @@
 import type { CanvasBehaviorOptions, CanvasViewportOptions } from "./types.js";
 
+/** Public defaults shared by geometry, interaction, and rendering helpers. */
 export type CanvasDefaults = Required<CanvasBehaviorOptions & CanvasViewportOptions> & {
     gridSize: number;
     resizeMinWidth: number;
@@ -17,6 +18,7 @@ export type CanvasDefaults = Required<CanvasBehaviorOptions & CanvasViewportOpti
     minimapKeyboardStep: number;
 };
 
+/** Default dimensions and behavior values used when an instance omits an override. */
 export const canvasDefaults: CanvasDefaults = {
     historyLimit: 50,
     dragThreshold: 3,

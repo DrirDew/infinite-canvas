@@ -4,6 +4,7 @@ import { centerViewport, fitViewportToNode, screenToCanvas, zoomViewport } from 
 import { subscribeWindowEvent } from "../internal/window-events.js";
 import type { CanvasCommands, CanvasSize, CanvasViewportOptions, ViewportTransform } from "../types.js";
 
+/** Container measurement, viewport input, and focus-animation options. */
 export type UseCanvasViewportOptions<TMetadata = unknown> = CanvasViewportOptions & {
     commands: CanvasCommands<TMetadata>;
     containerRef: RefObject<HTMLDivElement | null>;
@@ -11,6 +12,7 @@ export type UseCanvasViewportOptions<TMetadata = unknown> = CanvasViewportOption
     onViewportInput?: (viewport: ViewportTransform) => void;
 };
 
+/** Provides measured viewport helpers backed by the latest stable canvas commands. */
 export function useCanvasViewport<TMetadata>({ commands, containerRef, onContainerResize, onViewportInput, minZoom = canvasDefaults.minZoom, maxZoom = canvasDefaults.maxZoom, focusCoverage = canvasDefaults.focusCoverage, focusMaxZoom = canvasDefaults.focusMaxZoom, focusDuration = canvasDefaults.focusDuration }: UseCanvasViewportOptions<TMetadata>) {
     const lower = Math.max(0.001, minZoom);
     const upper = Math.max(lower, maxZoom);

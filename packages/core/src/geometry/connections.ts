@@ -3,10 +3,12 @@ import type { CanvasConnectionDropTarget, CanvasConnectionInteraction, CanvasCon
 import { isGroupNode } from "./nodes.js";
 import { CANVAS_SPATIAL_INDEX_THRESHOLD, getCanvasNodeSpatialIndex } from "./spatial-index.js";
 
+/** Returns the candidate-side anchor used by the current source or target handle. */
 export function getConnectionTargetAnchor<T>(node: CanvasNode<T>, current: ConnectionHandle) {
     return { x: current.handleType === "source" ? node.position.x : node.position.x + node.width, y: node.position.y + node.height / 2 };
 }
 
+/** Builds the default cubic Bézier path between two nodes or an active pointer. */
 export function getConnectionPath<T>(source: CanvasNode<T>, target?: CanvasNode<T>, interaction?: CanvasConnectionInteraction) {
     const start = interaction?.handle.handleType === "target" ? (target ? { x: target.position.x + target.width, y: target.position.y + target.height / 2 } : interaction.pointer) : { x: source.position.x + source.width, y: source.position.y + source.height / 2 };
     const end = interaction?.handle.handleType === "target" ? { x: source.position.x, y: source.position.y + source.height / 2 } : target ? { x: target.position.x, y: target.position.y + target.height / 2 } : interaction?.pointer || start;
@@ -14,6 +16,7 @@ export function getConnectionPath<T>(source: CanvasNode<T>, target?: CanvasNode<
     return `M ${start.x} ${start.y} C ${start.x + curvature} ${start.y}, ${end.x - curvature} ${end.y}, ${end.x} ${end.y}`;
 }
 
+/** Finds the highest-priority valid connection target near a world coordinate. */
 export function findConnectionDropTarget<T>(nodes: readonly CanvasNode<T>[], current: ConnectionHandle, position: Position, scale = 1, resolver?: CanvasConnectionResolver<T>, handleRadius = canvasDefaults.connectionHandleRadius, nodePadding = canvasDefaults.connectionNodePadding): CanvasConnectionDropTarget {
     const radius = handleRadius / Math.max(scale, 0.05);
     const padding = nodePadding / Math.max(scale, 0.05);
@@ -45,6 +48,7 @@ export function findConnectionDropTarget<T>(nodes: readonly CanvasNode<T>[], cur
     return { nodeId, isNearNode };
 }
 
+/** Validates two node IDs and normalizes their persistent connection direction. */
 export function normalizeConnection<T>(firstNodeId: string, secondNodeId: string, nodes: readonly CanvasNode<T>[], firstHandleType: "source" | "target", resolver?: CanvasConnectionResolver<T>) {
     const index = nodes.length >= CANVAS_SPATIAL_INDEX_THRESHOLD ? getCanvasNodeSpatialIndex(nodes) : null;
     const first = index?.get(firstNodeId) || nodes.find((node) => node.id === firstNodeId);

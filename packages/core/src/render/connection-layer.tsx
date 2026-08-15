@@ -4,9 +4,11 @@ import { getConnectionPath } from "../geometry.js";
 import type { CanvasTheme } from "../theme.js";
 import type { CanvasConnection, CanvasConnectionInteraction, CanvasNode } from "../types.js";
 
+/** SVG stroke attributes that hosts may resolve for each connection. */
 export type CanvasConnectionStyle = Pick<SVGAttributes<SVGPathElement>, "stroke" | "strokeWidth" | "strokeOpacity" | "strokeDasharray" | "style">;
 const defaultConnectionAriaLabel = (connection: CanvasConnection) => `Connection ${connection.id}`;
 
+/** Persistent connection data, visibility, styling, and accessibility options. */
 export type CanvasConnectionLayerProps<TMetadata = unknown> = {
     nodes: readonly CanvasNode<TMetadata>[];
     connections: readonly CanvasConnection[];

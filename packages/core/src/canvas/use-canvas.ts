@@ -5,6 +5,10 @@ import { createCanvasCommands } from "../internal/create-canvas-commands.js";
 import { createCanvasHistory, createCanvasSelection, DEFAULT_INTERACTION, DEFAULT_VIEWPORT, type CanvasBehavior, type CanvasDrag, type CanvasHistory } from "../internal/canvas-state.js";
 import type { CanvasClipboard, CanvasConnectionResolver, CanvasDocument, CanvasGroupResolver, CanvasInteractionState, CanvasSelection, UseCanvasOptions, UseCanvasResult } from "../types.js";
 
+/**
+ * Creates one isolated canvas instance with immutable document history and stable commands.
+ * Initial values are read once; later document replacement must use `commands.setDocument`.
+ */
 export function useCanvas<TMetadata = unknown>({
     initialDocument = { nodes: [], connections: [] },
     initialViewport = DEFAULT_VIEWPORT,

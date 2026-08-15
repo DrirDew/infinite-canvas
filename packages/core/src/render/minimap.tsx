@@ -4,6 +4,7 @@ import { nodeBounds } from "../geometry.js";
 import type { CanvasTheme } from "../theme.js";
 import type { CanvasNode, CanvasSize, ViewportTransform } from "../types.js";
 
+/** Props for the interactive overview of document bounds and the current viewport. */
 export type CanvasMinimapProps<TMetadata = unknown> = {
     nodes: readonly CanvasNode<TMetadata>[];
     viewport: ViewportTransform;
@@ -26,6 +27,7 @@ export type CanvasMinimapProps<TMetadata = unknown> = {
     style?: CSSProperties;
 };
 
+/** Renders an interactive minimap that recenters the existing viewport scale. */
 export function CanvasMinimap<TMetadata>({ nodes, viewport, viewportSize, theme, onViewportChange, nodeColor, nodeStyle, renderNode, viewportStyle, width = canvasDefaults.minimapWidth, height = canvasDefaults.minimapHeight, worldPadding = canvasDefaults.minimapWorldPadding, minNodeSize = canvasDefaults.minimapNodeSize, minViewportSize = canvasDefaults.minimapViewportSize, keyboardStep = canvasDefaults.minimapKeyboardStep, tabIndex = 0, ariaLabel = "Canvas minimap", className, style }: CanvasMinimapProps<TMetadata>) {
     const ref = useRef<HTMLDivElement>(null);
     const dragging = useRef<number | null>(null);
