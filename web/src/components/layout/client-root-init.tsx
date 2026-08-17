@@ -4,6 +4,7 @@ import { App } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { createModelChannel, useConfigStore } from "@/stores/use-config-store";
+import { fetchCompanyChannels } from "@/services/api/company-channels";
 import { usePromptSourceScheduler } from "@/hooks/use-prompt-source-scheduler";
 
 export function ClientRootInit({ children }: { children: ReactNode }) {
@@ -11,10 +12,15 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
     const { t } = useTranslation();
     const handledConfigParams = useRef(false);
     const updateConfig = useConfigStore((state) => state.updateConfig);
+    const setCompanyChannels = useConfigStore((state) => state.setCompanyChannels);
     const config = useConfigStore((state) => state.config);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
 
     usePromptSourceScheduler();
+
+    useEffect(() => {
+        void fetchCompanyChannels().then(setCompanyChannels);
+    }, [setCompanyChannels]);
 
     useEffect(() => {
         if (handledConfigParams.current) return;

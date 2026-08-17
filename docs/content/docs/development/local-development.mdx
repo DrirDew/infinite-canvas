@@ -5,7 +5,7 @@ description: Frontend-first local development
 
 # Local Development
 
-The main application lives in `web/`. The browser sends AI requests directly to the user's OpenAI-compatible endpoint.
+The main application lives in `web/`. Personal providers are still called from the browser. Company Tencent Cloud VOD is signed by `server/`, with credentials in the repository-root `.env`.
 
 ## Start the frontend
 
@@ -15,7 +15,22 @@ bun install
 bun run dev
 ```
 
-Open `http://localhost:3000`, then enter your `Base URL`, `API Key`, and model names in Settings. Prompt sources and WebDAV are also accessed directly by the browser.
+Open `http://localhost:3000`.
+
+## Start the company provider API (optional)
+
+Copy `.env.example` to `.env` and set `TENCENT_VOD_SECRET_ID`, `TENCENT_VOD_SECRET_KEY`, and `TENCENT_VOD_SUB_APP_ID`, then:
+
+```bash
+cd server
+bun run dev
+```
+
+The frontend proxies `/api` to this service. If it is not running, the company provider is hidden and personal providers still work from Settings.
+
+## Configure models
+
+Company providers are read-only and do not show secrets. Personal providers still use your own `Base URL`, `API Key`, and model names.
 
 ## Start the documentation site
 
@@ -27,5 +42,6 @@ bun run dev
 Common locations:
 
 - Canvas, pages, and interactions: `web/`
+- Company Tencent Cloud VOD signing: `server/`
 - Prompt caching: `web/src/services/api/prompts.ts`
 - Documentation content: `docs/content/docs/`

@@ -24,6 +24,7 @@ export type ModelChannel = {
     subAppId?: string;
     apiFormat: ApiCallFormat;
     models: ChannelModel[];
+    managed?: boolean;
 };
 
 export type AiConfig = {
@@ -33,6 +34,7 @@ export type AiConfig = {
     secretKey?: string;
     subAppId?: string;
     apiFormat: ApiCallFormat;
+    managed?: boolean;
     channels: ModelChannel[];
     model: string;
     imageModel: string;
@@ -73,6 +75,7 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 const ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
 export const TENCENT_VOD_HOST = "vod.tencentcloudapi.com";
 export const TENCENT_VOD_BASE_URL = "/tencent-vod";
+export const COMPANY_TENCENT_VOD_CHANNEL_ID = "company-tencent-vod";
 export const TENCENT_VOD_DEFAULT_MODELS: ChannelModel[] = [
     { name: "image2_low", capability: "image" },
     { name: "image2_medium", capability: "image" },
@@ -135,11 +138,13 @@ export const defaultWebdavSyncConfig: WebdavSyncConfig = {
 
 type ConfigStore = {
     config: AiConfig;
+    companyChannels: ModelChannel[];
     webdav: WebdavSyncConfig;
     isConfigOpen: boolean;
     configTab: ConfigTabKey;
     shouldPromptContinue: boolean;
     updateConfig: <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
+    setCompanyChannels: (channels: ModelChannel[]) => void;
     updateWebdavConfig: <K extends keyof WebdavSyncConfig>(key: K, value: WebdavSyncConfig[K]) => void;
     isAiConfigReady: (config: AiConfig, model: string) => boolean;
     openConfigDialog: (shouldPromptContinue?: boolean, tab?: ConfigTabKey) => void;
@@ -197,7 +202,9 @@ export function resolveModelScript(config: AiConfig, value: string) {
 
 function isAiConfigReady(config: AiConfig, model: string) {
     const channel = resolveModelChannel(config, model);
-    if (!model.trim() || !channel.apiKey.trim()) return false;
+    if (!model.trim()) return false;
+    if (isManagedChannel(channel)) return channel.models.length > 0;
+    if (!channel.apiKey.trim()) return false;
     if (channel.apiFormat === "tencent-vod") return Boolean(channel.secretKey?.trim() && channel.subAppId?.trim());
     return Boolean(channel.baseUrl.trim());
 }
@@ -206,6 +213,7 @@ export const useConfigStore = create<ConfigStore>()(
     persist(
         (set, get) => ({
             config: defaultConfig,
+            companyChannels: [],
             webdav: defaultWebdavSyncConfig,
             isConfigOpen: false,
             configTab: "channels",
@@ -217,6 +225,25 @@ export const useConfigStore = create<ConfigStore>()(
                         [key]: value,
                     },
                 })),
+            setCompanyChannels: (channels) => {
+                const companyChannels = channels.filter(isManagedChannel);
+                const current = get();
+                const merged = mergeConfigChannels(current.config, companyChannels);
+                const imageModel = pickReadyModel(merged, "image", merged.imageModel);
+                const videoModel = pickReadyModel(merged, "video", merged.videoModel);
+                const textModel = pickReadyModel(merged, "text", merged.textModel);
+                const audioModel = pickReadyModel(merged, "audio", merged.audioModel);
+                set({
+                    companyChannels,
+                    config: {
+                        ...current.config,
+                        imageModel,
+                        videoModel,
+                        textModel,
+                        audioModel,
+                    },
+                });
+            },
             updateWebdavConfig: (key, value) =>
                 set((state) => ({
                     webdav: {
@@ -242,6 +269,7 @@ export const useConfigStore = create<ConfigStore>()(
                 const models = modelOptionsFromChannels(channels);
                 return {
                     ...current,
+                    companyChannels: current.companyChannels || [],
                     webdav: { ...defaultWebdavSyncConfig, ...persistedWebdav },
                     config: {
                         ...config,
@@ -272,7 +300,23 @@ export const useConfigStore = create<ConfigStore>()(
 
 export function useEffectiveConfig() {
     const config = useConfigStore((state) => state.config);
-    return useMemo(() => ({ ...config, channelMode: "local" as const }), [config]);
+    const companyChannels = useConfigStore((state) => state.companyChannels);
+    return useMemo(() => mergeConfigChannels({ ...config, channelMode: "local" as const }, companyChannels), [companyChannels, config]);
+}
+
+export function isManagedChannel(channel: Pick<ModelChannel, "id" | "managed">) {
+    return Boolean(channel.managed) || channel.id === COMPANY_TENCENT_VOD_CHANNEL_ID;
+}
+
+export function mergeConfigChannels(config: AiConfig, companyChannels: ModelChannel[]): AiConfig {
+    const local = config.channels.filter((channel) => !isManagedChannel(channel));
+    const channels = [...companyChannels.filter(isManagedChannel), ...local];
+    return { ...config, channels, models: modelOptionsFromChannels(channels) };
+}
+
+function pickReadyModel(config: AiConfig, capability: ModelCapability, current: string) {
+    if (current && isAiConfigReady(config, current) && modelMatchesCapability(config, current, capability)) return current;
+    return selectableModelsByCapability(config, capability).find((model) => isAiConfigReady(config, model)) || current;
 }
 
 /** Normalize a mixed list of raw model names or model objects into deduped ChannelModel entries. */
@@ -301,6 +345,7 @@ export function createModelChannel(channel?: Partial<ModelChannel>): ModelChanne
         secretKey: channel?.secretKey || "",
         subAppId: channel?.subAppId || "",
         apiFormat,
+        managed: Boolean(channel?.managed),
         models: apiFormat === "tencent-vod" && !models.length ? TENCENT_VOD_DEFAULT_MODELS : models,
     };
 }
@@ -339,6 +384,7 @@ export function normalizeModelOptionValue(value: string | undefined, channels: M
     if (!model) return "";
     const decoded = decodeChannelModel(model);
     if (decoded) {
+        if (isManagedChannel({ id: decoded.channelId })) return model;
         const channel = channels.find((item) => item.id === decoded.channelId);
         return channel && channel.models.some((item) => item.name === decoded.model) ? model : "";
     }
@@ -363,12 +409,15 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
         secretKey: channel.secretKey || "",
         subAppId: channel.subAppId || "",
         apiFormat: channel.apiFormat,
+        managed: isManagedChannel(channel),
     };
 }
 
 function normalizeChannels(config: AiConfig) {
     const persistedChannels = Array.isArray(config.channels) ? config.channels : [];
-    const channels = persistedChannels.map((channel, index) =>
+    const channels = persistedChannels
+        .filter((channel) => !isManagedChannel(channel))
+        .map((channel, index) =>
         createModelChannel({
             ...channel,
             id: channel.id || (index === 0 ? "default" : `channel-${index + 1}`),

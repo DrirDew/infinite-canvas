@@ -36,12 +36,14 @@ export function isTencentVodConfig(config: Pick<AiConfig, "apiFormat">) {
 }
 
 export function assertTencentVodReady(config: AiConfig) {
+    if (config.managed) return;
     if (!config.apiKey.trim()) throw new Error(apiText("tencentVodSecretRequired"));
     if (!config.secretKey?.trim()) throw new Error(apiText("tencentVodSecretRequired"));
     if (!config.subAppId?.trim()) throw new Error(apiText("tencentVodSubAppIdRequired"));
 }
 
 export async function requestTencentVodImages(config: AiConfig, prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, signal?: AbortSignal) {
+    if (config.managed) return requestCompanyTencentVodImages(prompt, references, mask, count, quality, size, background, config.model, signal);
     assertTencentVodReady(config);
     const images: Array<{ id: string; dataUrl: string }> = [];
     const total = Math.max(1, count);
@@ -49,6 +51,22 @@ export async function requestTencentVodImages(config: AiConfig, prompt: string, 
         if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
         images.push(await generateOne(config, prompt, references, mask, quality, size, background, signal));
     }
+    return images;
+}
+
+async function requestCompanyTencentVodImages(prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, model: string, signal?: AbortSignal) {
+    const response = await axios.post<{ images?: Array<{ id?: string; dataUrl?: string }>; error?: string }>("/api/tencent-vod/images", {
+        model,
+        prompt,
+        references: references.map((image) => ({ dataUrl: image.dataUrl })),
+        mask: mask ? { dataUrl: mask.dataUrl } : undefined,
+        count,
+        quality,
+        size,
+        background,
+    }, { signal, timeout: 0 });
+    const images = (response.data.images || []).filter((image) => image.dataUrl).map((image) => ({ id: image.id || nanoid(), dataUrl: image.dataUrl! }));
+    if (!images.length) throw new Error(response.data.error || apiText("tencentVodNoImage"));
     return images;
 }
 

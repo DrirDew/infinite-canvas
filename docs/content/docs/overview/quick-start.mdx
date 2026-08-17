@@ -5,11 +5,11 @@ description: Run Infinite Canvas in a few steps
 
 # Quick Start
 
-To try the project, deploy or start the `web/` frontend.
+To try the project, deploy or start the `web/` frontend. Company Tencent Cloud VOD also needs `server/`.
 
 ## Deploy with Vercel
 
-Import the repository into Vercel. The root `vercel.json` builds `web/`. AI requests are sent directly from the browser to your OpenAI-compatible endpoint, so no additional application server is required.
+Import the repository into Vercel. The root `vercel.json` builds `web/`. Personal AI requests are sent directly from the browser. Company Tencent Cloud VOD is not available on this static deploy path.
 
 ## Run locally
 
@@ -20,7 +20,7 @@ bun install
 bun run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000`. To enable the company Tencent Cloud VOD provider, copy `.env.example` to `.env`, fill the Tencent variables, and run `cd server && bun run dev` in another terminal.
 
 ## Run with Docker
 

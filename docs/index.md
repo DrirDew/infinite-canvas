@@ -38,4 +38,4 @@
 ## Notes
 
 - Canvas projects and My Assets are primarily stored in the browser. WebDAV can be configured for cross-device synchronization.
-- The AI API key is stored in the browser, which sends requests directly to OpenAI-compatible endpoints.
+- Personal AI API keys are stored in the browser. Company Tencent Cloud VOD credentials stay in server environment variables.
