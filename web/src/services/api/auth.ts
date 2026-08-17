@@ -7,6 +7,7 @@ export type SessionUser = {
     username: string;
     role: UserRole;
     creditBalance: number;
+    generatedCount?: number;
 };
 
 function errorMessage(error: unknown, fallback: string) {

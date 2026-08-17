@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Database } from "bun:sqlite";
 
 import { dataDir } from "./env";
-import type { GenerationAssetRow, GenerationJobRow, SessionRow, UserRole, UserRow } from "./schema";
+import type { GenerationAssetRow, GenerationJobRow, LedgerRow, SessionRow, UserRole, UserRow } from "./schema";
 
 let sqlite: Database | undefined;
 
@@ -137,6 +137,24 @@ export function insertAsset(row: GenerationAssetRow) {
 
 export function insertLedger(row: { id: string; user_id: string; job_id: string | null; delta: number; reason: string; created_at: number }) {
     db().query("INSERT INTO usage_ledger (id, user_id, job_id, delta, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(row.id, row.user_id, row.job_id, row.delta, row.reason, row.created_at);
+}
+
+export function listLedgerByUser(userId: string) {
+    return db().query("SELECT * FROM usage_ledger WHERE user_id = ? ORDER BY created_at DESC").all(userId) as LedgerRow[];
+}
+
+export function generatedCountForUser(userId: string) {
+    const row = db().query("SELECT COALESCE(SUM(CASE WHEN reason = 'generate' THEN -delta ELSE 0 END), 0) AS generated FROM usage_ledger WHERE user_id = ?").get(userId) as { generated: number };
+    return row.generated;
+}
+
+export function generatedCountMap() {
+    const rows = db().query("SELECT user_id, COALESCE(SUM(CASE WHEN reason = 'generate' THEN -delta ELSE 0 END), 0) AS generated FROM usage_ledger GROUP BY user_id").all() as Array<{ user_id: string; generated: number }>;
+    return new Map(rows.map((row) => [row.user_id, row.generated]));
+}
+
+export function jobCountByUser(userId: string) {
+    return (db().query("SELECT COUNT(*) AS count FROM generation_jobs WHERE user_id = ?").get(userId) as { count: number }).count;
 }
 
 export function listJobsByUser(userId: string) {

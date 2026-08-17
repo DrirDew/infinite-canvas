@@ -1,4 +1,4 @@
-import { findUserById, findUserByUsername, insertLedger, insertUser, listUsers, setCreditBalance, withImmediate } from "./db";
+import { findUserById, findUserByUsername, generatedCountForUser, generatedCountMap, insertLedger, insertUser, listUsers, setCreditBalance, withImmediate } from "./db";
 import { toPublicUser, type UserRole } from "./schema";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{2,32}$/;
@@ -29,11 +29,12 @@ export async function createUser(username: string, password: string, role: UserR
         created_at: Date.now(),
     };
     insertUser(row);
-    return toPublicUser(row);
+    return toPublicUser(row, 0);
 }
 
 export function publicUsers() {
-    return listUsers().map(toPublicUser);
+    const generated = generatedCountMap();
+    return listUsers().map((row) => toPublicUser(row, generated.get(row.id) || 0));
 }
 
 export function adjustCredits(userId: string, creditBalance: number) {
@@ -45,5 +46,5 @@ export function adjustCredits(userId: string, creditBalance: number) {
         setCreditBalance(userId, creditBalance);
         if (delta) insertLedger({ id: crypto.randomUUID(), user_id: userId, job_id: null, delta, reason: "adjust", created_at: Date.now() });
     });
-    return toPublicUser({ ...row, credit_balance: creditBalance });
+    return toPublicUser({ ...row, credit_balance: creditBalance }, generatedCountForUser(userId));
 }

@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 
 import { clearSessionCookie, createSession, requireAdmin, requireUser, writeSessionCookie, type AppEnv } from "./auth";
-import { bootstrapAdmin, findUserByUsername } from "./db";
+import { bootstrapAdmin, findUserByUsername, generatedCountForUser } from "./db";
 import { loadRootEnv } from "./env";
 import { CreditError, generateCompanyImages, getGeneration, listGenerations, readGenerationAsset, removeGeneration } from "./generations";
 import { toPublicUser } from "./schema";
 import { companyTencentVodChannel, type CompanyImageRequest } from "./tencent-vod";
+import { usageForUser } from "./usage";
 import { adjustCredits, createUser, normalizeUsername, publicUsers } from "./users";
 
 loadRootEnv();
@@ -26,7 +27,7 @@ app.post("/api/auth/login", async (c) => {
     const row = findUserByUsername(username);
     if (!row || !(await Bun.password.verify(password, row.password_hash))) return c.json({ error: "用户名或密码错误" }, 401);
     writeSessionCookie(c, await createSession(row.id));
-    return c.json(toPublicUser(row));
+    return c.json(toPublicUser(row, generatedCountForUser(row.id)));
 });
 
 app.post("/api/auth/logout", (c) => {
@@ -69,6 +70,11 @@ app.get("/api/generations/:id/assets/:index", requireUser, (c) => {
 app.delete("/api/generations/:id", requireUser, (c) => {
     if (!removeGeneration(c.get("user").id, c.req.param("id"))) return c.json({ error: "记录不存在" }, 404);
     return c.json({ ok: true });
+});
+
+app.get("/api/usage/me", requireUser, (c) => {
+    const usage = usageForUser(c.get("user").id);
+    return usage ? c.json(usage) : c.json({ error: "未登录" }, 401);
 });
 
 app.get("/api/users", requireUser, requireAdmin, (c) => c.json({ users: publicUsers() }));

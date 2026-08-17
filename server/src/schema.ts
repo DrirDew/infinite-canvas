@@ -21,6 +21,7 @@ export type PublicUser = {
     username: string;
     role: UserRole;
     creditBalance: number;
+    generatedCount: number;
 };
 
 export type GenerationJobRow = {
@@ -51,6 +52,15 @@ export type GenerationAssetRow = {
     bytes: number;
 };
 
-export function toPublicUser(row: UserRow): PublicUser {
-    return { id: row.id, username: row.username, role: row.role, creditBalance: row.credit_balance };
+export type LedgerRow = {
+    id: string;
+    user_id: string;
+    job_id: string | null;
+    delta: number;
+    reason: string;
+    created_at: number;
+};
+
+export function toPublicUser(row: UserRow, generatedCount = 0): PublicUser {
+    return { id: row.id, username: row.username, role: row.role, creditBalance: row.credit_balance, generatedCount };
 }
