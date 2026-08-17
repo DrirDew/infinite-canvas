@@ -49,17 +49,15 @@ docker compose -f docker-compose.local.yml up -d --build
 
 ## 数据说明
 
-当前主应用镜像提供静态前端，并把 `/api` 转到公司渠道服务。画布、我的素材、生成记录和个人 API Key 默认保存在浏览器本地；公司腾讯云点播密钥只放在服务端环境变量，不会下发到浏览器。
+当前主应用镜像提供静态前端，并把 `/api` 转到公司渠道服务。画布、我的素材、生成记录和个人 API Key 默认保存在浏览器本地；公司腾讯云点播密钥只放在服务端环境变量，不会下发到浏览器。应用登录用 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 在空库时创建第一个管理员，用户数据存在 `./data` 卷里。
 
-## 访问保护（可选）
+## 环境变量
 
-设置 `AUTH_PASSWORD` 后，打开站点会弹出浏览器自带的用户名密码框。不设置则仍可直接访问。这是 Nginx HTTP Basic 校验，不是账号系统。
-
-把项目根目录的 `.env.example` 复制为 `.env` 后填写：
+把项目根目录的 `.env.example` 复制为 `.env` 后填写。打开站点会进入应用登录页，不再弹出浏览器自带的用户名密码框。
 
 ```env
-AUTH_USER=admin
-AUTH_PASSWORD=your-password
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-app-password
 TENCENT_VOD_SECRET_ID=
 TENCENT_VOD_SECRET_KEY=
 TENCENT_VOD_SUB_APP_ID=
@@ -67,8 +65,8 @@ TENCENT_VOD_SUB_APP_ID=
 
 | 变量 | 说明 |
 | --- | --- |
-| `AUTH_USER` | 用户名，默认 `admin` |
-| `AUTH_PASSWORD` | 访问密码；留空则关闭校验 |
+| `ADMIN_USERNAME` | 用户表为空时创建的应用管理员用户名 |
+| `ADMIN_PASSWORD` | 用户表为空时创建的应用管理员密码 |
 | `TENCENT_VOD_SECRET_ID` | 公司腾讯云 SecretId；留空则不显示公司渠道 |
 | `TENCENT_VOD_SECRET_KEY` | 公司腾讯云 SecretKey；不会下发到浏览器 |
 | `TENCENT_VOD_SUB_APP_ID` | 公司点播应用 ID |
@@ -79,10 +77,10 @@ TENCENT_VOD_SUB_APP_ID=
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-不要使用另一套应用的 `.env.production`。修改 `.env` 后执行 `docker compose -f docker-compose.local.yml up -d` 即可让新密码和公司渠道配置生效，一般不用重新构建镜像。
+不要使用另一套应用的 `.env.production`。改过前端或 `server/` 后需要 `docker compose -f docker-compose.local.yml up -d --build`。只改 `.env` 时执行 `docker compose -f docker-compose.local.yml up -d` 即可。`ADMIN_PASSWORD` 只在用户表为空时写入，已有管理员后改这项不会改库里的密码。
 
 <Callout type="warn">
-不要把真实密码和腾讯云密钥提交进仓库。公司生图走 `/api`，仍受站点 Basic Auth 保护。点播反代路径 `/tencent-vod` 需要使用腾讯云签名头，因此不走这层 Basic 校验，仅留给个人渠道。
+不要把真实密码和腾讯云密钥提交进仓库。公司生图走 `/api`，需要应用登录。点播反代路径 `/tencent-vod` 仅留给个人渠道，使用腾讯云签名头。
 </Callout>
 
 ## 统计分析（可选）

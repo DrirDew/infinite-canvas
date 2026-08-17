@@ -29,9 +29,9 @@ description: 在现有 server/ 上补齐登录、角色、生成记录和额度�
 
 | 能力 | 现在在哪 | 问题 |
 | --- | --- | --- |
-| 公司渠道代签 | `server/` 匿名接口 | 不知道是谁在用 |
-| 站点大门 | Docker HTTP Basic Auth | 全站一把锁，分不出管理员和普通用户 |
-| 配置页 `/config` | 前端 zustand persist | 谁打开都能改 |
+| 公司渠道代签 | `server/`，需登录 | 知道是谁，但还不记用量 |
+| 站点大门 | 应用登录（Session Cookie） | 第一期已完成；不再使用 Docker HTTP Basic Auth |
+| 配置页 `/config` | 仅管理员可见 | 第一期已完成 |
 | 生图记录 | 浏览器 `localforage` | 关客户端或换机器就没有 |
 | 额度 | 无 | 无法限制和统计 |
 
@@ -168,7 +168,7 @@ Cookie 建议：`HttpOnly`、`SameSite=Lax`、路径 `/`。本地 Vite 与 `/api
 - `SESSION_SECRET`：会话签名或随机 session id 的熵来源
 - `DATA_DIR`：默认 `./data`，内含 `app.db` 和 `generations/`
 
-Docker：给 `infinite-canvas-api` 挂 volume 到 `DATA_DIR`。Nginx `/api` 反代保持不变。站点 Basic Auth 可暂时保留当外部门禁，应用内登录才是身份；以后若觉得重复，再去掉 Basic Auth。
+Docker：给 `infinite-canvas-api` 挂 volume 到 `DATA_DIR`。Nginx `/api` 反代保持不变。站点大门用应用登录，不再使用 Docker HTTP Basic Auth。
 
 ## 分期交付
 

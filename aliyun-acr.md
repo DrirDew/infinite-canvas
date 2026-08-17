@@ -70,7 +70,7 @@ docker push "$REMOTE_API"
 
 ## 服务器：拉取并启动
 
-服务器不要加 `--build`，否则又会在服务器上编译。仓库和 `.env`（`AUTH_USER` / `AUTH_PASSWORD` / `TENCENT_VOD_*`）要先放到服务器上。
+服务器不要加 `--build`，否则又会在服务器上编译。仓库和 `.env`（`ADMIN_USERNAME` / `ADMIN_PASSWORD` / `TENCENT_VOD_*`）要先放到服务器上。
 
 ```bash
 REGISTRY=crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com
@@ -93,7 +93,7 @@ docker compose -f docker-compose.local.yml up -d
 
 更新已有部署时，改 `IMAGE_TAG` 后再执行上面拉取、打标签和 `up -d`（login 已登录可省略），不要 `--build`。
 
-访问 `http://服务器IP:3000`。若设置了 `AUTH_PASSWORD`，浏览器会弹出登录框。
+访问 `http://服务器IP:3000`，使用应用登录页进入。
 
 ## 对照
 

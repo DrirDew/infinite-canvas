@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { createModelChannel, useConfigStore } from "@/stores/use-config-store";
 import { fetchCompanyChannels } from "@/services/api/company-channels";
 import { usePromptSourceScheduler } from "@/hooks/use-prompt-source-scheduler";
+import { useUserStore } from "@/stores/use-user-store";
 
 export function ClientRootInit({ children }: { children: ReactNode }) {
     const { message } = App.useApp();
@@ -15,15 +16,27 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
     const setCompanyChannels = useConfigStore((state) => state.setCompanyChannels);
     const config = useConfigStore((state) => state.config);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+    const status = useUserStore((state) => state.status);
+    const user = useUserStore((state) => state.user);
+    const restoreSession = useUserStore((state) => state.restoreSession);
+    const isAdmin = user?.role === "admin";
 
     usePromptSourceScheduler();
 
     useEffect(() => {
-        void fetchCompanyChannels().then(setCompanyChannels);
-    }, [setCompanyChannels]);
+        void restoreSession();
+    }, [restoreSession]);
 
     useEffect(() => {
-        if (handledConfigParams.current) return;
+        if (!user) {
+            setCompanyChannels([]);
+            return;
+        }
+        void fetchCompanyChannels().then(setCompanyChannels);
+    }, [setCompanyChannels, user]);
+
+    useEffect(() => {
+        if (!isAdmin || handledConfigParams.current) return;
         const searchParams = new URLSearchParams(window.location.search);
         const baseUrl = searchParams.get("baseUrl") || searchParams.get("baseurl");
         const apiKey = searchParams.get("apiKey") || searchParams.get("apikey");
@@ -53,7 +66,11 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
         if (apiKey) updateConfig("apiKey", apiKey);
         openConfigDialog(false);
         message.success(t("config.importedDirectConfig"));
-    }, [config.channels, message, openConfigDialog, t, updateConfig]);
+    }, [config.channels, isAdmin, message, openConfigDialog, t, updateConfig]);
+
+    if (status === "unknown") {
+        return <div className="flex h-dvh items-center justify-center bg-background text-sm text-stone-500">{t("auth.restoring")}</div>;
+    }
 
     return <>{children}</>;
 }

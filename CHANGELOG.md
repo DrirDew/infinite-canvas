@@ -2,11 +2,11 @@
 
 ## Unreleased
 
++ [新增] 工作台增加账号登录：管理员可打开配置页并创建同事账号，普通用户看不到配置；公司渠道接口需登录后使用。
++ [调整] 去掉 Docker Nginx HTTP Basic 访问保护，站点只保留应用登录。
+
 + [调整] 公司腾讯云点播改为服务端代签，工作台可直接使用公司模型，密钥不再下发到浏览器。
 + [调整] 腾讯云点播生图改为每 5 秒轮询，直到任务完成或失败，不再在 5 分钟时提前结束。
-+ [调整] Docker 访问账号密码改为从项目根目录 `.env` 读取。
-+ [修复] Docker 访问保护在 Alpine 镜像中补装 openssl，避免设置密码后容器无法启动。
-+ [新增] Docker 部署可通过 AUTH_USER / AUTH_PASSWORD 启用 Nginx HTTP Basic 访问保护。
 + [修复] 腾讯云点播 OG 生图尺寸改为 WIDTHxHEIGHT，避免下游 400。
 + [修复] Windows 下本地 Docker 镜像因入口脚本 CRLF 换行无法启动。
 + [新增] 渠道协议新增腾讯云点播，可配置 SecretId、SecretKey 和 SubAppId 后调用 OG/image2 生图。

@@ -1,47 +1,29 @@
 ---
 title: Local Development
-description: Frontend-first local development
+description: Run and verify the app with Docker
 ---
 
 # Local Development
 
-The main application lives in `web/`. Personal providers are still called from the browser. Company Tencent Cloud VOD is signed by `server/`, with credentials in the repository-root `.env`.
+This repository is started with Docker. Do not install bun or Node on the host.
 
-## Start the frontend
-
-```bash
-cd web
-bun install
-bun run dev
-```
-
-Open `http://localhost:3000`.
-
-## Start the company provider API (optional)
-
-Copy `.env.example` to `.env` and set `TENCENT_VOD_SECRET_ID`, `TENCENT_VOD_SECRET_KEY`, and `TENCENT_VOD_SUB_APP_ID`, then:
+Copy `.env.example` to `.env` in the repository root and set `ADMIN_USERNAME` and `ADMIN_PASSWORD`. Add the Tencent Cloud variables if you want the company provider.
 
 ```bash
-cd server
-bun run dev
+docker compose -f docker-compose.local.yml up -d --build
 ```
 
-The frontend proxies `/api` to this service. If it is not running, the company provider is hidden and personal providers still work from Settings.
+Open `http://localhost:3000` and sign in. The first admin is created from `ADMIN_USERNAME` / `ADMIN_PASSWORD` when the user table is empty. Admins can create teammate accounts in Settings → Team accounts.
 
-## Configure models
+User data is stored in `./data/app.db`. Only admins can open Settings. Company providers are read-only and do not show secrets.
 
-Company providers are read-only and do not show secrets. Personal providers still use your own `Base URL`, `API Key`, and model names.
+Rebuild with `--build` after changing `web/` or `server/`. If you only changed `.env`, `docker compose -f docker-compose.local.yml up -d` is enough. `ADMIN_PASSWORD` is written only when the database is empty; changing it later does not update an existing admin.
 
-## Start the documentation site
-
-```bash
-cd docs
-bun run dev
-```
+The documentation site is a separate image. Use Compose in `docs/` when you need it.
 
 Common locations:
 
 - Canvas, pages, and interactions: `web/`
-- Company Tencent Cloud VOD signing: `server/`
+- Login and company Tencent Cloud VOD signing: `server/`
 - Prompt caching: `web/src/services/api/prompts.ts`
 - Documentation content: `docs/content/docs/`

@@ -2,6 +2,7 @@ import axios from "axios";
 
 import i18n from "@/i18n";
 import { signTencentCloudRequest } from "@/lib/tencent-cloud-api";
+import { appApi } from "@/services/api/app-http";
 import type { AiConfig } from "@/stores/use-config-store";
 import { TENCENT_VOD_DEFAULT_MODELS, TENCENT_VOD_HOST } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
@@ -55,7 +56,7 @@ export async function requestTencentVodImages(config: AiConfig, prompt: string, 
 }
 
 async function requestCompanyTencentVodImages(prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, model: string, signal?: AbortSignal) {
-    const response = await axios.post<{ images?: Array<{ id?: string; dataUrl?: string }>; error?: string }>("/api/tencent-vod/images", {
+    const response = await appApi.post<{ images?: Array<{ id?: string; dataUrl?: string }>; error?: string }>("/api/tencent-vod/images", {
         model,
         prompt,
         references: references.map((image) => ({ dataUrl: image.dataUrl })),

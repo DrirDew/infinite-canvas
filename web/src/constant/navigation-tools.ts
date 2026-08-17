@@ -28,3 +28,7 @@ export const navigationTools = [
 ] as const;
 
 export type NavigationToolSlug = (typeof navigationTools)[number]["slug"];
+
+export function visibleNavigationTools(isAdmin: boolean) {
+    return isAdmin ? navigationTools : navigationTools.filter((tool) => tool.slug !== "config");
+}

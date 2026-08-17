@@ -8,12 +8,14 @@ import { ModelPicker } from "@/components/model-picker";
 import { ChannelEditorDrawer } from "@/components/layout/channel-editor-drawer";
 import { ConfigPromptSources } from "@/components/layout/config-prompt-sources";
 import { ConfigLocalStorage } from "@/components/layout/config-local-storage";
+import { ConfigTeamUsers } from "@/pages/config/components/config-team-users";
 import type { AppLocale } from "@/i18n";
 import { exportAppConfig, importAppConfig } from "@/services/config-file";
 import { syncAppDataToWebdav, type AppSyncDomainKey, type AppSyncProgressEvent } from "@/services/app-sync";
 import { testWebdavConnection, WEBDAV_MANIFEST_FILE_NAME } from "@/services/webdav-sync";
 import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from "@/lib/audio-generation";
 import { createModelChannel, decodeChannelModel, isManagedChannel, modelOptionsFromChannels, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore, useEffectiveConfig, type AiConfig, type ApiCallFormat, type ConfigTabKey, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
+import { useUserStore } from "@/stores/use-user-store";
 
 type ModelGroup = {
     capability: ModelCapability;
@@ -323,6 +325,11 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                         label: t("config.tabs.localStorage"),
                         children: <ConfigLocalStorage active={activeTab === "local-storage"} />,
                     },
+                    {
+                        key: "team",
+                        label: t("config.tabs.team"),
+                        children: <ConfigTeamUsers />,
+                    },
                 ]}
             />
             {showDoneButton ? (
@@ -339,9 +346,11 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
 
 export function AppConfigModal() {
     const { t } = useTranslation();
+    const isAdmin = useUserStore((state) => state.user?.role === "admin");
     const isConfigOpen = useConfigStore((state) => state.isConfigOpen);
     const configTab = useConfigStore((state) => state.configTab);
     const setConfigDialogOpen = useConfigStore((state) => state.setConfigDialogOpen);
+    if (!isAdmin) return null;
     return (
         <Modal
             title={

@@ -29,9 +29,9 @@ The image workbench stays. The backend changes from anonymous signing to: identi
 
 | Capability | Where it lives today | Gap |
 | --- | --- | --- |
-| Company channel signing | Anonymous `server/` APIs | No user identity |
-| Site gate | Docker HTTP Basic Auth | One shared lock, no roles |
-| Config page `/config` | Frontend zustand persist | Anyone can change it |
+| Company channel signing | `server/` APIs, login required | Identity exists; usage is not recorded yet |
+| Site gate | App login (session cookie) | Phase 1 done; Docker HTTP Basic Auth removed |
+| Config page `/config` | Admin only | Phase 1 done |
 | Image history | Browser `localforage` | Lost when the client is cleared or switched |
 | Credits | None | No limits or stats |
 
@@ -151,7 +151,7 @@ Add:
 - `SESSION_SECRET`
 - `DATA_DIR` — default `./data`, holds `app.db` and `generations/`
 
-Mount a volume on `infinite-canvas-api` at `DATA_DIR`. Keep the Nginx `/api` proxy. Docker Basic Auth can remain as an outer gate; application login is the real identity. Drop Basic Auth later if it feels redundant.
+Mount a volume on `infinite-canvas-api` at `DATA_DIR`. Keep the Nginx `/api` proxy. The site gate is application login; Docker HTTP Basic Auth has been removed.
 
 ## Delivery stages
 

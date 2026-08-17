@@ -37,15 +37,15 @@ cd docs
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-The main application container serves the static frontend and proxies `/api` to the company provider service. Canvases, My Assets, generation history, and personal API keys are stored in the browser by default. Company Tencent Cloud VOD credentials stay in server environment variables and are never sent to the browser.
+The main application container serves the static frontend and proxies `/api` to the company provider service. Canvases, My Assets, generation history, and personal API keys are stored in the browser by default. Company Tencent Cloud VOD credentials stay in server environment variables and are never sent to the browser. App login uses `ADMIN_USERNAME` / `ADMIN_PASSWORD` to create the first admin; user data is stored in the `./data` volume.
 
-## Optional access protection
+## Environment variables
 
-Copy `.env.example` to `.env` in the repository root and set `AUTH_PASSWORD`. Docker Compose reads that file automatically.
+Copy `.env.example` to `.env` in the repository root. Opening the site shows the app login page; the browser will not prompt for HTTP Basic Auth.
 
 ```env
-AUTH_USER=admin
-AUTH_PASSWORD=your-password
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-app-password
 TENCENT_VOD_SECRET_ID=
 TENCENT_VOD_SECRET_KEY=
 TENCENT_VOD_SUB_APP_ID=
@@ -53,8 +53,8 @@ TENCENT_VOD_SUB_APP_ID=
 
 | Variable | Description |
 | --- | --- |
-| `AUTH_USER` | Username, default `admin` |
-| `AUTH_PASSWORD` | Password; empty disables auth |
+| `ADMIN_USERNAME` | First app admin username when the database is empty |
+| `ADMIN_PASSWORD` | First app admin password when the database is empty |
 | `TENCENT_VOD_SECRET_ID` | Company Tencent Cloud SecretId; empty hides the company provider |
 | `TENCENT_VOD_SECRET_KEY` | Company Tencent Cloud SecretKey; never sent to the browser |
 | `TENCENT_VOD_SUB_APP_ID` | Company VOD application ID |
@@ -63,9 +63,9 @@ TENCENT_VOD_SUB_APP_ID=
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-Do not reuse another app's `.env.production`. After changing `.env`, run `docker compose -f docker-compose.local.yml up -d` so the container picks up the new password and company credentials.
+Do not reuse another app's `.env.production`. After changing `web/` or `server/`, run `docker compose -f docker-compose.local.yml up -d --build`. If you only changed `.env`, `docker compose -f docker-compose.local.yml up -d` is enough. `ADMIN_PASSWORD` is written only when the user table is empty; changing it later does not update an existing admin.
 
-Do not commit real passwords or Tencent Cloud secrets. Company generation goes through `/api` and stays behind Basic Auth. The `/tencent-vod` proxy stays outside Basic Auth because personal providers still use Tencent Cloud signature headers.
+Do not commit real passwords or Tencent Cloud secrets. Company generation goes through `/api` and requires app login. The `/tencent-vod` proxy is only for personal providers that still use Tencent Cloud signature headers.
 
 ## Optional analytics
 
