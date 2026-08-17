@@ -156,6 +156,7 @@ export default {
         configFirst: "请先完成配置",
         generationFailed: "生成失败",
         retrySuccess: "重试成功",
+        resultNotSaved: "生成结果未保存",
     },
     imageWorkbench: {
         title: "生图工作台",
@@ -427,6 +428,7 @@ export default {
             preferences: "偏好设置",
             promptSources: "提示词来源",
             localStorage: "本地存储",
+            serverStorage: "服务端存储",
             team: "团队账号",
         },
         localStorage: {
@@ -444,6 +446,13 @@ export default {
             refresh: "刷新统计",
             readFailed: "读取本地存储失败",
             stores: { appState: "应用状态", images: "图片文件", media: "音视频文件", imageLogs: "生图记录", videoLogs: "视频记录", agentMessages: "Agent 消息", promptCache: "提示词缓存" },
+        },
+        serverStorage: {
+            title: "服务端媒体存储",
+            description: "控制生成记录是否把参考媒体和结果文件写到服务端。",
+            storeMedia: "存储媒体文件",
+            storeMediaDescription: "开启后，生成时会保存参考图、参考视频、参考音频和生成结果。关闭后只保留结果下载链接，不保存媒体文件。页面按记录里实际有的数据展示。仅管理员可修改。",
+            saveFailed: "保存服务端存储设置失败",
         },
         promptSources: {
             add: "新增来源",

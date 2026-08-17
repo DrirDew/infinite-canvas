@@ -65,7 +65,7 @@ export function companyTencentVodChannel() {
 export async function generateCompanyTencentVodImagesSettled(body: CompanyImageRequest, credentials: { secretId: string; secretKey: string; subAppId: string }, signal?: AbortSignal) {
     const prompt = String(body.prompt || "").trim();
     if (!prompt) throw new Error("请输入提示词");
-    const images: Array<{ id: string; dataUrl: string }> = [];
+    const images: Array<{ id: string; dataUrl: string; sourceUrl?: string }> = [];
     const errors: string[] = [];
     const total = Math.max(1, Math.min(15, Math.floor(Number(body.count) || 1)));
     for (let index = 0; index < total; index += 1) {
@@ -112,7 +112,7 @@ async function generateOne(credentials: { secretId: string; secretKey: string; s
     const taskId = created.TaskId?.trim();
     if (!taskId) throw new Error("腾讯云点播生图失败");
     const fileUrl = await pollTask(credentials, taskId, signal);
-    return { id: crypto.randomUUID(), dataUrl: await fileUrlToDataUrl(fileUrl, signal) };
+    return { id: crypto.randomUUID(), dataUrl: await fileUrlToDataUrl(fileUrl, signal), sourceUrl: fileUrl };
 }
 
 async function pollTask(credentials: { secretId: string; secretKey: string; subAppId: string }, taskId: string, signal?: AbortSignal) {

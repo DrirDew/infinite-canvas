@@ -58,6 +58,7 @@ export function db() {
             id TEXT PRIMARY KEY,
             job_id TEXT NOT NULL,
             item_index INTEGER NOT NULL,
+            role TEXT NOT NULL DEFAULT 'result',
             mime TEXT NOT NULL,
             path TEXT NOT NULL,
             width INTEGER NOT NULL DEFAULT 0,
@@ -89,6 +90,10 @@ export function db() {
             created_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
     `);
     try {
         sqlite.exec("ALTER TABLE channels DROP COLUMN is_default");
@@ -114,6 +119,11 @@ export function db() {
         sqlite.exec("ALTER TABLE generation_jobs ADD COLUMN finished_at INTEGER NOT NULL DEFAULT 0");
     } catch {
         // New databases already have finished_at.
+    }
+    try {
+        sqlite.exec("ALTER TABLE generation_assets ADD COLUMN role TEXT NOT NULL DEFAULT 'result'");
+    } catch {
+        // New databases already have role.
     }
     return sqlite;
 }
@@ -186,10 +196,23 @@ export function deleteAssetsByJob(jobId: string) {
     db().query("DELETE FROM generation_assets WHERE job_id = ?").run(jobId);
 }
 
+export function deleteAssetsByJobRole(jobId: string, role: string) {
+    db().query("DELETE FROM generation_assets WHERE job_id = ? AND role = ?").run(jobId, role);
+}
+
 export function insertAsset(row: GenerationAssetRow) {
     db()
-        .query("INSERT INTO generation_assets (id, job_id, item_index, mime, path, width, height, bytes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-        .run(row.id, row.job_id, row.item_index, row.mime, row.path, row.width, row.height, row.bytes);
+        .query("INSERT INTO generation_assets (id, job_id, item_index, role, mime, path, width, height, bytes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(row.id, row.job_id, row.item_index, row.role || "result", row.mime, row.path, row.width, row.height, row.bytes);
+}
+
+export function getAppSetting(key: string) {
+    const row = db().query("SELECT value FROM app_settings WHERE key = ?").get(key) as { value: string } | null;
+    return row?.value;
+}
+
+export function setAppSetting(key: string, value: string) {
+    db().query("INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(key, value);
 }
 
 export function insertLedger(row: { id: string; user_id: string; job_id: string | null; delta: number; reason: string; created_at: number }) {

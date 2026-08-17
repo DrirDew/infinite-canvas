@@ -7,6 +7,7 @@ import { createModelChannel, useConfigStore } from "@/stores/use-config-store";
 import { fetchSharedChannels } from "@/services/api/channels";
 import { usePromptSourceScheduler } from "@/hooks/use-prompt-source-scheduler";
 import { useUserStore } from "@/stores/use-user-store";
+import { useServerSettingsStore } from "@/stores/use-server-settings-store";
 
 export function ClientRootInit({ children }: { children: ReactNode }) {
     const { message } = App.useApp();
@@ -20,6 +21,8 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
     const status = useUserStore((state) => state.status);
     const user = useUserStore((state) => state.user);
     const restoreSession = useUserStore((state) => state.restoreSession);
+    const loadSettings = useServerSettingsStore((state) => state.loadSettings);
+    const clearSettings = useServerSettingsStore((state) => state.clearSettings);
 
     usePromptSourceScheduler();
 
@@ -32,12 +35,14 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
         if (!user) {
             setSharedChannels([]);
             clearPersonalChannels();
+            clearSettings();
             return;
         }
+        void loadSettings();
         void fetchSharedChannels()
             .then(setSharedChannels)
             .catch(() => setSharedChannels([]));
-    }, [clearPersonalChannels, setSharedChannels, status, user]);
+    }, [clearPersonalChannels, clearSettings, loadSettings, setSharedChannels, status, user]);
 
     useEffect(() => {
         if (!user || handledConfigParams.current) return;

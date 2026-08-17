@@ -12,6 +12,17 @@ export type GenerationAsset = {
     bytes: number;
 };
 
+export type GenerationMediaRef = {
+    id: string;
+    name: string;
+    type: string;
+    url: string;
+    width?: number;
+    height?: number;
+    durationMs?: number;
+    bytes?: number;
+};
+
 export type GenerationRecord = {
     id: string;
     kind?: GenerationKind | string;
@@ -31,6 +42,10 @@ export type GenerationRecord = {
     startedAt?: number;
     finishedAt?: number;
     assets: GenerationAsset[];
+    resultUrls?: string[];
+    references?: GenerationMediaRef[];
+    videoReferences?: GenerationMediaRef[];
+    audioReferences?: GenerationMediaRef[];
 };
 
 export type GenerationWriteInput = {
@@ -47,6 +62,11 @@ export type GenerationWriteInput = {
     failCount?: number;
     extra?: Record<string, unknown>;
     images?: Array<{ dataUrl: string }>;
+    resultUrls?: string[];
+    references?: Array<{ id?: string; name?: string; type?: string; dataUrl?: string; url?: string }>;
+    videoReferences?: Array<{ id?: string; name?: string; type?: string; dataUrl?: string; url?: string; width?: number; height?: number; durationMs?: number; bytes?: number }>;
+    audioReferences?: Array<{ id?: string; name?: string; type?: string; dataUrl?: string; url?: string; durationMs?: number }>;
+    video?: { dataUrl?: string; url?: string };
     startedAt?: number;
     finishedAt?: number;
 };

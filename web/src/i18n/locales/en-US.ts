@@ -156,6 +156,7 @@ export default {
         configFirst: "Complete the configuration first",
         generationFailed: "Generation failed",
         retrySuccess: "Retry succeeded",
+        resultNotSaved: "Generation result was not saved",
     },
     imageWorkbench: {
         title: "Image Studio",
@@ -427,6 +428,7 @@ export default {
             preferences: "Preferences",
             promptSources: "Prompt sources",
             localStorage: "Local storage",
+            serverStorage: "Server storage",
             team: "Team accounts",
         },
         localStorage: {
@@ -444,6 +446,13 @@ export default {
             refresh: "Refresh usage",
             readFailed: "Failed to read local storage",
             stores: { appState: "App state", images: "Image files", media: "Audio and video files", imageLogs: "Image history", videoLogs: "Video history", agentMessages: "Agent messages", promptCache: "Prompt cache" },
+        },
+        serverStorage: {
+            title: "Server media storage",
+            description: "Choose whether generation records write reference media and result files to the server.",
+            storeMedia: "Store media files",
+            storeMediaDescription: "When on, generation saves reference images, videos, audio, and results. When off, only result download URLs are kept. The UI shows whatever data the record actually has. Only admins can change this.",
+            saveFailed: "Could not save the server storage setting",
         },
         promptSources: {
             add: "Add source",

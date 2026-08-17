@@ -10,7 +10,8 @@ import { ModelPicker } from "@/components/model-picker";
 import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
 import { VideoSettingsPanel, normalizeVideoResolutionValue, normalizeVideoSizeValue, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
-import { formatBytes, formatDuration } from "@/lib/image-utils";
+import { blobToDataUrl, formatBytes, formatDuration } from "@/lib/image-utils";
+import { isRemoteMediaUrl, persistableAudioRefs, persistableImageRefs, persistableVideoRefs } from "@/lib/generation-media";
 import { boolConfig, isSeedanceVideoConfig, normalizeSeedanceRatio, seedanceReferenceLabel, seedanceVideoReferenceError, seedanceVideoReferenceHint, SEEDANCE_REFERENCE_LIMITS, SEEDANCE_VIDEO_MIME_TYPES } from "@/lib/seedance-video";
 import { deleteStoredMedia, resolveMediaUrl, uploadMediaFile } from "@/services/file-storage";
 import { uploadImage } from "@/services/image-storage";
@@ -21,6 +22,7 @@ import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import { modelOptionLabel, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useConfigAccess } from "@/hooks/use-config-access";
 import { useThemeStore } from "@/stores/use-theme-store";
+import { useServerSettingsStore } from "@/stores/use-server-settings-store";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 import i18n from "@/i18n";
@@ -38,7 +40,7 @@ type GeneratedVideo = {
 
 type GenerationResult = {
     id: string;
-    status: "pending" | "success" | "failed";
+    status: "pending" | "success" | "failed" | "unsaved";
     video?: GeneratedVideo;
     error?: string;
 };
@@ -65,6 +67,7 @@ type GenerationLog = {
     task?: VideoGenerationTask;
     video?: GeneratedVideo;
     error?: string;
+    resultUnsaved?: boolean;
 };
 
 type GenerationLogConfig = Pick<AiConfig, "model" | "videoModel" | "size" | "vquality" | "videoSeconds" | "videoGenerateAudio" | "videoWatermark">;
@@ -82,6 +85,7 @@ export default function VideoPage() {
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
     const { requestConfig } = useConfigAccess();
     const addAsset = useAssetStore((state) => state.addAsset);
+    const storeMediaSetting = useServerSettingsStore((state) => state.storeMedia);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
     const [videoReferences, setVideoReferences] = useState<ReferenceVideo[]>([]);
@@ -217,7 +221,7 @@ export default function VideoPage() {
             const currentStatus = logs.find((log) => log.id === currentJobIdRef.current)?.status;
             const reuse = currentStatus === "draft" || currentStatus === "running";
             const startedAt = Date.now();
-            jobId = await persistSession("running", {
+            const record = await persistSession("running", {
                 jobId: reuse ? currentJobIdRef.current : null,
                 startedAt,
                 error: "",
@@ -225,6 +229,7 @@ export default function VideoPage() {
                 successCount: 0,
                 failCount: 0,
             });
+            jobId = record.id;
             const task = await createVideoGenerationTask(snapshot.config, snapshot.text, snapshot.references, snapshot.videoReferences, snapshot.audioReferences);
             await persistSession("running", { jobId, extra: { task } });
             await refreshLogs(false);
@@ -367,11 +372,27 @@ export default function VideoPage() {
     });
 
     const persistSession = async (status: GenerationStatus, options?: { jobId?: string | null; error?: string; durationMs?: number; successCount?: number; failCount?: number; extra?: Record<string, unknown>; startedAt?: number; finishedAt?: number }) => {
-        const fields = { ...draftFields(options?.extra), status, error: options?.error, durationMs: options?.durationMs, successCount: options?.successCount, failCount: options?.failCount, startedAt: options?.startedAt, finishedAt: options?.finishedAt };
         const jobId = options && "jobId" in options ? options.jobId : currentJobIdRef.current;
+        const fields: GenerationWriteInput = {
+            ...draftFields(options?.extra),
+            status,
+            error: options?.error,
+            durationMs: options?.durationMs,
+            successCount: options?.successCount,
+            failCount: options?.failCount,
+            startedAt: options?.startedAt,
+            finishedAt: options?.finishedAt,
+            ...(storeMediaSetting
+                ? {
+                      references: await persistableImageRefs(references),
+                      videoReferences: await persistableVideoRefs(videoReferences),
+                      audioReferences: await persistableAudioRefs(audioReferences),
+                  }
+                : {}),
+        };
         const record = jobId ? await updateGeneration(jobId, fields) : await createGeneration(fields);
         setSessionId(record.id);
-        return record.id;
+        return record;
     };
 
     const createSession = () => {
@@ -462,26 +483,35 @@ export default function VideoPage() {
                     };
                     setResults([{ id: nextVideo.id, status: "success", video: nextVideo }]);
                     if (agentTaskId) updateAgentTask(agentTaskId, { status: "succeeded", successCount: 1, failCount: 0, error: undefined });
+                    const extra = {
+                        videoModel: log.config.videoModel,
+                        vquality: log.config.vquality,
+                        videoSeconds: log.config.videoSeconds,
+                        videoGenerateAudio: log.config.videoGenerateAudio,
+                        videoWatermark: log.config.videoWatermark,
+                        task: log.task,
+                    };
+                    const resultUrl = state.result.url && isRemoteMediaUrl(state.result.url) ? state.result.url : "";
+                    const storeMedia = useServerSettingsStore.getState().storeMedia;
                     await updateGeneration(log.id, {
                         status: "success",
                         prompt: log.prompt,
                         model: log.model,
                         size: log.size,
                         quality: log.resolution,
-                        extra: {
-                            videoModel: log.config.videoModel,
-                            vquality: log.config.vquality,
-                            videoSeconds: log.config.videoSeconds,
-                            videoGenerateAudio: log.config.videoGenerateAudio,
-                            videoWatermark: log.config.videoWatermark,
-                            task: log.task,
-                            video: nextVideo.storageKey ? { ...nextVideo, url: "" } : nextVideo,
-                        },
+                        extra,
                         durationMs: nextVideo.durationMs,
                         successCount: 1,
                         failCount: 0,
                         error: "",
                         finishedAt: Date.now(),
+                        ...(storeMedia
+                            ? resultUrl
+                                ? { resultUrls: [resultUrl] }
+                                : state.result.blob
+                                  ? { video: { dataUrl: await blobToDataUrl(state.result.blob) } }
+                                  : {}
+                            : { resultUrls: resultUrl ? [resultUrl] : [] }),
                     });
                     await refreshLogs(false);
                     message.success(t("videoWorkbench.generated"));
@@ -533,7 +563,7 @@ export default function VideoPage() {
         if (log.config.videoSeconds) updateConfig("videoSeconds", log.config.videoSeconds);
         if (log.config.videoGenerateAudio) updateConfig("videoGenerateAudio", log.config.videoGenerateAudio);
         if (log.config.videoWatermark) updateConfig("videoWatermark", log.config.videoWatermark);
-        setResults(log.status === "running" ? [{ id: log.id, status: "pending" }] : log.video ? [{ id: log.video.id, status: "success", video: log.video }] : log.status === "draft" ? [] : [{ id: log.id, status: "failed", error: log.error || t("workbench.generationFailed") }]);
+        setResults(log.status === "running" ? [{ id: log.id, status: "pending" }] : log.video ? [{ id: log.video.id, status: "success", video: log.video }] : log.resultUnsaved ? [{ id: log.id, status: "unsaved" }] : log.status === "draft" ? [] : [{ id: log.id, status: "failed", error: log.error || t("workbench.generationFailed") }]);
     };
 
     return (
@@ -708,7 +738,7 @@ export default function VideoPage() {
                         </div>
                         {results.length ? (
                             <div className="grid gap-4">
-                                {results.map((result) => (result.status === "success" && result.video ? <ResultVideoCard key={result.id} video={result.video} onDownload={downloadVideo} onSaveAsset={saveResultToAssets} /> : result.status === "failed" ? <FailedVideoCard key={result.id} error={result.error || t("workbench.generationFailed")} onRetry={retryResult} /> : <PendingVideoCard key={result.id} />))}
+                                {results.map((result) => (result.status === "success" && result.video ? <ResultVideoCard key={result.id} video={result.video} onDownload={downloadVideo} onSaveAsset={saveResultToAssets} /> : result.status === "failed" ? <FailedVideoCard key={result.id} error={result.error || t("workbench.generationFailed")} onRetry={retryResult} /> : result.status === "unsaved" ? <UnsavedVideoCard key={result.id} /> : <PendingVideoCard key={result.id} />))}
                             </div>
                         ) : (
                             <div className="flex min-h-[320px] flex-col items-center justify-center rounded-lg border border-dashed border-stone-300 text-center dark:border-stone-700 lg:min-h-[560px]">
@@ -783,6 +813,18 @@ function ResultVideoCard({ video, onDownload, onSaveAsset }: { video: GeneratedV
                         {t("common.download")}
                     </Button>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function UnsavedVideoCard() {
+    const { t } = useTranslation();
+    return (
+        <div className="overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
+            <div className="flex aspect-video flex-col items-center justify-center gap-2 p-5 text-center text-sm text-stone-500 dark:text-stone-400">
+                <VideoIcon className="size-8 text-stone-400" />
+                <span>{t("workbench.resultNotSaved")}</span>
             </div>
         </div>
     );
@@ -897,7 +939,24 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
 async function toGenerationLog(item: GenerationRecord): Promise<GenerationLog> {
     const extra = item.extra || {};
     const storedVideo = extra.video as GeneratedVideo | undefined;
-    const video = storedVideo?.storageKey ? { ...storedVideo, url: await resolveMediaUrl(storedVideo.storageKey, storedVideo.url) } : storedVideo;
+    const resultAsset = item.assets.find((asset) => asset.mime.startsWith("video/"));
+    const resultUrl = (item.resultUrls || []).find(isRemoteMediaUrl) || (storedVideo?.url && isRemoteMediaUrl(storedVideo.url) ? storedVideo.url : "");
+    const video = resultAsset
+        ? {
+              id: `${item.id}-video`,
+              url: resultAsset.url,
+              storageKey: "",
+              durationMs: item.durationMs,
+              width: resultAsset.width || 1280,
+              height: resultAsset.height || 720,
+              bytes: resultAsset.bytes,
+              mimeType: resultAsset.mime,
+          }
+        : resultUrl
+          ? { id: `${item.id}-video`, url: resultUrl, storageKey: "", durationMs: item.durationMs, width: 1280, height: 720, bytes: 0, mimeType: "video/mp4" }
+          : storedVideo?.storageKey
+            ? { ...storedVideo, url: await resolveMediaUrl(storedVideo.storageKey, storedVideo.url) }
+            : undefined;
     const config = {
         model: item.model,
         videoModel: String(extra.videoModel || item.model || ""),
@@ -915,9 +974,24 @@ async function toGenerationLog(item: GenerationRecord): Promise<GenerationLog> {
         time: new Date(item.updatedAt || item.createdAt).toLocaleString(i18n.resolvedLanguage, { hour12: false }),
         model: item.model,
         config,
-        references: [],
-        videoReferences: [],
-        audioReferences: [],
+        references: (item.references || []).map((image) => ({ id: image.id, name: image.name, type: image.type, dataUrl: image.url })),
+        videoReferences: (item.videoReferences || []).map((videoRef) => ({
+            id: videoRef.id,
+            name: videoRef.name,
+            type: videoRef.type,
+            url: videoRef.url,
+            width: videoRef.width,
+            height: videoRef.height,
+            durationMs: videoRef.durationMs,
+            bytes: videoRef.bytes,
+        })),
+        audioReferences: (item.audioReferences || []).map((audio) => ({
+            id: audio.id,
+            name: audio.name,
+            type: audio.type,
+            url: audio.url,
+            durationMs: audio.durationMs,
+        })),
         durationMs: item.durationMs,
         size: config.size,
         resolution: config.vquality,
@@ -929,6 +1003,7 @@ async function toGenerationLog(item: GenerationRecord): Promise<GenerationLog> {
         task: extra.task as VideoGenerationTask | undefined,
         video,
         error: item.error,
+        resultUnsaved: item.status === "success" && !video,
     };
 }
 

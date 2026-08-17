@@ -47,10 +47,13 @@ export type GenerationJobRow = {
     finished_at: number;
 };
 
+export type GenerationAssetRole = "result" | "image-ref" | "video-ref" | "audio-ref";
+
 export type GenerationAssetRow = {
     id: string;
     job_id: string;
     item_index: number;
+    role: GenerationAssetRole | string;
     mime: string;
     path: string;
     width: number;

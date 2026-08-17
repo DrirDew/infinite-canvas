@@ -8,6 +8,7 @@ import { ModelPicker } from "@/components/model-picker";
 import { ChannelEditorDrawer } from "@/components/layout/channel-editor-drawer";
 import { ConfigPromptSources } from "@/components/layout/config-prompt-sources";
 import { ConfigLocalStorage } from "@/components/layout/config-local-storage";
+import { ConfigServerStorage } from "@/components/layout/config-server-storage";
 import { ConfigTeamUsers } from "@/pages/config/components/config-team-users";
 import type { AppLocale } from "@/i18n";
 import { exportAppConfig, importAppConfig } from "@/services/config-file";
@@ -384,6 +385,11 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                         key: "local-storage",
                         label: t("config.tabs.localStorage"),
                         children: <ConfigLocalStorage active={activeTab === "local-storage"} />,
+                    },
+                    {
+                        key: "server-storage",
+                        label: t("config.tabs.serverStorage"),
+                        children: <ConfigServerStorage />,
                     },
                     {
                         key: "team",

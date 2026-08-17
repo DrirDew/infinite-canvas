@@ -15,11 +15,13 @@ import { useConfigAccess } from "@/hooks/use-config-access";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { nanoid } from "nanoid";
 import { formatBytes, formatDuration, getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
+import { isRemoteMediaUrl, persistableImageRefs, persistableResultUrls } from "@/lib/generation-media";
 import { requestEdit, requestGeneration } from "@/services/api/image";
 import { createGeneration, deleteGeneration, fetchGenerations, updateGeneration, type GenerationRecord, type GenerationStatus, type GenerationWriteInput } from "@/services/api/generations";
 import { uploadImage } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { useServerSettingsStore } from "@/stores/use-server-settings-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import type { ReferenceImage } from "@/types/image";
 import i18n from "@/i18n";
@@ -37,7 +39,7 @@ type GeneratedImage = {
 
 type GenerationResult = {
     id: string;
-    status: "pending" | "success" | "failed";
+    status: "pending" | "success" | "failed" | "unsaved";
     image?: GeneratedImage;
     error?: string;
 };
@@ -63,6 +65,7 @@ type GenerationLog = {
     updatedAt?: number;
     images: GeneratedImage[];
     thumbnails: string[];
+    resultUnsaved?: boolean;
 };
 
 type GenerationLogConfig = Pick<AiConfig, "model" | "imageModel" | "quality" | "size" | "count">;
@@ -83,6 +86,7 @@ export default function ImagePage() {
     const { requestConfig } = useConfigAccess();
     const addAsset = useAssetStore((state) => state.addAsset);
     const creditBalance = useUserStore((state) => state.user?.creditBalance ?? 0);
+    const storeMediaSetting = useServerSettingsStore((state) => state.storeMedia);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
     const [results, setResults] = useState<GenerationResult[]>([]);
@@ -197,7 +201,7 @@ export default function ImagePage() {
         try {
             const currentStatus = logs.find((log) => log.id === currentJobIdRef.current)?.status;
             const reuse = currentStatus === "draft" || currentStatus === "running";
-            jobId = await persistSession("running", {
+            const record = await persistSession("running", {
                 jobId: reuse ? currentJobIdRef.current : null,
                 startedAt: Date.now(),
                 error: "",
@@ -205,6 +209,7 @@ export default function ImagePage() {
                 successCount: 0,
                 failCount: 0,
             });
+            jobId = record.id;
             await refreshLogs();
             if (isManaged) {
                 const images = snapshot.references.length ? await requestEdit(snapshot.config, snapshot.text, snapshot.references, undefined, { jobId }) : await requestGeneration(snapshot.config, snapshot.text, { jobId });
@@ -243,6 +248,7 @@ export default function ImagePage() {
             if (agentTaskId) updateAgentTask(agentTaskId, { status: successCount ? "succeeded" : "failed", successCount, failCount, error: successCount ? undefined : error });
             if (jobId && !isManaged) {
                 const images = completedImages.flatMap((image) => (image.dataUrl.startsWith("data:") ? [{ dataUrl: image.dataUrl }] : []));
+                const resultUrls = persistableResultUrls(completedImages.map((image) => image.dataUrl));
                 await updateGeneration(jobId, {
                     ...draftFields(),
                     prompt: snapshot.text,
@@ -255,7 +261,8 @@ export default function ImagePage() {
                     successCount,
                     failCount,
                     finishedAt: Date.now(),
-                    ...(images.length ? { images } : {}),
+                    ...(storeMediaSetting && images.length ? { images } : {}),
+                    ...(!storeMediaSetting ? { resultUrls } : {}),
                 }).catch(() => undefined);
             }
             void refreshLogs();
@@ -341,12 +348,24 @@ export default function ImagePage() {
         extra: { imageModel: model },
     });
 
-    const persistSession = async (status: GenerationStatus, options?: { jobId?: string | null; error?: string; durationMs?: number; successCount?: number; failCount?: number; images?: Array<{ dataUrl: string }>; startedAt?: number; finishedAt?: number }) => {
-        const fields = { ...draftFields(), status, error: options?.error, durationMs: options?.durationMs, successCount: options?.successCount, failCount: options?.failCount, images: options?.images, startedAt: options?.startedAt, finishedAt: options?.finishedAt };
+    const persistSession = async (status: GenerationStatus, options?: { jobId?: string | null; error?: string; durationMs?: number; successCount?: number; failCount?: number; images?: Array<{ dataUrl: string }>; resultUrls?: string[]; startedAt?: number; finishedAt?: number }) => {
         const jobId = options && "jobId" in options ? options.jobId : currentJobIdRef.current;
+        const fields: GenerationWriteInput = {
+            ...draftFields(),
+            status,
+            error: options?.error,
+            durationMs: options?.durationMs,
+            successCount: options?.successCount,
+            failCount: options?.failCount,
+            images: storeMediaSetting ? options?.images : undefined,
+            resultUrls: storeMediaSetting ? undefined : options?.resultUrls,
+            startedAt: options?.startedAt,
+            finishedAt: options?.finishedAt,
+            ...(storeMediaSetting ? { references: await persistableImageRefs(references) } : {}),
+        };
         const record = jobId ? await updateGeneration(jobId, fields) : await createGeneration(fields);
         setSessionId(record.id);
-        return record.id;
+        return record;
     };
 
     const createSession = () => {
@@ -401,13 +420,13 @@ export default function ImagePage() {
         setSessionId(log.id);
         setPreviewLog(log);
         setLogsOpen(false);
-        setPrompt(log.prompt);
+                setPrompt(log.prompt);
         setReferences(log.references || []);
         if (log.config.imageModel || log.model) updateConfig("imageModel", log.config.imageModel || log.model);
         if (log.config.quality) updateConfig("quality", log.config.quality);
         if (log.config.size) updateConfig("size", log.config.size);
         if (log.config.count) updateConfig("count", log.config.count);
-        setResults(log.images.map((image) => ({ id: image.id, status: "success", image })));
+        setResults(log.resultUnsaved ? [{ id: log.id, status: "unsaved" }] : log.images.map((image) => ({ id: image.id, status: "success", image })));
     };
 
     const buildRequestSnapshot = (count = 1) => {
@@ -603,6 +622,8 @@ export default function ImagePage() {
                                         <ResultImageCard key={result.id} image={result.image} index={index} onEdit={addResultToReferences} onDownload={downloadImage} onSaveAsset={saveResultToAssets} />
                                     ) : result.status === "failed" ? (
                                         <FailedImageCard key={result.id} error={result.error || t("workbench.generationFailed")} onRetry={() => retryResult(index)} />
+                                    ) : result.status === "unsaved" ? (
+                                        <UnsavedResultCard key={result.id} />
                                     ) : (
                                         <PendingImageCard key={result.id} />
                                     ),
@@ -710,6 +731,18 @@ function ResultImageCard({
                         </Button>
                     </Tooltip>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function UnsavedResultCard() {
+    const { t } = useTranslation();
+    return (
+        <div className="overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
+            <div className="flex aspect-square flex-col items-center justify-center gap-2 p-5 text-center text-sm text-stone-500 dark:text-stone-400">
+                <ImagePlus className="size-8 text-stone-400" />
+                <span>{t("workbench.resultNotSaved")}</span>
             </div>
         </div>
     );
@@ -871,7 +904,7 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
 }
 
 function toGenerationLog(item: GenerationRecord): GenerationLog {
-    const images = item.assets.map((asset) => ({
+    const assetImages = item.assets.filter((asset) => !asset.mime.startsWith("video/") && !asset.mime.startsWith("audio/")).map((asset) => ({
         id: `${item.id}-${asset.index}`,
         dataUrl: asset.url,
         durationMs: item.durationMs,
@@ -880,6 +913,15 @@ function toGenerationLog(item: GenerationRecord): GenerationLog {
         bytes: asset.bytes,
         mimeType: asset.mime,
     }));
+    const urlImages = (item.resultUrls || []).filter(isRemoteMediaUrl).map((url, index) => ({
+        id: `${item.id}-url-${index}`,
+        dataUrl: url,
+        durationMs: item.durationMs,
+        width: 0,
+        height: 0,
+        bytes: 0,
+    }));
+    const images = assetImages.length ? assetImages : urlImages;
     return {
         id: item.id,
         createdAt: item.createdAt,
@@ -888,7 +930,7 @@ function toGenerationLog(item: GenerationRecord): GenerationLog {
         time: new Date(item.updatedAt || item.createdAt).toLocaleString(i18n.resolvedLanguage, { hour12: false }),
         model: item.model,
         config: { model: item.model, imageModel: item.model, quality: item.quality, size: item.size, count: String(item.count) },
-        references: [],
+        references: (item.references || []).map((image) => ({ id: image.id, name: image.name, type: image.type, dataUrl: image.url })),
         durationMs: item.durationMs,
         successCount: item.successCount,
         failCount: item.failCount,
@@ -901,6 +943,7 @@ function toGenerationLog(item: GenerationRecord): GenerationLog {
         updatedAt: item.updatedAt,
         images,
         thumbnails: images.map((image) => image.dataUrl),
+        resultUnsaved: item.status === "success" && !images.length,
     };
 }
 

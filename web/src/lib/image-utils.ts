@@ -32,12 +32,20 @@ export function getDataUrlByteSize(dataUrl: string) {
 }
 
 export function readFileAsDataUrl(file: File) {
+    return blobToDataUrl(file);
+}
+
+export function blobToDataUrl(blob: Blob) {
     return new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ""));
         reader.onerror = () => reject(new Error(i18n.t("common.imageReadFailed")));
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(blob);
     });
+}
+
+export function isRemoteMediaUrl(value: string) {
+    return /^https?:\/\//i.test(value || "");
 }
 
 export function readImageMeta(dataUrl: string) {

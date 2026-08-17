@@ -264,7 +264,7 @@ async function resolveSeedanceVideoUrl(video: ReferenceVideo) {
     if (isPublicMediaUrl(video.url) || video.url.startsWith("asset://")) return video.url;
     let blob: Blob | null = null;
     if (video.storageKey) blob = await getMediaBlob(video.storageKey);
-    if (!blob && video.url?.startsWith("blob:")) blob = await (await fetch(video.url)).blob();
+    if (!blob && video.url) blob = await (await fetch(video.url)).blob();
     if (!blob) throw new Error(apiText("invalidReferenceVideo"));
     return blobToDataUrl(blob);
 }
@@ -273,7 +273,7 @@ async function resolveSeedanceAudioUrl(audio: ReferenceAudio) {
     if (isPublicMediaUrl(audio.url) || audio.url.startsWith("asset://")) return audio.url;
     let blob: Blob | null = null;
     if (audio.storageKey) blob = await getMediaBlob(audio.storageKey);
-    if (!blob && audio.url?.startsWith("blob:")) blob = await (await fetch(audio.url)).blob();
+    if (!blob && audio.url) blob = await (await fetch(audio.url)).blob();
     if (!blob) throw new Error(apiText("invalidReferenceAudio"));
     return blobToDataUrl(blob);
 }
@@ -282,7 +282,7 @@ async function videoResultFromUrl(url: string, options?: RequestOptions): Promis
     try {
         const response = await axios.get<Blob>(url, { responseType: "blob", signal: options?.signal });
         await assertVideoBlob(response.data);
-        return { blob: response.data };
+        return { blob: response.data, url, mimeType: "video/mp4" };
     } catch (error) {
         if (axios.isCancel(error) || options?.signal?.aborted) throw error;
         return { url, mimeType: "video/mp4" };
