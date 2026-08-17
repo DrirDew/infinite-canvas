@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 
 import { visibleNavigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
-import { useUserStore } from "@/stores/use-user-store";
 
 type MobileNavDrawerProps = {
     open: boolean;
@@ -14,8 +13,7 @@ type MobileNavDrawerProps = {
 
 export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDrawerProps) {
     const { t } = useTranslation();
-    const isAdmin = useUserStore((state) => state.user?.role === "admin");
-    const tools = visibleNavigationTools(isAdmin);
+    const tools = visibleNavigationTools();
 
     return (
         <Drawer title={t("topNav.navigation")} placement="left" size={280} open={open} onClose={onClose} className="md:hidden">

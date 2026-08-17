@@ -3,7 +3,8 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 
 import { addCredits, deleteJob, findAsset, findJobById, findUserById, insertAsset, insertJob, insertLedger, listAssetsByJob, listJobsByUser, withImmediate } from "./db";
 import { dataDir } from "./env";
-import { generateCompanyTencentVodImagesSettled, tencentVodCredentials, type CompanyImageRequest } from "./tencent-vod";
+import { generateCompanyTencentVodImagesSettled, type CompanyImageRequest } from "./tencent-vod";
+import { resolveSharedTencentChannel } from "./channels";
 
 export class CreditError extends Error {}
 
@@ -149,13 +150,13 @@ function saveJob(input: {
 export async function generateCompanyImages(userId: string, body: CompanyImageRequest, signal?: AbortSignal) {
     const prompt = String(body.prompt || "").trim();
     if (!prompt) throw new Error("请输入提示词");
-    if (!tencentVodCredentials()) throw new Error("公司腾讯云点播未配置");
+    const { credentials } = resolveSharedTencentChannel(body.channelId);
     const planned = plannedCount(body);
     reserveCredits(userId, planned);
     const started = Date.now();
     let settled = false;
     try {
-        const result = await generateCompanyTencentVodImagesSettled({ ...body, count: planned }, signal);
+        const result = await generateCompanyTencentVodImagesSettled({ ...body, count: planned }, credentials, signal);
         if (result.aborted && !result.images.length) {
             withImmediate(() => addCredits(userId, planned));
             settled = true;

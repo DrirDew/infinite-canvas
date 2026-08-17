@@ -10,7 +10,6 @@ import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { useAgentStore } from "@/stores/use-agent-store";
-import { useUserStore } from "@/stores/use-user-store";
 
 export function AppTopNav() {
     const { t } = useTranslation();
@@ -25,8 +24,7 @@ export function AppTopNav() {
     const panelOpen = useAgentStore((state) => state.panelOpen);
     const hideHeader = /^\/canvas\/[^/]+/.test(pathname);
     const slug = pathname.split("/").filter(Boolean)[0];
-    const isAdmin = useUserStore((state) => state.user?.role === "admin");
-    const tools = visibleNavigationTools(isAdmin);
+    const tools = visibleNavigationTools();
     const activeToolSlug = navigationTools.some((tool) => tool.slug === slug) ? (slug as NavigationToolSlug) : undefined;
 
     useEffect(() => {

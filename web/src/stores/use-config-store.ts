@@ -24,7 +24,9 @@ export type ModelChannel = {
     subAppId?: string;
     apiFormat: ApiCallFormat;
     models: ChannelModel[];
+    shared?: boolean;
     managed?: boolean;
+    hasSecrets?: boolean;
 };
 
 export type AiConfig = {
@@ -57,6 +59,7 @@ export type AiConfig = {
     background: string;
     count: string;
     canvasImageCount: string;
+    channelId?: string;
 };
 
 export type WebdavSyncConfig = {
@@ -69,6 +72,7 @@ export type WebdavSyncConfig = {
 export type ConfigTabKey = "channels" | "preferences" | "prompt-sources" | "webdav" | "local-storage" | "team";
 
 export const CONFIG_STORE_KEY = "infinite-canvas:ai_config_store";
+const PERSONAL_CHANNELS_KEY = "infinite-canvas:personal_channels";
 const CHANNEL_MODEL_SEPARATOR = "::";
 const OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
@@ -90,26 +94,12 @@ export const defaultConfig: AiConfig = {
     baseUrl: OPENAI_BASE_URL,
     apiKey: "",
     apiFormat: "openai",
-    channels: [
-        {
-            id: "default",
-            name: i18n.t("config.channels.defaultName"),
-            baseUrl: OPENAI_BASE_URL,
-            apiKey: "",
-            apiFormat: "openai",
-            models: [
-                { name: "gpt-image-2", capability: "image" },
-                { name: "grok-imagine-video", capability: "video" },
-                { name: "gpt-5.5", capability: "text" },
-                { name: "gpt-4o-mini-tts", capability: "audio" },
-            ],
-        },
-    ],
-    model: "default::gpt-image-2",
-    imageModel: "default::gpt-image-2",
-    videoModel: "default::grok-imagine-video",
-    textModel: "default::gpt-5.5",
-    audioModel: "default::gpt-4o-mini-tts",
+    channels: [],
+    model: "",
+    imageModel: "",
+    videoModel: "",
+    textModel: "",
+    audioModel: "",
     audioVoice: "alloy",
     audioFormat: "mp3",
     audioSpeed: "1",
@@ -120,7 +110,7 @@ export const defaultConfig: AiConfig = {
     videoWatermark: "false",
     systemPrompt: "",
     reasoningEffort: "auto",
-    models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
+    models: [],
     quality: "auto",
     size: "1:1",
     background: "",
@@ -138,13 +128,16 @@ export const defaultWebdavSyncConfig: WebdavSyncConfig = {
 
 type ConfigStore = {
     config: AiConfig;
-    companyChannels: ModelChannel[];
+    sharedChannels: ModelChannel[];
+    personalChannels: ModelChannel[];
     webdav: WebdavSyncConfig;
     isConfigOpen: boolean;
     configTab: ConfigTabKey;
     shouldPromptContinue: boolean;
     updateConfig: <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
-    setCompanyChannels: (channels: ModelChannel[]) => void;
+    setSharedChannels: (channels: ModelChannel[]) => void;
+    setPersonalChannels: (channels: ModelChannel[]) => void;
+    clearPersonalChannels: () => void;
     updateWebdavConfig: <K extends keyof WebdavSyncConfig>(key: K, value: WebdavSyncConfig[K]) => void;
     isAiConfigReady: (config: AiConfig, model: string) => boolean;
     openConfigDialog: (shouldPromptContinue?: boolean, tab?: ConfigTabKey) => void;
@@ -203,17 +196,44 @@ export function resolveModelScript(config: AiConfig, value: string) {
 function isAiConfigReady(config: AiConfig, model: string) {
     const channel = resolveModelChannel(config, model);
     if (!model.trim()) return false;
-    if (isManagedChannel(channel)) return channel.models.length > 0;
+    if (isSharedChannel(channel)) return channel.apiFormat === "tencent-vod" && channel.models.length > 0 && Boolean(channel.hasSecrets);
     if (!channel.apiKey.trim()) return false;
     if (channel.apiFormat === "tencent-vod") return Boolean(channel.secretKey?.trim() && channel.subAppId?.trim());
     return Boolean(channel.baseUrl.trim());
+}
+
+function readPersonalChannels(): ModelChannel[] {
+    if (typeof sessionStorage === "undefined") return [];
+    try {
+        const parsed = JSON.parse(sessionStorage.getItem(PERSONAL_CHANNELS_KEY) || "[]") as ModelChannel[];
+        return Array.isArray(parsed) ? parsed.filter((channel) => channel && !channel.shared) : [];
+    } catch {
+        return [];
+    }
+}
+
+function writePersonalChannels(channels: ModelChannel[]) {
+    if (typeof sessionStorage === "undefined") return;
+    sessionStorage.setItem(PERSONAL_CHANNELS_KEY, JSON.stringify(channels.filter((channel) => !channel.shared)));
+}
+
+function applyChannels(config: AiConfig, sharedChannels: ModelChannel[], personalChannels: ModelChannel[]): AiConfig {
+    const merged = mergeConfigChannels(config, sharedChannels, personalChannels);
+    return {
+        ...merged,
+        imageModel: pickReadyModel(merged, "image", merged.imageModel),
+        videoModel: pickReadyModel(merged, "video", merged.videoModel),
+        textModel: pickReadyModel(merged, "text", merged.textModel),
+        audioModel: pickReadyModel(merged, "audio", merged.audioModel),
+    };
 }
 
 export const useConfigStore = create<ConfigStore>()(
     persist(
         (set, get) => ({
             config: defaultConfig,
-            companyChannels: [],
+            sharedChannels: [],
+            personalChannels: readPersonalChannels(),
             webdav: defaultWebdavSyncConfig,
             isConfigOpen: false,
             configTab: "channels",
@@ -225,23 +245,29 @@ export const useConfigStore = create<ConfigStore>()(
                         [key]: value,
                     },
                 })),
-            setCompanyChannels: (channels) => {
-                const companyChannels = channels.filter(isManagedChannel);
+            setSharedChannels: (channels) => {
+                const sharedChannels = channels.filter(isSharedChannel).map((channel) => createModelChannel({ ...channel, shared: true }));
                 const current = get();
-                const merged = mergeConfigChannels(current.config, companyChannels);
-                const imageModel = pickReadyModel(merged, "image", merged.imageModel);
-                const videoModel = pickReadyModel(merged, "video", merged.videoModel);
-                const textModel = pickReadyModel(merged, "text", merged.textModel);
-                const audioModel = pickReadyModel(merged, "audio", merged.audioModel);
                 set({
-                    companyChannels,
-                    config: {
-                        ...current.config,
-                        imageModel,
-                        videoModel,
-                        textModel,
-                        audioModel,
-                    },
+                    sharedChannels,
+                    config: applyChannels(current.config, sharedChannels, current.personalChannels),
+                });
+            },
+            setPersonalChannels: (channels) => {
+                const personalChannels = channels.filter((channel) => !isSharedChannel(channel)).map((channel) => createModelChannel({ ...channel, shared: false }));
+                writePersonalChannels(personalChannels);
+                const current = get();
+                set({
+                    personalChannels,
+                    config: applyChannels(current.config, current.sharedChannels, personalChannels),
+                });
+            },
+            clearPersonalChannels: () => {
+                writePersonalChannels([]);
+                const current = get();
+                set({
+                    personalChannels: [],
+                    config: applyChannels(current.config, current.sharedChannels, []),
                 });
             },
             updateWebdavConfig: (key, value) =>
@@ -258,29 +284,28 @@ export const useConfigStore = create<ConfigStore>()(
         }),
         {
             name: CONFIG_STORE_KEY,
-            partialize: (state) => ({ config: state.config, webdav: state.webdav }),
+            partialize: (state) => ({ config: { ...state.config, channels: [], apiKey: "", secretKey: "", subAppId: "", channelId: undefined }, webdav: state.webdav }),
             merge: (persisted, current) => {
                 const persistedState = (persisted || {}) as Partial<ConfigStore>;
                 const persistedConfig = (persistedState.config || {}) as Partial<AiConfig>;
                 const persistedWebdav = (persistedState.webdav || {}) as Partial<WebdavSyncConfig>;
-                const config = { ...defaultConfig, ...persistedConfig };
-                if (!Array.isArray(persistedConfig.channels)) config.channels = [];
-                const channels = normalizeChannels(config);
-                const models = modelOptionsFromChannels(channels);
+                const config = { ...defaultConfig, ...persistedConfig, channels: [], apiKey: "", secretKey: "", subAppId: "", channelId: undefined };
+                const personalChannels = readPersonalChannels().map((channel) => createModelChannel({ ...channel, shared: false }));
                 return {
                     ...current,
-                    companyChannels: current.companyChannels || [],
+                    sharedChannels: current.sharedChannels || [],
+                    personalChannels,
                     webdav: { ...defaultWebdavSyncConfig, ...persistedWebdav },
                     config: {
                         ...config,
                         channelMode: "local",
                         apiFormat: normalizeApiFormat(config.apiFormat),
-                        channels,
-                        models,
-                        imageModel: normalizeModelOptionValue(config.imageModel || config.model, channels),
-                        videoModel: normalizeModelOptionValue(config.videoModel, channels),
-                        textModel: normalizeModelOptionValue(config.textModel || config.model, channels),
-                        audioModel: normalizeModelOptionValue(config.audioModel || defaultConfig.audioModel, channels),
+                        channels: [],
+                        models: [],
+                        imageModel: config.imageModel || config.model || "",
+                        videoModel: config.videoModel || "",
+                        textModel: config.textModel || config.model || "",
+                        audioModel: config.audioModel || "",
                         audioVoice: config.audioVoice || defaultConfig.audioVoice,
                         audioFormat: config.audioFormat || defaultConfig.audioFormat,
                         audioSpeed: config.audioSpeed || defaultConfig.audioSpeed,
@@ -300,17 +325,32 @@ export const useConfigStore = create<ConfigStore>()(
 
 export function useEffectiveConfig() {
     const config = useConfigStore((state) => state.config);
-    const companyChannels = useConfigStore((state) => state.companyChannels);
-    return useMemo(() => mergeConfigChannels({ ...config, channelMode: "local" as const }, companyChannels), [companyChannels, config]);
+    const sharedChannels = useConfigStore((state) => state.sharedChannels);
+    const personalChannels = useConfigStore((state) => state.personalChannels);
+    return useMemo(() => getEffectiveConfigFrom(config, sharedChannels, personalChannels), [config, personalChannels, sharedChannels]);
 }
 
-export function isManagedChannel(channel: Pick<ModelChannel, "id" | "managed">) {
-    return Boolean(channel.managed) || channel.id === COMPANY_TENCENT_VOD_CHANNEL_ID;
+export function getEffectiveConfig() {
+    const { config, sharedChannels, personalChannels } = useConfigStore.getState();
+    return getEffectiveConfigFrom(config, sharedChannels, personalChannels);
 }
 
-export function mergeConfigChannels(config: AiConfig, companyChannels: ModelChannel[]): AiConfig {
-    const local = config.channels.filter((channel) => !isManagedChannel(channel));
-    const channels = [...companyChannels.filter(isManagedChannel), ...local];
+function getEffectiveConfigFrom(config: AiConfig, sharedChannels: ModelChannel[], personalChannels: ModelChannel[]) {
+    return mergeConfigChannels({ ...config, channelMode: "local" as const }, sharedChannels, personalChannels);
+}
+
+export function isSharedChannel(channel: Pick<ModelChannel, "shared" | "managed">) {
+    return Boolean(channel.shared || channel.managed);
+}
+
+export function isManagedChannel(channel: Pick<ModelChannel, "shared" | "managed">) {
+    return isSharedChannel(channel);
+}
+
+export function mergeConfigChannels(config: AiConfig, sharedChannels: ModelChannel[], personalChannels: ModelChannel[]): AiConfig {
+    const shared = sharedChannels.filter(isSharedChannel).map((channel) => createModelChannel({ ...channel, shared: true }));
+    const personal = personalChannels.filter((channel) => !isSharedChannel(channel)).map((channel) => createModelChannel({ ...channel, shared: false }));
+    const channels = [...shared, ...personal];
     return { ...config, channels, models: modelOptionsFromChannels(channels) };
 }
 
@@ -334,18 +374,28 @@ export function normalizeChannelModels(models: Array<string | ChannelModel> | un
     return result;
 }
 
+export const SECRET_MASK = "****************";
+
+export function isSecretMask(value?: string) {
+    return /^\*+$/.test((value || "").trim());
+}
+
 export function createModelChannel(channel?: Partial<ModelChannel>): ModelChannel {
     const apiFormat = normalizeApiFormat(channel?.apiFormat);
     const models = normalizeChannelModels(channel?.models);
+    const shared = Boolean(channel?.shared || channel?.managed);
+    const hidden = shared && Boolean(channel?.hasSecrets);
     return {
         id: channel?.id?.trim() || nanoid(),
         name: channel?.name?.trim() || i18n.t("config.channels.newName"),
         baseUrl: channel?.baseUrl?.trim() || defaultBaseUrlForApiFormat(apiFormat),
-        apiKey: channel?.apiKey || "",
-        secretKey: channel?.secretKey || "",
-        subAppId: channel?.subAppId || "",
+        apiKey: channel?.apiKey || (hidden ? SECRET_MASK : ""),
+        secretKey: channel?.secretKey || (hidden && apiFormat === "tencent-vod" ? SECRET_MASK : ""),
+        subAppId: channel?.subAppId || (hidden && apiFormat === "tencent-vod" ? SECRET_MASK : ""),
         apiFormat,
-        managed: Boolean(channel?.managed),
+        shared,
+        managed: shared,
+        hasSecrets: Boolean(channel?.hasSecrets),
         models: apiFormat === "tencent-vod" && !models.length ? TENCENT_VOD_DEFAULT_MODELS : models,
     };
 }
@@ -384,8 +434,8 @@ export function normalizeModelOptionValue(value: string | undefined, channels: M
     if (!model) return "";
     const decoded = decodeChannelModel(model);
     if (decoded) {
-        if (isManagedChannel({ id: decoded.channelId })) return model;
         const channel = channels.find((item) => item.id === decoded.channelId);
+        if (channel && isSharedChannel(channel)) return model;
         return channel && channel.models.some((item) => item.name === decoded.model) ? model : "";
     }
     const channel = channels.find((item) => item.models.some((entry) => entry.name === model)) || channels[0];
@@ -409,35 +459,9 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
         secretKey: channel.secretKey || "",
         subAppId: channel.subAppId || "",
         apiFormat: channel.apiFormat,
-        managed: isManagedChannel(channel),
+        managed: isSharedChannel(channel),
+        channelId: isSharedChannel(channel) ? channel.id : undefined,
     };
-}
-
-function normalizeChannels(config: AiConfig) {
-    const persistedChannels = Array.isArray(config.channels) ? config.channels : [];
-    const channels = persistedChannels
-        .filter((channel) => !isManagedChannel(channel))
-        .map((channel, index) =>
-        createModelChannel({
-            ...channel,
-            id: channel.id || (index === 0 ? "default" : `channel-${index + 1}`),
-            name: channel.name || (index === 0 ? i18n.t("config.channels.defaultName") : i18n.t("config.channels.indexedName", { index: index + 1 })),
-            models: normalizeChannelModels(channel.models),
-        }),
-    );
-    if (!channels.length) {
-        channels.push(
-            createModelChannel({
-                id: "default",
-                name: i18n.t("config.channels.defaultName"),
-                baseUrl: config.baseUrl || defaultConfig.baseUrl,
-                apiKey: config.apiKey || "",
-                apiFormat: config.apiFormat || defaultConfig.apiFormat,
-                models: normalizeChannelModels([config.model, config.imageModel, config.videoModel, config.textModel, config.audioModel].map(modelOptionName)),
-            }),
-        );
-    }
-    return channels;
 }
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {

@@ -15,7 +15,7 @@ docker compose -f docker-compose.local.yml up -d --build
 
 Open `http://localhost:3000` and sign in. The first admin is created from `ADMIN_USERNAME` / `ADMIN_PASSWORD` when the user table is empty. Admins can create teammate accounts in Settings → Team accounts.
 
-User data is stored in `./data/app.db`. Only admins can open Settings. Company providers are read-only and do not show secrets.
+User data is stored in `./data/app.db`. Every signed-in user can open Settings. When the channel table is empty, a shared provider named 腾讯云 is created; credentials come from server environment variables. Newly added providers are personal and only last for the current browser session. Only an admin can turn on sharing in the provider editor.
 
 Rebuild with `--build` after changing `web/` or `server/`. If you only changed `.env`, `docker compose -f docker-compose.local.yml up -d` is enough. `ADMIN_PASSWORD` is written only when the database is empty; changing it later does not update an existing admin.
 

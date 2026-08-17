@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Database } from "bun:sqlite";
 
 import { dataDir } from "./env";
-import type { GenerationAssetRow, GenerationJobRow, LedgerRow, SessionRow, UserRole, UserRow } from "./schema";
+import type { ChannelRow, GenerationAssetRow, GenerationJobRow, LedgerRow, SessionRow, UserRole, UserRow } from "./schema";
 
 let sqlite: Database | undefined;
 
@@ -73,7 +73,24 @@ export function db() {
             FOREIGN KEY (job_id) REFERENCES generation_jobs(id) ON DELETE SET NULL
         );
         CREATE INDEX IF NOT EXISTS usage_ledger_user_id ON usage_ledger(user_id, created_at);
+        CREATE TABLE IF NOT EXISTS channels (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            api_format TEXT NOT NULL,
+            base_url TEXT NOT NULL DEFAULT '',
+            api_key TEXT NOT NULL DEFAULT '',
+            secret_key TEXT NOT NULL DEFAULT '',
+            sub_app_id TEXT NOT NULL DEFAULT '',
+            models_json TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
     `);
+    try {
+        sqlite.exec("ALTER TABLE channels DROP COLUMN is_default");
+    } catch {
+        // New databases have no is_default column.
+    }
     return sqlite;
 }
 
@@ -175,6 +192,34 @@ export function findAsset(jobId: string, index: number) {
 
 export function deleteJob(id: string) {
     db().query("DELETE FROM generation_jobs WHERE id = ?").run(id);
+}
+
+export function channelCount() {
+    return (db().query("SELECT COUNT(*) AS count FROM channels").get() as { count: number }).count;
+}
+
+export function listChannels() {
+    return db().query("SELECT * FROM channels ORDER BY created_at ASC").all() as ChannelRow[];
+}
+
+export function findChannelById(id: string) {
+    return db().query("SELECT * FROM channels WHERE id = ?").get(id) as ChannelRow | null;
+}
+
+export function insertChannel(row: ChannelRow) {
+    db()
+        .query("INSERT INTO channels (id, name, api_format, base_url, api_key, secret_key, sub_app_id, models_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(row.id, row.name, row.api_format, row.base_url, row.api_key, row.secret_key, row.sub_app_id, row.models_json, row.created_at, row.updated_at);
+}
+
+export function updateChannel(row: ChannelRow) {
+    db()
+        .query("UPDATE channels SET name = ?, api_format = ?, base_url = ?, api_key = ?, secret_key = ?, sub_app_id = ?, models_json = ?, updated_at = ? WHERE id = ?")
+        .run(row.name, row.api_format, row.base_url, row.api_key, row.secret_key, row.sub_app_id, row.models_json, row.updated_at, row.id);
+}
+
+export function deleteChannel(id: string) {
+    db().query("DELETE FROM channels WHERE id = ?").run(id);
 }
 
 export function withImmediate<T>(fn: () => T) {

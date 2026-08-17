@@ -1,7 +1,7 @@
 import { createBrowserRouter, Outlet } from "react-router-dom";
 
 import { AnalyticsTracker } from "@/components/layout/analytics-tracker";
-import { RequireAdmin, RequireAuth } from "@/components/layout/require-auth";
+import { RequireAuth } from "@/components/layout/require-auth";
 import UserLayout from "@/layouts/user-layout";
 import AssetsPage from "@/pages/assets";
 import CanvasPage from "@/pages/canvas";
@@ -36,10 +36,7 @@ export const router = createBrowserRouter([
                     { path: "/usage", element: <UsagePage /> },
                     { path: "/canvas", element: <CanvasPage /> },
                     { path: "/canvas/:id", element: <CanvasProjectPage /> },
-                    {
-                        element: <RequireAdmin />,
-                        children: [{ path: "/config", element: <ConfigPage /> }],
-                    },
+                    { path: "/config", element: <ConfigPage /> },
                 ],
             },
         ],

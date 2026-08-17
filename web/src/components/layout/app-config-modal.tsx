@@ -14,8 +14,9 @@ import { exportAppConfig, importAppConfig } from "@/services/config-file";
 import { syncAppDataToWebdav, type AppSyncDomainKey, type AppSyncProgressEvent } from "@/services/app-sync";
 import { testWebdavConnection, WEBDAV_MANIFEST_FILE_NAME } from "@/services/webdav-sync";
 import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from "@/lib/audio-generation";
-import { createModelChannel, decodeChannelModel, isManagedChannel, modelOptionsFromChannels, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore, useEffectiveConfig, type AiConfig, type ApiCallFormat, type ConfigTabKey, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
+import { createModelChannel, isSecretMask, isSharedChannel, useConfigStore, useEffectiveConfig, type AiConfig, type ApiCallFormat, type ConfigTabKey, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { createSharedChannel, deleteSharedChannel, fetchSharedChannels, updateSharedChannel } from "@/services/api/channels";
 
 type ModelGroup = {
     capability: ModelCapability;
@@ -60,12 +61,17 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
     const [webdavDomainProgress, setWebdavDomainProgress] = useState(createWebdavDomainProgress);
     const config = useConfigStore((state) => state.config);
     const effectiveConfig = useEffectiveConfig();
+    const sharedChannels = useConfigStore((state) => state.sharedChannels);
+    const personalChannels = useConfigStore((state) => state.personalChannels);
     const webdav = useConfigStore((state) => state.webdav);
     const updateConfig = useConfigStore((state) => state.updateConfig);
+    const setSharedChannels = useConfigStore((state) => state.setSharedChannels);
+    const setPersonalChannels = useConfigStore((state) => state.setPersonalChannels);
     const updateWebdavConfig = useConfigStore((state) => state.updateWebdavConfig);
     const shouldPromptContinue = useConfigStore((state) => state.shouldPromptContinue);
     const setConfigDialogOpen = useConfigStore((state) => state.setConfigDialogOpen);
     const clearPromptContinue = useConfigStore((state) => state.clearPromptContinue);
+    const isAdmin = useUserStore((state) => state.user?.role === "admin");
     const webdavReady = Boolean(webdav.url.trim());
     const editingChannel = effectiveConfig.channels.find((channel) => channel.id === editingChannelId) || null;
     const locale = i18n.resolvedLanguage as AppLocale;
@@ -76,7 +82,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
     };
 
     const finishConfig = () => {
-        const ready = effectiveConfig.channels.some((channel) => (isManagedChannel(channel) && channel.models.length) || (channel.baseUrl.trim() && channel.apiKey.trim() && channel.models.length));
+        const ready = effectiveConfig.channels.some((channel) => (isSharedChannel(channel) && channel.models.length) || (channel.baseUrl.trim() && channel.apiKey.trim() && channel.models.length));
         setConfigDialogOpen(false);
         if (!ready) return;
         message.success(t(shouldPromptContinue ? "config.savedContinue" : "config.saved"));
@@ -94,26 +100,75 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
         }
     };
 
-    const updateChannels = (channels: ModelChannel[]) => saveConfig(withChannels(config, channels));
+    const refreshShared = async () => setSharedChannels(await fetchSharedChannels());
 
     const addChannel = () => {
-        const channel = createModelChannel({ name: t("config.channels.numberedName", { count: config.channels.length + 1 }) });
-        updateChannels([...config.channels, channel]);
+        const channel = createModelChannel({ name: t("config.channels.numberedName", { count: personalChannels.length + 1 }) });
+        setPersonalChannels([...personalChannels, channel]);
         setEditingChannelId(channel.id);
     };
 
     const deleteChannel = (id: string) => {
-        if (effectiveConfig.channels.find((channel) => channel.id === id && isManagedChannel(channel))) return;
-        if (config.channels.length <= 1) {
-            message.warning(t("config.channels.keepOne"));
+        const channel = effectiveConfig.channels.find((item) => item.id === id);
+        if (!channel) return;
+        if (isSharedChannel(channel)) {
+            if (!isAdmin) {
+                message.warning(t("config.channels.cannotDeleteShared"));
+                return;
+            }
+            void deleteSharedChannel(id)
+                .then(refreshShared)
+                .catch((error) => message.error(error instanceof Error ? error.message : t("config.channels.deleteFailed")));
             return;
         }
-        updateChannels(config.channels.filter((channel) => channel.id !== id));
+        setPersonalChannels(personalChannels.filter((item) => item.id !== id));
     };
 
     const saveChannel = (channel: ModelChannel) => {
-        if (isManagedChannel(channel)) return;
-        updateChannels(config.channels.map((item) => (item.id === channel.id ? channel : item)));
+        const existing = effectiveConfig.channels.find((item) => item.id === channel.id);
+        const wasShared = Boolean(existing && isSharedChannel(existing));
+        const nowShared = isSharedChannel(channel);
+        if (nowShared && !isAdmin) {
+            message.warning(t("config.channels.onlyAdminCanShare"));
+            return;
+        }
+        if (nowShared && !wasShared) {
+            void createSharedChannel(channel)
+                .then(async () => {
+                    setPersonalChannels(personalChannels.filter((item) => item.id !== channel.id));
+                    await refreshShared();
+                    message.success(t("config.channels.shared"));
+                })
+                .catch((error) => message.error(error instanceof Error ? error.message : t("config.channels.shareFailed")));
+            return;
+        }
+        if (!nowShared && wasShared) {
+            void deleteSharedChannel(channel.id)
+                .then(async () => {
+                    await refreshShared();
+                    setPersonalChannels([
+                        ...personalChannels.filter((item) => item.id !== channel.id),
+                        {
+                            ...channel,
+                            shared: false,
+                            managed: false,
+                            apiKey: isSecretMask(channel.apiKey) ? "" : channel.apiKey,
+                            secretKey: isSecretMask(channel.secretKey) ? "" : channel.secretKey || "",
+                            subAppId: isSecretMask(channel.subAppId) ? "" : channel.subAppId || "",
+                        },
+                    ]);
+                })
+                .catch((error) => message.error(error instanceof Error ? error.message : t("config.channels.saveFailed")));
+            return;
+        }
+        if (nowShared) {
+            void updateSharedChannel(channel)
+                .then(refreshShared)
+                .catch((error) => message.error(error instanceof Error ? error.message : t("config.channels.saveFailed")));
+            return;
+        }
+        const next = personalChannels.some((item) => item.id === channel.id) ? personalChannels.map((item) => (item.id === channel.id ? channel : item)) : [...personalChannels, channel];
+        setPersonalChannels(next);
     };
 
     const testWebdav = async () => {
@@ -169,7 +224,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
     return (
         <>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3 dark:border-stone-800">
-                <div className="text-xs text-stone-500">{t("config.fileSecurity")}</div>
+                <div className="text-xs text-stone-500">{t(isAdmin ? "config.fileSecurityAdmin" : "config.fileSecurity")}</div>
                 <div className="flex gap-2">
                     <Button icon={<Upload className="size-4" />} onClick={() => configInputRef.current?.click()}>
                         {t("config.import")}
@@ -196,25 +251,30 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                                     </Button>
                                 </div>
                                 <div className="space-y-2">
-                                    {effectiveConfig.channels.map((channel) => (
-                                        <div key={channel.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
-                                            <div className="min-w-0">
-                                                <div className="flex min-w-0 items-center gap-2">
-                                                    <div className="truncate text-sm font-semibold">{channel.name || t("config.channels.unnamed")}</div>
-                                                    {isManagedChannel(channel) ? <span className="shrink-0 text-xs text-stone-500">{t("config.channels.company")}</span> : null}
+                                    {effectiveConfig.channels.map((channel) => {
+                                        const shared = isSharedChannel(channel);
+                                        const canEdit = !shared || isAdmin;
+                                        const deleteDisabled = shared && !isAdmin;
+                                        return (
+                                            <div key={channel.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
+                                                <div className="min-w-0">
+                                                    <div className="flex min-w-0 items-center gap-2">
+                                                        <div className="truncate text-sm font-semibold">{channel.name || t("config.channels.unnamed")}</div>
+                                                        {shared ? <span className="shrink-0 text-xs text-stone-500">{t("config.channels.sharedBadge")}</span> : <span className="shrink-0 text-xs text-stone-500">{t("config.channels.personalBadge")}</span>}
+                                                    </div>
+                                                    <div className="mt-1 truncate text-xs text-stone-500">
+                                                        {apiFormatLabel(channel.apiFormat, t)} · {t("config.channels.modelCount", { count: channel.models.length })} · {shared ? t("config.channels.serverManaged") : channel.baseUrl || t("config.channels.missingUrl")}
+                                                    </div>
                                                 </div>
-                                                <div className="mt-1 truncate text-xs text-stone-500">
-                                                    {apiFormatLabel(channel.apiFormat, t)} · {t("config.channels.modelCount", { count: channel.models.length })} · {isManagedChannel(channel) ? t("config.channels.serverManaged") : channel.baseUrl || t("config.channels.missingUrl")}
+                                                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                                                    <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => setEditingChannelId(channel.id)}>
+                                                        {t(canEdit ? "common.edit" : "config.channels.view")}
+                                                    </Button>
+                                                    <Button size="small" danger icon={<Trash2 className="size-3.5" />} className={deleteDisabled ? "opacity-40" : undefined} onClick={() => deleteChannel(channel.id)} />
                                                 </div>
                                             </div>
-                                            <div className="flex shrink-0 gap-2">
-                                                <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => setEditingChannelId(channel.id)}>
-                                                    {t(isManagedChannel(channel) ? "config.channels.view" : "common.edit")}
-                                                </Button>
-                                                {isManagedChannel(channel) ? null : <Button size="small" danger icon={<Trash2 className="size-3.5" />} onClick={() => deleteChannel(channel.id)} />}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ),
@@ -330,7 +390,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                         label: t("config.tabs.team"),
                         children: <ConfigTeamUsers />,
                     },
-                ]}
+                ].filter((item) => isAdmin || item.key !== "team")}
             />
             {showDoneButton ? (
                 <div className="mt-4 flex justify-end">
@@ -339,18 +399,16 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                     </Button>
                 </div>
             ) : null}
-            <ChannelEditorDrawer open={Boolean(editingChannel)} channel={editingChannel} onSave={saveChannel} onClose={() => setEditingChannelId("")} />
+            <ChannelEditorDrawer open={Boolean(editingChannel)} channel={editingChannel} readOnly={Boolean(editingChannel && isSharedChannel(editingChannel) && !isAdmin)} canShare={isAdmin} onSave={saveChannel} onClose={() => setEditingChannelId("")} />
         </>
     );
 }
 
 export function AppConfigModal() {
     const { t } = useTranslation();
-    const isAdmin = useUserStore((state) => state.user?.role === "admin");
     const isConfigOpen = useConfigStore((state) => state.isConfigOpen);
     const configTab = useConfigStore((state) => state.configTab);
     const setConfigDialogOpen = useConfigStore((state) => state.setConfigDialogOpen);
-    if (!isAdmin) return null;
     return (
         <Modal
             title={
@@ -369,32 +427,6 @@ export function AppConfigModal() {
             <AppConfigPanel showDoneButton initialTab={configTab} />
         </Modal>
     );
-}
-
-function withChannels(config: AiConfig, channels: ModelChannel[]): AiConfig {
-    const next: AiConfig = {
-        ...config,
-        channels,
-        models: modelOptionsFromChannels(channels),
-        baseUrl: channels[0]?.baseUrl || config.baseUrl,
-        apiKey: channels[0]?.apiKey || config.apiKey,
-        apiFormat: channels[0]?.apiFormat || config.apiFormat,
-    };
-    return {
-        ...next,
-        imageModel: pickDefaultModel(next, "image", config.imageModel),
-        videoModel: pickDefaultModel(next, "video", config.videoModel),
-        textModel: pickDefaultModel(next, "text", config.textModel),
-        audioModel: pickDefaultModel(next, "audio", config.audioModel),
-    };
-}
-
-function pickDefaultModel(config: AiConfig, capability: ModelCapability, current: string) {
-    const options = selectableModelsByCapability(config, capability);
-    const normalized = normalizeModelOptionValue(current, config.channels);
-    const decoded = decodeChannelModel(normalized);
-    if (decoded && isManagedChannel({ id: decoded.channelId })) return normalized;
-    return options.includes(normalized) ? normalized : options[0] || "";
 }
 
 function normalizeImageCount(value: string) {

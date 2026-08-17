@@ -1,16 +1,18 @@
 import { Hono } from "hono";
 
 import { clearSessionCookie, createSession, requireAdmin, requireUser, writeSessionCookie, type AppEnv } from "./auth";
+import { bootstrapChannels, createSharedChannel, patchSharedChannel, publicChannels, removeSharedChannel, type ChannelInput } from "./channels";
 import { bootstrapAdmin, findUserByUsername, generatedCountForUser } from "./db";
 import { loadRootEnv } from "./env";
 import { CreditError, generateCompanyImages, getGeneration, listGenerations, readGenerationAsset, removeGeneration } from "./generations";
 import { toPublicUser } from "./schema";
-import { companyTencentVodChannel, type CompanyImageRequest } from "./tencent-vod";
+import { type CompanyImageRequest } from "./tencent-vod";
 import { usageForUser } from "./usage";
 import { adjustCredits, createUser, normalizeUsername, publicUsers } from "./users";
 
 loadRootEnv();
 await bootstrapAdmin();
+bootstrapChannels();
 
 const PORT = Number(process.env.PORT) || 8787;
 
@@ -37,10 +39,35 @@ app.post("/api/auth/logout", (c) => {
 
 app.get("/api/auth/me", requireUser, (c) => c.json(c.get("user")));
 
-app.get("/api/company/channels", requireUser, (c) => {
-    const channel = companyTencentVodChannel();
-    return c.json({ channels: channel ? [channel] : [] });
+app.get("/api/channels", requireUser, (c) => c.json({ channels: publicChannels(c.get("user").role === "admin") }));
+
+app.post("/api/channels", requireUser, requireAdmin, async (c) => {
+    try {
+        return c.json(createSharedChannel((await c.req.json().catch(() => ({}))) as ChannelInput), 201);
+    } catch (error) {
+        return c.json({ error: error instanceof Error ? error.message : "创建共享渠道失败" }, 400);
+    }
 });
+
+app.patch("/api/channels/:id", requireUser, requireAdmin, async (c) => {
+    try {
+        return c.json(patchSharedChannel(c.req.param("id"), (await c.req.json().catch(() => ({}))) as ChannelInput));
+    } catch (error) {
+        return c.json({ error: error instanceof Error ? error.message : "更新共享渠道失败" }, 400);
+    }
+});
+
+app.delete("/api/channels/:id", requireUser, requireAdmin, (c) => {
+    try {
+        removeSharedChannel(c.req.param("id"));
+        return c.json({ ok: true });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "删除共享渠道失败";
+        return c.json({ error: message }, 404);
+    }
+});
+
+app.get("/api/company/channels", requireUser, (c) => c.json({ channels: publicChannels(false) }));
 
 app.post("/api/tencent-vod/images", requireUser, async (c) => {
     try {

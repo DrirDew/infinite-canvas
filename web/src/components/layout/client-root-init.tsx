@@ -4,7 +4,7 @@ import { App } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { createModelChannel, useConfigStore } from "@/stores/use-config-store";
-import { fetchCompanyChannels } from "@/services/api/company-channels";
+import { fetchSharedChannels } from "@/services/api/channels";
 import { usePromptSourceScheduler } from "@/hooks/use-prompt-source-scheduler";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -12,14 +12,14 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
     const { message } = App.useApp();
     const { t } = useTranslation();
     const handledConfigParams = useRef(false);
-    const updateConfig = useConfigStore((state) => state.updateConfig);
-    const setCompanyChannels = useConfigStore((state) => state.setCompanyChannels);
-    const config = useConfigStore((state) => state.config);
+    const setSharedChannels = useConfigStore((state) => state.setSharedChannels);
+    const setPersonalChannels = useConfigStore((state) => state.setPersonalChannels);
+    const clearPersonalChannels = useConfigStore((state) => state.clearPersonalChannels);
+    const personalChannels = useConfigStore((state) => state.personalChannels);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const status = useUserStore((state) => state.status);
     const user = useUserStore((state) => state.user);
     const restoreSession = useUserStore((state) => state.restoreSession);
-    const isAdmin = user?.role === "admin";
 
     usePromptSourceScheduler();
 
@@ -28,15 +28,19 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
     }, [restoreSession]);
 
     useEffect(() => {
+        if (status !== "ready") return;
         if (!user) {
-            setCompanyChannels([]);
+            setSharedChannels([]);
+            clearPersonalChannels();
             return;
         }
-        void fetchCompanyChannels().then(setCompanyChannels);
-    }, [setCompanyChannels, user]);
+        void fetchSharedChannels()
+            .then(setSharedChannels)
+            .catch(() => setSharedChannels([]));
+    }, [clearPersonalChannels, setSharedChannels, status, user]);
 
     useEffect(() => {
-        if (!isAdmin || handledConfigParams.current) return;
+        if (!user || handledConfigParams.current) return;
         const searchParams = new URLSearchParams(window.location.search);
         const baseUrl = searchParams.get("baseUrl") || searchParams.get("baseurl");
         const apiKey = searchParams.get("apiKey") || searchParams.get("apikey");
@@ -47,26 +51,14 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
         searchParams.delete("apiKey");
         searchParams.delete("apikey");
         window.history.replaceState(null, "", `${window.location.pathname}${searchParams.size ? `?${searchParams}` : ""}${window.location.hash}`);
-        const firstChannel = config.channels[0];
-        updateConfig(
-            "channels",
-            firstChannel
-                ? config.channels.map((channel, index) =>
-                      index === 0
-                          ? {
-                                ...channel,
-                                ...(baseUrl ? { baseUrl } : {}),
-                                ...(apiKey ? { apiKey } : {}),
-                            }
-                          : channel,
-                  )
-                : [createModelChannel({ id: "default", name: t("config.channels.defaultName"), baseUrl: baseUrl || undefined, apiKey: apiKey || "" })],
-        );
-        if (baseUrl) updateConfig("baseUrl", baseUrl);
-        if (apiKey) updateConfig("apiKey", apiKey);
+        const target = personalChannels[0] || createModelChannel({ name: t("config.channels.newName"), baseUrl: baseUrl || undefined, apiKey: apiKey || "" });
+        const next = personalChannels.some((channel) => channel.id === target.id)
+            ? personalChannels.map((channel) => (channel.id === target.id ? { ...channel, ...(baseUrl ? { baseUrl } : {}), ...(apiKey ? { apiKey } : {}) } : channel))
+            : [...personalChannels, { ...target, ...(baseUrl ? { baseUrl } : {}), ...(apiKey ? { apiKey } : {}) }];
+        setPersonalChannels(next);
         openConfigDialog(false);
         message.success(t("config.importedDirectConfig"));
-    }, [config.channels, isAdmin, message, openConfigDialog, t, updateConfig]);
+    }, [message, openConfigDialog, personalChannels, setPersonalChannels, t, user]);
 
     if (status === "unknown") {
         return <div className="flex h-dvh items-center justify-center bg-background text-sm text-stone-500">{t("auth.restoring")}</div>;

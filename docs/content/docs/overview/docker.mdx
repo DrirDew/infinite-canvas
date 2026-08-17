@@ -37,7 +37,7 @@ cd docs
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-The main application container serves the static frontend and proxies `/api` to the company provider service. Canvases, My Assets, and personal API keys are stored in the browser by default. Company image history and credits live in the `./data` volume. Company Tencent Cloud VOD credentials stay in server environment variables and are never sent to the browser. App login uses `ADMIN_USERNAME` / `ADMIN_PASSWORD` to create the first admin.
+The main application container serves the static frontend and proxies `/api` to the company provider service. Canvases, My Assets, and personal providers stay in the current browser session by default. Shared providers, image history, and credits live in the `./data` volume. Shared-provider secrets stay in server environment variables or the channel table; admins can load plaintext in Settings, regular users cannot. App login uses `ADMIN_USERNAME` / `ADMIN_PASSWORD` to create the first admin.
 
 ## Environment variables
 
@@ -55,8 +55,8 @@ TENCENT_VOD_SUB_APP_ID=
 | --- | --- |
 | `ADMIN_USERNAME` | First app admin username when the database is empty |
 | `ADMIN_PASSWORD` | First app admin password when the database is empty |
-| `TENCENT_VOD_SECRET_ID` | Company Tencent Cloud SecretId; empty hides the company provider |
-| `TENCENT_VOD_SECRET_KEY` | Company Tencent Cloud SecretKey; never sent to the browser |
+| `TENCENT_VOD_SECRET_ID` | SecretId used when seeding the default shared 腾讯云 provider; can also be saved later in Settings |
+| `TENCENT_VOD_SECRET_KEY` | Company Tencent Cloud SecretKey; only admins can reveal it in Settings |
 | `TENCENT_VOD_SUB_APP_ID` | Company VOD application ID |
 
 ```bash

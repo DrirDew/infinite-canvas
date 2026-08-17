@@ -1,15 +1,15 @@
-import { Button, Drawer, Input, Segmented, Select, Space } from "antd";
+import { Button, Drawer, Input, Segmented, Select, Space, Switch } from "antd";
 import { ListPlus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, TENCENT_VOD_DEFAULT_MODELS, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
+import { defaultBaseUrlForApiFormat, guessCapability, isSharedChannel, normalizeChannelModels, TENCENT_VOD_DEFAULT_MODELS, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
 import { ModelScriptEditor } from "./model-script-editor";
 import { ModelSelectModal } from "./model-select-modal";
 
 type ScriptTarget = { name: string; capability: ModelCapability; value: string };
 
-export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: boolean; channel: ModelChannel | null; onSave: (channel: ModelChannel) => void; onClose: () => void }) {
+export function ChannelEditorDrawer({ open, channel, readOnly, canShare, onSave, onClose }: { open: boolean; channel: ModelChannel | null; readOnly?: boolean; canShare?: boolean; onSave: (channel: ModelChannel) => void; onClose: () => void }) {
     const { t } = useTranslation();
     const [draft, setDraft] = useState<ModelChannel | null>(channel);
     const [selectOpen, setSelectOpen] = useState(false);
@@ -27,10 +27,11 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
     }, [open, channel]);
 
     if (!draft) return null;
-    const managed = Boolean(draft.managed);
+    const shared = isSharedChannel(draft);
+    const locked = Boolean(readOnly);
 
     const patch = (value: Partial<ModelChannel>) => {
-        if (managed) return;
+        if (locked) return;
         setDraft((current) => (current ? { ...current, ...value } : current));
     };
     const setModels = (models: ChannelModel[]) => patch({ models });
@@ -49,6 +50,8 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
     const setCapability = (name: string, capability: ModelCapability) => setModels(draft.models.map((model) => (model.name === name ? { ...model, capability } : model)));
     const setScript = (name: string, script: string) => setModels(draft.models.map((model) => (model.name === name ? { ...model, script: script || undefined } : model)));
     const removeModel = (name: string) => setModels(draft.models.filter((model) => model.name !== name));
+    const canReveal = Boolean(canShare);
+    const secretPlaceholder = draft.apiFormat === "tencent-vod" ? "AKIDxxxxxxxx" : "sk-...";
 
     const save = () => {
         onSave({ ...draft, name: draft.name.trim() || t("config.channels.unnamed"), models: normalizeChannelModels(draft.models) });
@@ -59,11 +62,11 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
         <Drawer
             open={open}
             width={640}
-            title={managed ? t("config.channelEditor.companyTitle") : t("config.channelEditor.title")}
+            title={t(locked ? "config.channelEditor.viewTitle" : "config.channelEditor.title")}
             onClose={onClose}
             styles={{ body: { paddingTop: 16 } }}
             extra={
-                managed ? (
+                locked ? (
                     <Button onClick={onClose}>{t("common.close")}</Button>
                 ) : (
                     <Space>
@@ -76,41 +79,46 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
             }
         >
             <div className="grid gap-4 md:grid-cols-2">
+                {canShare || shared ? (
+                    <label className="flex items-center justify-between gap-3 md:col-span-2 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
+                        <span>
+                            <span className="block text-sm font-medium">{t("config.channelEditor.sharedSwitch")}</span>
+                            <span className="mt-0.5 block text-xs text-stone-500">{t("config.channelEditor.sharedSwitchHint")}</span>
+                        </span>
+                        <Switch checked={shared} disabled={locked || !canShare} onChange={(checked) => patch({ shared: checked, managed: checked })} />
+                    </label>
+                ) : null}
                 <label className="block">
                     <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.name")}</span>
-                    <Input value={draft.name} onChange={(event) => patch({ name: event.target.value })} disabled={managed} />
+                    <Input value={draft.name} onChange={(event) => patch({ name: event.target.value })} disabled={locked} />
                 </label>
                 <label className="block">
                     <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.protocol")}</span>
-                    <Select className="w-full" value={draft.apiFormat} options={apiFormatOptions} onChange={changeApiFormat} disabled={managed} />
+                    <Select className="w-full" value={draft.apiFormat} options={apiFormatOptions} onChange={changeApiFormat} disabled={locked} />
                 </label>
-                {managed ? (
-                    <p className="md:col-span-2 text-xs leading-5 text-stone-500">{t("config.channelEditor.companyHint")}</p>
-                ) : (
+                <label className="block md:col-span-2">
+                    <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.baseUrl")}</span>
+                    <Input value={draft.baseUrl} onChange={(event) => patch({ baseUrl: event.target.value })} placeholder={draft.apiFormat === "tencent-vod" ? "/tencent-vod" : "https://api.example.com"} disabled={locked} />
+                </label>
+                <label className="block md:col-span-2">
+                    <span className="mb-1 block text-sm font-medium">{draft.apiFormat === "tencent-vod" ? t("config.channelEditor.secretId") : "API Key"}</span>
+                    <Input.Password value={draft.apiKey} onChange={(event) => patch({ apiKey: event.target.value })} placeholder={secretPlaceholder} disabled={locked} visibilityToggle={canReveal} />
+                </label>
+                {draft.apiFormat === "tencent-vod" ? (
                     <>
                         <label className="block md:col-span-2">
-                            <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.baseUrl")}</span>
-                            <Input value={draft.baseUrl} onChange={(event) => patch({ baseUrl: event.target.value })} placeholder={draft.apiFormat === "tencent-vod" ? "/tencent-vod" : "https://api.example.com"} />
+                            <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.secretKey")}</span>
+                            <Input.Password value={draft.secretKey || ""} onChange={(event) => patch({ secretKey: event.target.value })} disabled={locked} visibilityToggle={canReveal} />
                         </label>
                         <label className="block md:col-span-2">
-                            <span className="mb-1 block text-sm font-medium">{draft.apiFormat === "tencent-vod" ? t("config.channelEditor.secretId") : "API Key"}</span>
-                            <Input.Password value={draft.apiKey} onChange={(event) => patch({ apiKey: event.target.value })} placeholder={draft.apiFormat === "tencent-vod" ? "AKIDxxxxxxxx" : "sk-..."} />
+                            <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.subAppId")}</span>
+                            <Input.Password value={draft.subAppId || ""} onChange={(event) => patch({ subAppId: event.target.value.trim() })} placeholder="251007502" disabled={locked} visibilityToggle={canReveal} />
                         </label>
-                        {draft.apiFormat === "tencent-vod" ? (
-                            <>
-                                <label className="block md:col-span-2">
-                                    <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.secretKey")}</span>
-                                    <Input.Password value={draft.secretKey || ""} onChange={(event) => patch({ secretKey: event.target.value })} />
-                                </label>
-                                <label className="block md:col-span-2">
-                                    <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.subAppId")}</span>
-                                    <Input value={draft.subAppId || ""} onChange={(event) => patch({ subAppId: event.target.value.trim() })} placeholder="251007502" />
-                                </label>
-                                <p className="md:col-span-2 text-xs leading-5 text-stone-500">{t("config.channelEditor.tencentVodHint")}</p>
-                            </>
-                        ) : null}
+                        <p className="md:col-span-2 text-xs leading-5 text-stone-500">{shared ? t("config.channelEditor.sharedHint") : t("config.channelEditor.tencentVodHint")}</p>
                     </>
-                )}
+                ) : shared ? (
+                    <p className="md:col-span-2 text-xs leading-5 text-stone-500">{t("config.channelEditor.sharedHint")}</p>
+                ) : null}
             </div>
 
             <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -118,7 +126,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
                     <div className="text-sm font-semibold">{t("config.channelEditor.models")}</div>
                     <div className="mt-0.5 text-xs text-stone-500">{t("config.channelEditor.modelDescription", { count: draft.models.length })}</div>
                 </div>
-                <Button type="primary" icon={<ListPlus className="size-4" />} onClick={() => setSelectOpen(true)} disabled={managed}>
+                <Button type="primary" icon={<ListPlus className="size-4" />} onClick={() => setSelectOpen(true)} disabled={locked}>
                     {t("config.channelEditor.selectModels")}
                 </Button>
             </div>
@@ -131,13 +139,13 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
                                 {model.name}
                             </span>
                             <div className="flex shrink-0 items-center gap-2">
-                                <Segmented size="small" value={model.capability} options={capabilityOptions} onChange={(value) => setCapability(model.name, value as ModelCapability)} disabled={managed} />
-                                {managed ? null : (
+                                <Segmented size="small" value={model.capability} options={capabilityOptions} onChange={(value) => setCapability(model.name, value as ModelCapability)} disabled={locked} />
+                                {locked ? null : (
                                     <>
-                                <Button size="small" type={model.script ? "primary" : "default"} ghost={Boolean(model.script)} onClick={() => setScriptTarget({ name: model.name, capability: model.capability, value: model.script || "" })}>
-                                    {t(model.script ? "config.channelEditor.scriptReady" : "config.channelEditor.script")}
-                                </Button>
-                                <Button size="small" danger type="text" icon={<Trash2 className="size-3.5" />} onClick={() => removeModel(model.name)} />
+                                        <Button size="small" type={model.script ? "primary" : "default"} ghost={Boolean(model.script)} onClick={() => setScriptTarget({ name: model.name, capability: model.capability, value: model.script || "" })}>
+                                            {t(model.script ? "config.channelEditor.scriptReady" : "config.channelEditor.script")}
+                                        </Button>
+                                        <Button size="small" danger type="text" icon={<Trash2 className="size-3.5" />} onClick={() => removeModel(model.name)} />
                                     </>
                                 )}
                             </div>

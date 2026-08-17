@@ -61,6 +61,19 @@ export type LedgerRow = {
     created_at: number;
 };
 
+export type ChannelRow = {
+    id: string;
+    name: string;
+    api_format: string;
+    base_url: string;
+    api_key: string;
+    secret_key: string;
+    sub_app_id: string;
+    models_json: string;
+    created_at: number;
+    updated_at: number;
+};
+
 export function toPublicUser(row: UserRow, generatedCount = 0): PublicUser {
     return { id: row.id, username: row.username, role: row.role, creditBalance: row.credit_balance, generatedCount };
 }

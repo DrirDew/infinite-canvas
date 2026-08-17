@@ -10,7 +10,7 @@ import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
 import { AssetPickerModal, type InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { imageReferenceLabel } from "@/lib/image-reference-prompt";
-import { modelOptionLabel, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { isManagedChannel, modelOptionLabel, resolveModelChannel, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useConfigAccess } from "@/hooks/use-config-access";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { nanoid } from "nanoid";
@@ -77,10 +77,9 @@ export default function ImagePage() {
     const effectiveConfig = useEffectiveConfig();
     const updateConfig = useConfigStore((state) => state.updateConfig);
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
-    const { isAdmin, requestConfig } = useConfigAccess();
+    const { requestConfig } = useConfigAccess();
     const addAsset = useAssetStore((state) => state.addAsset);
     const creditBalance = useUserStore((state) => state.user?.creditBalance ?? 0);
-    const isManaged = Boolean(effectiveConfig.managed);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
     const [results, setResults] = useState<GenerationResult[]>([]);
@@ -104,6 +103,7 @@ export default function ImagePage() {
     const agentTaskIdRef = useRef<string | undefined>(undefined);
 
     const model = effectiveConfig.imageModel || effectiveConfig.model;
+    const isManaged = isManagedChannel(resolveModelChannel(effectiveConfig, model));
     const generationCount = Math.max(1, Math.min(10, Number(config.count) || 1));
     const canGenerate = Boolean(prompt.trim()) && (!isManaged || creditBalance >= generationCount);
 
@@ -159,7 +159,7 @@ export default function ImagePage() {
             return;
         }
         if (!isAiConfigReady(effectiveConfig, model)) {
-            if (isAdmin) message.warning(t("workbench.configFirst"));
+            message.warning(t("workbench.configFirst"));
             requestConfig(true);
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("imageWorkbench.configIncomplete") });
             return;
@@ -337,7 +337,7 @@ export default function ImagePage() {
             return null;
         }
         if (!isAiConfigReady(effectiveConfig, model)) {
-            if (isAdmin) message.warning(t("workbench.configFirst"));
+            message.warning(t("workbench.configFirst"));
             requestConfig(true);
             return null;
         }

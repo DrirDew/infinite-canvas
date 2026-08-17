@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { createUserRequest, fetchCurrentUser, fetchUsers, loginRequest, logoutRequest, adjustCreditsRequest, type SessionUser } from "@/services/api/auth";
+import { useConfigStore } from "@/stores/use-config-store";
 
 type SessionStatus = "unknown" | "ready";
 
@@ -30,6 +31,7 @@ export const useUserStore = create<UserStore>()((set, get) => ({
         }
     },
     login: async (username, password) => {
+        useConfigStore.getState().clearPersonalChannels();
         set({ user: await loginRequest(username, password), status: "ready" });
     },
     logout: async () => {
@@ -55,5 +57,8 @@ export const useUserStore = create<UserStore>()((set, get) => ({
         const user = get().user;
         if (user) set({ user: { ...user, creditBalance } });
     },
-    clearSession: () => set({ user: null, users: [], status: "ready" }),
+    clearSession: () => {
+        useConfigStore.getState().clearPersonalChannels();
+        set({ user: null, users: [], status: "ready" });
+    },
 }));

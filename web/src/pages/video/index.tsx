@@ -81,7 +81,7 @@ export default function VideoPage() {
     const effectiveConfig = useEffectiveConfig();
     const updateConfig = useConfigStore((state) => state.updateConfig);
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
-    const { isAdmin, requestConfig } = useConfigAccess();
+    const { requestConfig } = useConfigAccess();
     const addAsset = useAssetStore((state) => state.addAsset);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
@@ -255,7 +255,7 @@ export default function VideoPage() {
             return null;
         }
         if (!isAiConfigReady(effectiveConfig, model)) {
-            if (isAdmin) message.warning(t("workbench.configFirst"));
+            message.warning(t("workbench.configFirst"));
             requestConfig(true);
             return null;
         }

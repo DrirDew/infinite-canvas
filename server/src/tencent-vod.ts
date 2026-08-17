@@ -32,6 +32,7 @@ type DescribeTaskPayload = {
 type FileInfo = { Type: "Base64"; Base64: string; ReferenceType?: "mask" };
 
 export type CompanyImageRequest = {
+    channelId?: string;
     model?: string;
     prompt?: string;
     references?: Array<{ dataUrl?: string }>;
@@ -52,12 +53,15 @@ export function tencentVodCredentials() {
 
 export function companyTencentVodChannel() {
     if (!tencentVodCredentials()) return null;
-    return { id: COMPANY_TENCENT_VOD_CHANNEL_ID, apiFormat: "tencent-vod", models: TENCENT_VOD_MODELS };
+    return {
+        id: COMPANY_TENCENT_VOD_CHANNEL_ID,
+        name: "腾讯云",
+        apiFormat: "tencent-vod",
+        models: TENCENT_VOD_MODELS,
+    };
 }
 
-export async function generateCompanyTencentVodImagesSettled(body: CompanyImageRequest, signal?: AbortSignal) {
-    const credentials = tencentVodCredentials();
-    if (!credentials) throw new Error("公司腾讯云点播未配置");
+export async function generateCompanyTencentVodImagesSettled(body: CompanyImageRequest, credentials: { secretId: string; secretKey: string; subAppId: string }, signal?: AbortSignal) {
     const prompt = String(body.prompt || "").trim();
     if (!prompt) throw new Error("请输入提示词");
     const images: Array<{ id: string; dataUrl: string }> = [];

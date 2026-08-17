@@ -8,7 +8,7 @@ import { videoResolutionOptions, videoSecondOptions, videoSizeOptions } from "@/
 import type { CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useAssetStore } from "@/stores/use-asset-store";
-import { modelOptionLabel, modelOptionName, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore } from "@/stores/use-config-store";
+import { getEffectiveConfig, modelOptionLabel, modelOptionName, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore } from "@/stores/use-config-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 
 // Execute site-level Agent tools in the browser, including canvas lists, workbench generation, prompt search, and asset operations.
@@ -146,7 +146,7 @@ function listCanvasProjects(input: SiteToolInput) {
 }
 
 function getImageConfig() {
-    const { config } = useConfigStore.getState();
+    const config = getEffectiveConfig();
     const model = config.imageModel || config.model;
     return {
         current: { model, modelName: modelOptionName(model), quality: config.quality || "auto", size: config.size || "1:1", count: config.count || "1" },
@@ -161,7 +161,7 @@ function runImageWorkbench(input: SiteToolInput, navigate: NavigateFunction) {
     const configStore = useConfigStore.getState();
     const applied: Record<string, unknown> = {};
     if (typeof input.model === "string" && input.model.trim()) {
-        const value = normalizeModelOptionValue(input.model, configStore.config.channels) || input.model;
+        const value = normalizeModelOptionValue(input.model, getEffectiveConfig().channels) || input.model;
         configStore.updateConfig("imageModel", value);
         applied.model = value;
     }
@@ -186,7 +186,7 @@ function runImageWorkbench(input: SiteToolInput, navigate: NavigateFunction) {
 }
 
 function getVideoConfig() {
-    const { config } = useConfigStore.getState();
+    const config = getEffectiveConfig();
     const model = config.videoModel || config.model;
     return {
         current: {
@@ -209,7 +209,7 @@ function runVideoWorkbench(input: SiteToolInput, navigate: NavigateFunction) {
     const configStore = useConfigStore.getState();
     const applied: Record<string, unknown> = {};
     if (typeof input.model === "string" && input.model.trim()) {
-        const value = normalizeModelOptionValue(input.model, configStore.config.channels) || input.model;
+        const value = normalizeModelOptionValue(input.model, getEffectiveConfig().channels) || input.model;
         configStore.updateConfig("videoModel", value);
         applied.model = value;
     }
