@@ -1,13 +1,12 @@
 {
     "name": "infinite-canvas-monorepo",
     "private": true,
-    "workspaces": ["apps/*", "packages/*", "plugins/user/*", "plugins/registry"],
+    "workspaces": ["apps/*", "packages/*"],
     "scripts": {
         "dev": "bun --cwd apps/web dev",
         "dev:desktop": "bun run --filter '@basketikun/web' --filter '@basketikun/desktop' dev",
         "dev:example": "bun --cwd apps/example dev",
         "build": "bun --cwd apps/web build",
-        "dev:docs": "bun --cwd apps/docs dev",
-        "build:plugins": "bun --cwd plugins/registry build"
+        "dev:docs": "bun --cwd apps/docs dev"
     }
 }

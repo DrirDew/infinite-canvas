@@ -11,6 +11,3 @@ data/
 apps/web/dist
 
 **/dist
-apps/web/public/plugins
-plugins/user/*/dist
-plugins/user/*/node_modules

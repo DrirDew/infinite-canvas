@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback, useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 
 import { requestEdit, requestGeneration, requestImageQuestion, type AiTextMessage } from "@/services/api/image";
@@ -7,7 +7,6 @@ import { decodeChannelModel, selectableModelsByCapability, type AiConfig, type M
 import { buildGenerationConfig } from "@/lib/canvas/canvas-generation-helpers";
 import { buildNodeContext } from "@/lib/canvas/plugin-node-context";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
-import { ensurePluginsLoaded } from "@/lib/canvas/plugin-loader";
 import { canvasThemes, getCanvasDownstreamNodes, getCanvasUpstreamNodes } from "@basketikun/infinite-canvas";
 import type { CanvasNodeToolbarItem, CanvasPluginAi, CanvasPluginHost } from "@/types/canvas-plugin";
 import type { ReferenceImage } from "@/types/image";
@@ -31,7 +30,7 @@ type PluginHostParams = {
 
 /**
  * Plugin node host capabilities: expose host-side AI generation, canvas access, and panel controls
- * through plugin-callable host/ai objects. Loads installed remote plugins on mount and returns renderers for plugin panels and toolbars.
+ * through plugin-callable host/ai objects and returns renderers for node panels and toolbars.
  */
 export function usePluginHost(params: PluginHostParams) {
     const { t } = useTranslation();
@@ -128,11 +127,6 @@ export function usePluginHost(params: PluginHostParams) {
         },
         [pluginHost, t, theme],
     );
-
-    // Load installed remote plugins on startup.
-    useEffect(() => {
-        void ensurePluginsLoaded();
-    }, []);
 
     return { pluginHost, renderPluginPanel, buildNodeToolbarItems };
 }
