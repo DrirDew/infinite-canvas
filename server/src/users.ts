@@ -1,4 +1,5 @@
-import { findUserById, findUserByUsername, generatedCountForUser, generatedCountMap, insertLedger, insertUser, listUsers, setCreditBalance, withImmediate } from "./db";
+import { deleteUserRecords, findUserById, findUserByUsername, generatedCountForUser, generatedCountMap, insertLedger, insertUser, listUsers, setCreditBalance, setPasswordHash, withImmediate } from "./db";
+import { removeUserGenerations } from "./generations";
 import { toPublicUser, type UserRole } from "./schema";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{2,32}$/;
@@ -35,6 +36,24 @@ export async function createUser(username: string, password: string, role: UserR
 export function publicUsers() {
     const generated = generatedCountMap();
     return listUsers().map((row) => toPublicUser(row, generated.get(row.id) || 0));
+}
+
+export async function changeUserPassword(actorId: string, targetId: string, currentPassword: string, newPassword: string) {
+    validatePassword(newPassword);
+    const actor = findUserById(actorId);
+    if (!actor) throw new Error("用户不存在");
+    if (!(await Bun.password.verify(currentPassword, actor.password_hash))) throw new Error("原密码错误");
+    const target = findUserById(targetId);
+    if (!target) throw new Error("用户不存在");
+    setPasswordHash(targetId, await Bun.password.hash(newPassword));
+}
+
+export function removeUser(id: string) {
+    const row = findUserById(id);
+    if (!row) throw new Error("用户不存在");
+    if (row.role === "admin") throw new Error("管理员账号不能删除");
+    withImmediate(() => deleteUserRecords(id));
+    removeUserGenerations(id);
 }
 
 export function adjustCredits(userId: string, creditBalance: number) {

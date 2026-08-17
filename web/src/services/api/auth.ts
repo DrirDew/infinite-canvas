@@ -57,6 +57,22 @@ export async function createUserRequest(username: string, password: string) {
     }
 }
 
+export async function changePasswordRequest(userId: string, currentPassword: string, newPassword: string) {
+    try {
+        await appApi.patch(`/api/users/${userId}/password`, { currentPassword, newPassword });
+    } catch (error) {
+        throw new Error(errorMessage(error, "修改密码失败"));
+    }
+}
+
+export async function deleteUserRequest(userId: string) {
+    try {
+        await appApi.delete(`/api/users/${userId}`);
+    } catch (error) {
+        throw new Error(errorMessage(error, "删除用户失败"));
+    }
+}
+
 export async function adjustCreditsRequest(userId: string, creditBalance: number) {
     try {
         const response = await appApi.patch<SessionUser>(`/api/users/${userId}/credits`, { creditBalance });

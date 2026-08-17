@@ -138,6 +138,10 @@ export function setCreditBalance(userId: string, balance: number) {
     db().query("UPDATE users SET credit_balance = ? WHERE id = ?").run(balance, userId);
 }
 
+export function setPasswordHash(userId: string, passwordHash: string) {
+    db().query("UPDATE users SET password_hash = ? WHERE id = ?").run(passwordHash, userId);
+}
+
 export function insertJob(row: GenerationJobRow) {
     db()
         .query(
@@ -192,6 +196,13 @@ export function findAsset(jobId: string, index: number) {
 
 export function deleteJob(id: string) {
     db().query("DELETE FROM generation_jobs WHERE id = ?").run(id);
+}
+
+export function deleteUserRecords(userId: string) {
+    db().query("DELETE FROM usage_ledger WHERE user_id = ?").run(userId);
+    db().query("DELETE FROM generation_jobs WHERE user_id = ?").run(userId);
+    db().query("DELETE FROM sessions WHERE user_id = ?").run(userId);
+    db().query("DELETE FROM users WHERE id = ?").run(userId);
 }
 
 export function channelCount() {

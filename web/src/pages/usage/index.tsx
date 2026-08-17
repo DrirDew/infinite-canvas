@@ -1,4 +1,4 @@
-import { App, Button, Form, Input, InputNumber } from "antd";
+import { App, Button, InputNumber } from "antd";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -11,11 +11,8 @@ export default function UsagePage() {
     const isAdmin = useUserStore((state) => state.user?.role === "admin");
     const users = useUserStore((state) => state.users);
     const loadUsers = useUserStore((state) => state.loadUsers);
-    const createUser = useUserStore((state) => state.createUser);
     const adjustCredits = useUserStore((state) => state.adjustCredits);
     const [usage, setUsage] = useState<UsageSummary | null>(null);
-    const [submitting, setSubmitting] = useState(false);
-    const [form] = Form.useForm<{ username: string; password: string }>();
 
     const refresh = useCallback(async () => {
         setUsage(await fetchMyUsage());
@@ -25,19 +22,6 @@ export default function UsagePage() {
     useEffect(() => {
         void refresh().catch((error) => message.error(error instanceof Error ? error.message : t("usage.loadFailed")));
     }, [message, refresh, t]);
-
-    const onCreate = async (values: { username: string; password: string }) => {
-        setSubmitting(true);
-        try {
-            await createUser(values.username.trim(), values.password);
-            form.resetFields();
-            message.success(t("auth.userCreated"));
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : t("auth.createUserFailed"));
-        } finally {
-            setSubmitting(false);
-        }
-    };
 
     const onSaveCredits = async (userId: string, creditBalance: number) => {
         try {
@@ -85,7 +69,7 @@ export default function UsagePage() {
                     <section className="space-y-6">
                         <div>
                             <h2 className="text-base font-semibold">{t("usage.team")}</h2>
-                            <p className="mt-1 text-xs text-stone-500">{t("auth.teamHint")}</p>
+                            <p className="mt-1 text-xs text-stone-500">{t("usage.teamHint")}</p>
                         </div>
                         <div className="space-y-2">
                             {users.map((user) => (
@@ -100,19 +84,6 @@ export default function UsagePage() {
                                 </div>
                             ))}
                         </div>
-                        <Form form={form} layout="vertical" onFinish={(values) => void onCreate(values)} requiredMark={false}>
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <Form.Item name="username" label={t("auth.username")} rules={[{ required: true, message: t("auth.usernameRequired") }]}>
-                                    <Input autoComplete="off" />
-                                </Form.Item>
-                                <Form.Item name="password" label={t("auth.password")} rules={[{ required: true, message: t("auth.passwordRequired") }]}>
-                                    <Input.Password autoComplete="new-password" />
-                                </Form.Item>
-                            </div>
-                            <Button type="primary" htmlType="submit" loading={submitting}>
-                                {t("auth.createUser")}
-                            </Button>
-                        </Form>
                     </section>
                 ) : null}
             </div>

@@ -221,3 +221,7 @@ export function removeGeneration(userId: string, id: string) {
     deleteJob(id);
     return true;
 }
+
+export function removeUserGenerations(userId: string) {
+    rmSync(join(generationsRoot(), userId), { recursive: true, force: true });
+}

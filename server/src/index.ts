@@ -8,7 +8,7 @@ import { CreditError, generateCompanyImages, getGeneration, listGenerations, rea
 import { toPublicUser } from "./schema";
 import { type CompanyImageRequest } from "./tencent-vod";
 import { usageForUser } from "./usage";
-import { adjustCredits, createUser, normalizeUsername, publicUsers } from "./users";
+import { adjustCredits, changeUserPassword, createUser, normalizeUsername, publicUsers, removeUser } from "./users";
 
 loadRootEnv();
 await bootstrapAdmin();
@@ -121,6 +121,26 @@ app.patch("/api/users/:id/credits", requireUser, requireAdmin, async (c) => {
         return c.json(adjustCredits(c.req.param("id"), Number(body.creditBalance)));
     } catch (error) {
         return c.json({ error: error instanceof Error ? error.message : "调整额度失败" }, 400);
+    }
+});
+
+app.patch("/api/users/:id/password", requireUser, requireAdmin, async (c) => {
+    try {
+        const body = (await c.req.json().catch(() => ({}))) as { currentPassword?: string; newPassword?: string };
+        await changeUserPassword(c.get("user").id, c.req.param("id"), String(body.currentPassword || ""), String(body.newPassword || ""));
+        return c.json({ ok: true });
+    } catch (error) {
+        return c.json({ error: error instanceof Error ? error.message : "修改密码失败" }, 400);
+    }
+});
+
+app.delete("/api/users/:id", requireUser, requireAdmin, (c) => {
+    try {
+        removeUser(c.req.param("id"));
+        return c.json({ ok: true });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "删除用户失败";
+        return c.json({ error: message }, message === "用户不存在" ? 404 : 400);
     }
 });
 

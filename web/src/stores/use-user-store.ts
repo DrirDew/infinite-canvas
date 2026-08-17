@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { createUserRequest, fetchCurrentUser, fetchUsers, loginRequest, logoutRequest, adjustCreditsRequest, type SessionUser } from "@/services/api/auth";
+import { createUserRequest, fetchCurrentUser, fetchUsers, loginRequest, logoutRequest, adjustCreditsRequest, changePasswordRequest, deleteUserRequest, type SessionUser } from "@/services/api/auth";
 import { useConfigStore } from "@/stores/use-config-store";
 
 type SessionStatus = "unknown" | "ready";
@@ -14,6 +14,8 @@ type UserStore = {
     logout: () => Promise<void>;
     loadUsers: () => Promise<void>;
     createUser: (username: string, password: string) => Promise<void>;
+    changePassword: (userId: string, currentPassword: string, newPassword: string) => Promise<void>;
+    deleteUser: (userId: string) => Promise<void>;
     adjustCredits: (userId: string, creditBalance: number) => Promise<void>;
     setCreditBalance: (creditBalance: number) => void;
     clearSession: () => void;
@@ -45,6 +47,13 @@ export const useUserStore = create<UserStore>()((set, get) => ({
     createUser: async (username, password) => {
         const user = await createUserRequest(username, password);
         set({ users: [...get().users, user] });
+    },
+    changePassword: async (userId, currentPassword, newPassword) => {
+        await changePasswordRequest(userId, currentPassword, newPassword);
+    },
+    deleteUser: async (userId) => {
+        await deleteUserRequest(userId);
+        set({ users: get().users.filter((item) => item.id !== userId) });
     },
     adjustCredits: async (userId, creditBalance) => {
         const user = await adjustCreditsRequest(userId, creditBalance);

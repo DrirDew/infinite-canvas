@@ -1,48 +1,43 @@
-import { App, Button, Form, Input, InputNumber } from "antd";
+import { App, Button, Drawer, Form, Input, Space } from "antd";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useUserStore } from "@/stores/use-user-store";
+import type { SessionUser } from "@/services/api/auth";
+
+type UserDraft = { username: string; currentPassword: string; password: string; confirmPassword: string };
 
 export function ConfigTeamUsers() {
     const { t } = useTranslation();
     const { message } = App.useApp();
     const users = useUserStore((state) => state.users);
     const loadUsers = useUserStore((state) => state.loadUsers);
-    const createUser = useUserStore((state) => state.createUser);
-    const adjustCredits = useUserStore((state) => state.adjustCredits);
-    const [submitting, setSubmitting] = useState(false);
-    const [form] = Form.useForm<{ username: string; password: string }>();
+    const deleteUser = useUserStore((state) => state.deleteUser);
+    const [editing, setEditing] = useState<SessionUser | "new" | null>(null);
+
+    const onDelete = (user: SessionUser) => {
+        if (user.role === "admin") {
+            message.warning(t("auth.cannotDeleteAdmin"));
+            return;
+        }
+        void deleteUser(user.id)
+            .then(() => message.success(t("auth.userDeleted")))
+            .catch((error) => message.error(error instanceof Error ? error.message : t("auth.deleteUserFailed")));
+    };
 
     useEffect(() => {
         void loadUsers().catch((error) => message.error(error instanceof Error ? error.message : t("auth.loadUsersFailed")));
     }, [loadUsers, message, t]);
 
-    const onCreate = async (values: { username: string; password: string }) => {
-        setSubmitting(true);
-        try {
-            await createUser(values.username.trim(), values.password);
-            form.resetFields();
-            message.success(t("auth.userCreated"));
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : t("auth.createUserFailed"));
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const onSaveCredits = async (userId: string, creditBalance: number) => {
-        try {
-            await adjustCredits(userId, creditBalance);
-            message.success(t("auth.creditsSaved"));
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : t("auth.adjustCreditsFailed"));
-        }
-    };
-
     return (
-        <div className="space-y-6">
-            <p className="text-xs text-stone-500">{t("auth.teamHint")}</p>
+        <div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-xs text-stone-500">{t("auth.teamHint")}</div>
+                <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setEditing("new")}>
+                    {t("auth.addUser")}
+                </Button>
+            </div>
             <div className="space-y-2">
                 {users.map((user) => (
                     <div key={user.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
@@ -50,35 +45,109 @@ export function ConfigTeamUsers() {
                             <div className="truncate text-sm font-semibold">{user.username}</div>
                             <div className="mt-1 text-xs text-stone-500">{t(user.role === "admin" ? "auth.roleAdmin" : "auth.roleUser")}</div>
                         </div>
-                        <CreditField value={user.creditBalance} onSave={(value) => onSaveCredits(user.id, value)} />
+                        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                            <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => setEditing(user)}>
+                                {t("auth.editTitle")}
+                            </Button>
+                            <Button size="small" danger icon={<Trash2 className="size-3.5" />} className={user.role === "admin" ? "opacity-40" : undefined} onClick={() => onDelete(user)} />
+                        </div>
                     </div>
                 ))}
             </div>
-            <Form form={form} layout="vertical" onFinish={(values) => void onCreate(values)} requiredMark={false}>
-                <div className="grid gap-3 md:grid-cols-2">
-                    <Form.Item name="username" label={t("auth.username")} rules={[{ required: true, message: t("auth.usernameRequired") }]}>
-                        <Input autoComplete="off" />
-                    </Form.Item>
-                    <Form.Item name="password" label={t("auth.password")} rules={[{ required: true, message: t("auth.passwordRequired") }]}>
-                        <Input.Password autoComplete="new-password" />
-                    </Form.Item>
-                </div>
-                <Button type="primary" htmlType="submit" loading={submitting}>
-                    {t("auth.createUser")}
-                </Button>
-            </Form>
+            <UserEditorDrawer editing={editing} onClose={() => setEditing(null)} />
         </div>
     );
 }
 
-function CreditField({ value, onSave }: { value: number; onSave: (value: number) => Promise<void> }) {
+function UserEditorDrawer({ editing, onClose }: { editing: SessionUser | "new" | null; onClose: () => void }) {
     const { t } = useTranslation();
-    const [draft, setDraft] = useState(value);
-    useEffect(() => setDraft(value), [value]);
+    const { message } = App.useApp();
+    const createUser = useUserStore((state) => state.createUser);
+    const changePassword = useUserStore((state) => state.changePassword);
+    const [form] = Form.useForm<UserDraft>();
+    const [submitting, setSubmitting] = useState(false);
+    const creating = editing === "new";
+    const open = Boolean(editing);
+
+    useEffect(() => {
+        if (open) form.resetFields();
+    }, [form, open, editing]);
+
+    const confirmRule = ({ getFieldValue }: { getFieldValue: (name: keyof UserDraft) => string }) => ({
+        validator(_: unknown, value: string) {
+            if (value === getFieldValue("password")) return Promise.resolve();
+            return Promise.reject(new Error(t("auth.passwordMismatch")));
+        },
+    });
+
+    const save = async (values: UserDraft) => {
+        setSubmitting(true);
+        try {
+            if (creating) {
+                await createUser(values.username.trim(), values.password);
+                message.success(t("auth.userCreated"));
+            } else if (editing && editing !== "new") {
+                await changePassword(editing.id, values.currentPassword, values.password);
+                message.success(t("auth.passwordChanged"));
+            }
+            onClose();
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t(creating ? "auth.createUserFailed" : "auth.changePasswordFailed"));
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
-        <div className="flex shrink-0 items-center gap-2">
-            <span className="text-xs text-stone-500">{t("auth.credits")}</span>
-            <InputNumber min={0} precision={0} size="small" className="w-24" value={draft} onChange={(next) => setDraft(Number(next) || 0)} onBlur={() => { if (draft !== value) void onSave(draft); }} />
-        </div>
+        <Drawer
+            open={open}
+            width={480}
+            title={t(creating ? "auth.addTitle" : "auth.editTitle")}
+            onClose={onClose}
+            styles={{ body: { paddingTop: 16 } }}
+            extra={
+                <Space>
+                    <Button onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="primary" loading={submitting} onClick={() => void form.submit()}>
+                        {t("common.save")}
+                    </Button>
+                </Space>
+            }
+        >
+            <Form form={form} layout="vertical" requiredMark={false} onFinish={(values) => void save(values)}>
+                {creating ? (
+                    <Form.Item name="username" label={t("auth.username")} rules={[{ required: true, message: t("auth.usernameRequired") }]}>
+                        <Input autoComplete="off" autoFocus />
+                    </Form.Item>
+                ) : (
+                    <Form.Item label={t("auth.username")}>
+                        <Input value={editing && editing !== "new" ? editing.username : ""} disabled />
+                    </Form.Item>
+                )}
+                {creating ? null : (
+                    <Form.Item name="currentPassword" label={t("auth.currentPassword")} extra={t("auth.currentPasswordHint")} rules={[{ required: true, message: t("auth.currentPasswordRequired") }]}>
+                        <Input.Password autoComplete="current-password" />
+                    </Form.Item>
+                )}
+                <Form.Item
+                    name="password"
+                    label={t(creating ? "auth.password" : "auth.newPassword")}
+                    rules={[
+                        { required: true, message: t("auth.passwordRequired") },
+                        { min: 6, message: t("auth.passwordMin") },
+                    ]}
+                >
+                    <Input.Password autoComplete="new-password" />
+                </Form.Item>
+                <Form.Item
+                    name="confirmPassword"
+                    label={t("auth.confirmPassword")}
+                    dependencies={["password"]}
+                    rules={[{ required: true, message: t("auth.confirmPasswordRequired") }, confirmRule]}
+                >
+                    <Input.Password autoComplete="new-password" />
+                </Form.Item>
+            </Form>
+        </Drawer>
     );
 }
