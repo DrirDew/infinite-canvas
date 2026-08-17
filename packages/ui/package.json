@@ -1,0 +1,47 @@
+{
+    "name": "@basketikun/ui",
+    "version": "0.1.0",
+    "description": "Reusable React components for Infinite Canvas applications",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "files": ["dist", "README.md"],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./agent-panel": {
+            "types": "./dist/agent-panel.d.ts",
+            "import": "./dist/agent-panel.js"
+        },
+        "./image-settings-panel": {
+            "types": "./dist/image-settings-panel.d.ts",
+            "import": "./dist/image-settings-panel.js"
+        },
+        "./prompt-card": {
+            "types": "./dist/prompt-card.d.ts",
+            "import": "./dist/prompt-card.js"
+        },
+        "./video-settings-panel": {
+            "types": "./dist/video-settings-panel.d.ts",
+            "import": "./dist/video-settings-panel.js"
+        }
+    },
+    "scripts": {
+        "build": "tsc"
+    },
+    "peerDependencies": {
+        "antd": ">=6",
+        "lucide-react": ">=1",
+        "react": ">=18"
+    },
+    "devDependencies": {
+        "@types/react": "19.1.12",
+        "@types/react-dom": "19.1.9",
+        "typescript": "^5"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
