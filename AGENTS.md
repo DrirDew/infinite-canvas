@@ -82,6 +82,7 @@
 
 - 本仓库本地启动和验收统一使用 Docker：`docker compose -f docker-compose.local.yml up -d --build`。不要假设宿主机安装了 bun 或 node，文档和待测试步骤不要把 `bun install` / `bun run dev` 写成必做命令。
 - 当前画布项目和“我的素材”主要保存在浏览器本地，不要在文档中误写成已支持云同步。
+- 公司渠道的生图记录和额度存在服务端（`DATA_DIR`）；个人渠道 API Key 仍在浏览器本地。不要把旧的浏览器生成记录做成迁移。
 - 个人渠道的 AI API Key 存在浏览器本地，并由前端直接请求对应接口。公司腾讯云点播的 SecretId / SecretKey / SubAppId 只存在服务端环境变量，由 `server/` 签名后调用，涉及安全说明时要写清楚这两类密钥的区别。
 - 工作台 `/api` 需要应用登录。`ADMIN_USERNAME` / `ADMIN_PASSWORD` 只用于空库创建第一个管理员，不要写进前端或镜像默认值。
 - Docker 静态资源路径目前仍是待办项，文档中不要过度承诺生产部署已经完全验证。

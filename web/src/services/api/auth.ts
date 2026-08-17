@@ -55,3 +55,12 @@ export async function createUserRequest(username: string, password: string) {
         throw new Error(errorMessage(error, "创建用户失败"));
     }
 }
+
+export async function adjustCreditsRequest(userId: string, creditBalance: number) {
+    try {
+        const response = await appApi.patch<SessionUser>(`/api/users/${userId}/credits`, { creditBalance });
+        return response.data;
+    } catch (error) {
+        throw new Error(errorMessage(error, "调整额度失败"));
+    }
+}

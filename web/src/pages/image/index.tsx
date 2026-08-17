@@ -1,7 +1,6 @@
 import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, ImagePlus, LoaderCircle, PenLine, Plus, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Checkbox, Drawer, Empty, Image, Input, Modal, Tag, Tooltip, Typography } from "antd";
-import localforage from "localforage";
 import { saveAs } from "file-saver";
 import { useTranslation } from "react-i18next";
 
@@ -17,8 +16,10 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { nanoid } from "nanoid";
 import { formatBytes, formatDuration, getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { requestEdit, requestGeneration } from "@/services/api/image";
-import { deleteStoredImages, resolveImageUrl, uploadImage } from "@/services/image-storage";
+import { deleteGeneration, fetchGenerations, type GenerationRecord } from "@/services/api/generations";
+import { uploadImage } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
+import { useUserStore } from "@/stores/use-user-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import type { ReferenceImage } from "@/types/image";
 import i18n from "@/i18n";
@@ -65,9 +66,7 @@ type GenerationLogConfig = Pick<AiConfig, "model" | "imageModel" | "quality" | "
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
 
-const LOG_STORE_KEY = "infinite-canvas:image_generation_logs";
 const RESULT_ACTION_BUTTON_CLASS = "min-w-0 px-1.5 [&_.ant-btn-icon]:shrink-0 [&>span:last-child]:min-w-0 [&>span:last-child]:truncate";
-const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_logs" });
 
 export default function ImagePage() {
     const { message } = App.useApp();
@@ -80,6 +79,8 @@ export default function ImagePage() {
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
     const { isAdmin, requestConfig } = useConfigAccess();
     const addAsset = useAssetStore((state) => state.addAsset);
+    const creditBalance = useUserStore((state) => state.user?.creditBalance ?? 0);
+    const isManaged = Boolean(effectiveConfig.managed);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
     const [results, setResults] = useState<GenerationResult[]>([]);
@@ -103,8 +104,8 @@ export default function ImagePage() {
     const agentTaskIdRef = useRef<string | undefined>(undefined);
 
     const model = effectiveConfig.imageModel || effectiveConfig.model;
-    const canGenerate = Boolean(prompt.trim());
     const generationCount = Math.max(1, Math.min(10, Number(config.count) || 1));
+    const canGenerate = Boolean(prompt.trim()) && (!isManaged || creditBalance >= generationCount);
 
     useEffect(() => {
         if (!running || !startedAt) return;
@@ -164,9 +165,14 @@ export default function ImagePage() {
             return;
         }
 
-        const snapshot = buildRequestSnapshot();
+        const snapshot = buildRequestSnapshot(isManaged ? generationCount : 1);
         if (!snapshot) {
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("imageWorkbench.invalidParams") });
+            return;
+        }
+        if (isManaged && creditBalance < generationCount) {
+            message.error(t("auth.insufficientCredits"));
+            if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("auth.insufficientCredits") });
             return;
         }
 
@@ -178,39 +184,46 @@ export default function ImagePage() {
         const batchStartedAt = performance.now();
         setStartedAt(batchStartedAt);
 
-        const tasks = Array.from({ length: generationCount }, (_, index) => runGenerationSlot(index, snapshot));
-
-        const result = await Promise.allSettled(tasks);
-        const successImages = result.filter((item): item is PromiseFulfilledResult<GeneratedImage> => item.status === "fulfilled").map((item) => item.value);
-        const successCount = successImages.length;
-        const failCount = generationCount - successCount;
-        const failed = result.find((item): item is PromiseRejectedResult => item.status === "rejected");
-        const error = failed?.reason instanceof Error ? failed.reason.message : failCount ? t("workbench.generationFailed") : undefined;
-        if (agentTaskId) updateAgentTask(agentTaskId, { status: successCount ? "succeeded" : "failed", successCount, failCount, error: successCount ? undefined : error });
-
+        let successCount = 0;
+        let failCount = generationCount;
+        let error: string | undefined;
         try {
-            const logImages = await Promise.all(
-                successImages.map(async (image) => {
-                    const stored = await uploadImage(image.dataUrl);
-                    return { ...image, dataUrl: stored.url, storageKey: stored.storageKey, width: stored.width, height: stored.height, bytes: stored.bytes, mimeType: stored.mimeType };
-                }),
-            );
-            saveLog(
-                buildLog({
-                    prompt: text,
-                    model,
-                    config: { ...snapshot.config, count: String(generationCount) },
-                    references: snapshot.references,
-                    durationMs: performance.now() - batchStartedAt,
-                    successCount,
-                    failCount,
-                    status: successCount ? "success" : "failed",
-                    images: logImages,
-                }),
-            );
-            successCount ? message.success(t("imageWorkbench.generated")) : message.error(failed?.reason instanceof Error ? failed.reason.message : t("workbench.generationFailed"));
+            if (isManaged) {
+                const images = snapshot.references.length ? await requestEdit(snapshot.config, snapshot.text, snapshot.references) : await requestGeneration(snapshot.config, snapshot.text);
+                const durationMs = performance.now() - batchStartedAt;
+                const nextResults = await Promise.all(
+                    Array.from({ length: generationCount }, async (_, index) => {
+                        const image = images[index];
+                        if (!image) return { id: nanoid(), status: "failed" as const, error: t("workbench.generationFailed") };
+                        const meta = await readImageMeta(image.dataUrl);
+                        return {
+                            id: image.id,
+                            status: "success" as const,
+                            image: { id: image.id, dataUrl: image.dataUrl, durationMs, width: meta.width, height: meta.height, bytes: getDataUrlByteSize(image.dataUrl) },
+                        };
+                    }),
+                );
+                setResults(nextResults);
+                successCount = nextResults.filter((item) => item.status === "success").length;
+                failCount = generationCount - successCount;
+                error = failCount ? t("workbench.generationFailed") : undefined;
+            } else {
+                const result = await Promise.allSettled(Array.from({ length: generationCount }, (_, index) => runGenerationSlot(index, snapshot)));
+                const successImages = result.filter((item): item is PromiseFulfilledResult<GeneratedImage> => item.status === "fulfilled").map((item) => item.value);
+                successCount = successImages.length;
+                failCount = generationCount - successCount;
+                const failed = result.find((item): item is PromiseRejectedResult => item.status === "rejected");
+                error = failed?.reason instanceof Error ? failed.reason.message : failCount ? t("workbench.generationFailed") : undefined;
+            }
+        } catch (caught) {
+            error = caught instanceof Error ? caught.message : t("workbench.generationFailed");
+            failCount = generationCount;
+            setResults(Array.from({ length: generationCount }, () => ({ id: nanoid(), status: "failed", error })));
         } finally {
             setRunning(false);
+            if (agentTaskId) updateAgentTask(agentTaskId, { status: successCount ? "succeeded" : "failed", successCount, failCount, error: successCount ? undefined : error });
+            void refreshLogs();
+            successCount ? message.success(t("imageWorkbench.generated")) : message.error(error || t("workbench.generationFailed"));
         }
     };
 
@@ -236,8 +249,13 @@ export default function ImagePage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoRunToken]);
 
-    const downloadImage = (image: GeneratedImage, index: number) => {
-        saveAs(image.dataUrl, `image-${index + 1}.png`);
+    const downloadImage = async (image: GeneratedImage, index: number) => {
+        if (image.dataUrl.startsWith("data:")) {
+            saveAs(image.dataUrl, `image-${index + 1}.png`);
+            return;
+        }
+        const response = await fetch(image.dataUrl, { credentials: "include" });
+        saveAs(await response.blob(), `image-${index + 1}.png`);
     };
 
     const addResultToReferences = async (image: GeneratedImage, index: number) => {
@@ -283,8 +301,7 @@ export default function ImagePage() {
     };
 
     const deleteSelectedLogs = () => {
-        const imageKeys = logs.filter((log) => selectedLogIds.includes(log.id)).flatMap((log) => log.images.map((image) => image.storageKey).filter((key): key is string => Boolean(key)));
-        void Promise.all([deleteStoredImages(imageKeys), ...selectedLogIds.map((id) => logStore.removeItem(id))]).then(refreshLogs);
+        void Promise.all(selectedLogIds.map((id) => deleteGeneration(id).catch(() => undefined))).then(refreshLogs);
         if (previewLog && selectedLogIds.includes(previewLog.id)) {
             setPreviewLog(null);
             setResults([]);
@@ -293,11 +310,13 @@ export default function ImagePage() {
         setDeleteConfirmOpen(false);
     };
 
-    const saveLog = (log: GenerationLog) => {
-        void logStore.setItem(log.id, serializeLog(log)).then(refreshLogs);
+    const refreshLogs = async () => {
+        try {
+            setLogs((await fetchGenerations()).map(toGenerationLog));
+        } catch {
+            setLogs([]);
+        }
     };
-
-    const refreshLogs = async () => setLogs(await readStoredLogs());
 
     const previewGenerationLog = async (log: GenerationLog) => {
         setPreviewLog(log);
@@ -311,7 +330,7 @@ export default function ImagePage() {
         setResults(log.images.map((image) => ({ id: image.id, status: "success", image })));
     };
 
-    const buildRequestSnapshot = () => {
+    const buildRequestSnapshot = (count = 1) => {
         const text = prompt.trim();
         if (!text) {
             message.error(t("imageWorkbench.promptRequired"));
@@ -322,7 +341,7 @@ export default function ImagePage() {
             requestConfig(true);
             return null;
         }
-        return { text, config: { ...effectiveConfig, model, count: "1" }, references: [...references] };
+        return { text, config: { ...effectiveConfig, model, count: String(count) }, references: [...references] };
     };
 
     const runGenerationSlot = async (index: number, snapshot: { text: string; config: AiConfig; references: ReferenceImage[] }) => {
@@ -342,29 +361,13 @@ export default function ImagePage() {
     };
 
     const retryResult = async (index: number) => {
-        const snapshot = buildRequestSnapshot();
+        const snapshot = buildRequestSnapshot(1);
         if (!snapshot) return;
         setPreviewLog(null);
         setResults((value) => updateResultAt(value, index, { status: "pending", error: undefined, image: undefined }));
-        const retryStartedAt = performance.now();
         try {
-            const image = await runGenerationSlot(index, snapshot);
-            const stored = await uploadImage(image.dataUrl);
-            const logImage = { ...image, dataUrl: stored.url, storageKey: stored.storageKey, width: stored.width, height: stored.height, bytes: stored.bytes, mimeType: stored.mimeType };
-            setResults((value) => updateResultAt(value, index, { image: { ...image, dataUrl: stored.url, storageKey: stored.storageKey } }));
-            saveLog(
-                buildLog({
-                    prompt: snapshot.text,
-                    model,
-                    config: { ...snapshot.config, count: "1" },
-                    references: snapshot.references,
-                    durationMs: performance.now() - retryStartedAt,
-                    successCount: 1,
-                    failCount: 0,
-                    status: "success",
-                    images: [logImage],
-                }),
-            );
+            await runGenerationSlot(index, snapshot);
+            await refreshLogs();
             message.success(t("workbench.retrySuccess"));
         } catch {
             // runGenerationSlot has already marked the result as failed.
@@ -494,6 +497,7 @@ export default function ImagePage() {
                         </div>
 
                         <div className="mt-auto pt-6">
+                            <div className="mb-2 text-xs text-stone-500">{t("auth.creditsLeft", { count: creditBalance })}</div>
                             <Button type="primary" size="large" block icon={<Sparkles className="size-4" />} loading={running} disabled={!canGenerate || running} onClick={() => void generate()}>
                                 {t("workbench.generate")}
                             </Button>
@@ -618,7 +622,7 @@ function ResultImageCard({
                         </Button>
                     </Tooltip>
                     <Tooltip title={t("common.download")}>
-                        <Button className={RESULT_ACTION_BUTTON_CLASS} size="small" icon={<Download className="size-3.5" />} onClick={() => onDownload(image, index)}>
+                        <Button className={RESULT_ACTION_BUTTON_CLASS} size="small" icon={<Download className="size-3.5" />} onClick={() => void onDownload(image, index)}>
                             {t("common.download")}
                         </Button>
                     </Tooltip>
@@ -777,71 +781,34 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
     );
 }
 
-async function readStoredLogs() {
-    if (typeof window === "undefined") return [];
-    try {
-        const values: GenerationLog[] = [];
-        await logStore.iterate<GenerationLog, void>((value) => {
-            values.push(value);
-        });
-        const logs = await Promise.all(values.map(normalizeLog));
-        return logs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    } catch {
-        return [];
-    }
-}
-
-async function normalizeLog(log: Partial<GenerationLog>): Promise<GenerationLog> {
-    const references = await Promise.all(
-        (log.references || []).map(async (item) => ({
-            ...item,
-            dataUrl: await resolveImageUrl(item.storageKey, item.dataUrl),
-        })),
-    );
-    const images = await Promise.all(
-        (log.images || []).map(async (item) => ({
-            ...item,
-            dataUrl: await resolveImageUrl(item.storageKey, item.dataUrl),
-        })),
-    );
-    const config = normalizeLogConfig(log);
+function toGenerationLog(item: GenerationRecord): GenerationLog {
+    const images = item.assets.map((asset) => ({
+        id: `${item.id}-${asset.index}`,
+        dataUrl: asset.url,
+        durationMs: item.durationMs,
+        width: asset.width,
+        height: asset.height,
+        bytes: asset.bytes,
+        mimeType: asset.mime,
+    }));
     return {
-        id: log.id || nanoid(),
-        createdAt: log.createdAt || Date.now(),
-        title: log.title || log.model || i18n.t("workbench.untitled"),
-        prompt: log.prompt || log.title || "",
-        time: log.time || new Date().toLocaleString(i18n.resolvedLanguage, { hour12: false }),
-        model: log.model || config.imageModel || "",
-        config,
-        references,
-        durationMs: log.durationMs || 0,
-        successCount: log.successCount ?? log.imageCount ?? 0,
-        failCount: log.failCount || 0,
-        imageCount: log.imageCount || log.successCount || 0,
-        size: log.size || config.size || "",
-        quality: log.quality || config.quality || "",
-        status: log.status || "success",
+        id: item.id,
+        createdAt: item.createdAt,
+        title: item.prompt.slice(0, 12) || i18n.t("workbench.untitled"),
+        prompt: item.prompt,
+        time: new Date(item.createdAt).toLocaleString(i18n.resolvedLanguage, { hour12: false }),
+        model: item.model,
+        config: { model: item.model, imageModel: item.model, quality: item.quality, size: item.size, count: String(item.count) },
+        references: [],
+        durationMs: item.durationMs,
+        successCount: item.successCount,
+        failCount: item.failCount,
+        imageCount: item.count,
+        size: item.size,
+        quality: item.quality,
+        status: item.status,
         images,
-        thumbnails: images.map((image) => image.dataUrl).filter(Boolean),
-    };
-}
-
-function serializeLog(log: GenerationLog): GenerationLog {
-    return {
-        ...log,
-        references: log.references.map((item) => ({ ...item, dataUrl: item.storageKey ? "" : item.dataUrl })),
-        images: log.images.map((image) => ({ ...image, dataUrl: image.storageKey ? "" : image.dataUrl })),
-        thumbnails: [],
-    };
-}
-
-function normalizeLogConfig(log: Partial<GenerationLog>): GenerationLogConfig {
-    return {
-        model: log.config?.model || log.model || "",
-        imageModel: log.config?.imageModel || log.model || "",
-        quality: log.config?.quality || log.quality || "",
-        size: log.config?.size || log.size || "",
-        count: log.config?.count || String(log.imageCount || log.successCount || 1),
+        thumbnails: images.map((image) => image.dataUrl),
     };
 }
 
@@ -863,51 +830,3 @@ function ReferenceOrderButtons({ index, total, onMove }: { index: number; total:
     );
 }
 
-function buildLog({
-    prompt,
-    model,
-    config,
-    references,
-    durationMs,
-    successCount,
-    failCount,
-    status,
-    images,
-}: {
-    prompt: string;
-    model: string;
-    config: GenerationLogConfig;
-    references: ReferenceImage[];
-    durationMs: number;
-    successCount: number;
-    failCount: number;
-    status: GenerationLog["status"];
-    images: GeneratedImage[];
-}): GenerationLog {
-    const logConfig = {
-        model: config.model,
-        imageModel: config.imageModel,
-        quality: config.quality,
-        size: config.size,
-        count: config.count,
-    };
-    return {
-        id: nanoid(),
-        createdAt: Date.now(),
-        title: prompt.slice(0, 12) || i18n.t("workbench.untitled"),
-        prompt,
-        time: new Date().toLocaleString(i18n.resolvedLanguage, { hour12: false }),
-        model,
-        config: logConfig,
-        references,
-        durationMs,
-        successCount,
-        failCount,
-        imageCount: Number(logConfig.count) || successCount,
-        size: logConfig.size,
-        quality: logConfig.quality,
-        status,
-        images,
-        thumbnails: images.map((image) => image.dataUrl).filter(Boolean),
-    };
-}

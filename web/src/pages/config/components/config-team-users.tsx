@@ -1,4 +1,4 @@
-import { App, Button, Form, Input } from "antd";
+import { App, Button, Form, Input, InputNumber } from "antd";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -10,6 +10,7 @@ export function ConfigTeamUsers() {
     const users = useUserStore((state) => state.users);
     const loadUsers = useUserStore((state) => state.loadUsers);
     const createUser = useUserStore((state) => state.createUser);
+    const adjustCredits = useUserStore((state) => state.adjustCredits);
     const [submitting, setSubmitting] = useState(false);
     const [form] = Form.useForm<{ username: string; password: string }>();
 
@@ -30,6 +31,15 @@ export function ConfigTeamUsers() {
         }
     };
 
+    const onSaveCredits = async (userId: string, creditBalance: number) => {
+        try {
+            await adjustCredits(userId, creditBalance);
+            message.success(t("auth.creditsSaved"));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t("auth.adjustCreditsFailed"));
+        }
+    };
+
     return (
         <div className="space-y-6">
             <p className="text-xs text-stone-500">{t("auth.teamHint")}</p>
@@ -40,6 +50,7 @@ export function ConfigTeamUsers() {
                             <div className="truncate text-sm font-semibold">{user.username}</div>
                             <div className="mt-1 text-xs text-stone-500">{t(user.role === "admin" ? "auth.roleAdmin" : "auth.roleUser")}</div>
                         </div>
+                        <CreditField value={user.creditBalance} onSave={(value) => onSaveCredits(user.id, value)} />
                     </div>
                 ))}
             </div>
@@ -56,6 +67,18 @@ export function ConfigTeamUsers() {
                     {t("auth.createUser")}
                 </Button>
             </Form>
+        </div>
+    );
+}
+
+function CreditField({ value, onSave }: { value: number; onSave: (value: number) => Promise<void> }) {
+    const { t } = useTranslation();
+    const [draft, setDraft] = useState(value);
+    useEffect(() => setDraft(value), [value]);
+    return (
+        <div className="flex shrink-0 items-center gap-2">
+            <span className="text-xs text-stone-500">{t("auth.credits")}</span>
+            <InputNumber min={0} precision={0} size="small" className="w-24" value={draft} onChange={(next) => setDraft(Number(next) || 0)} onBlur={() => { if (draft !== value) void onSave(draft); }} />
         </div>
     );
 }

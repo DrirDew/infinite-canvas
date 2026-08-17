@@ -37,7 +37,7 @@ cd docs
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-The main application container serves the static frontend and proxies `/api` to the company provider service. Canvases, My Assets, generation history, and personal API keys are stored in the browser by default. Company Tencent Cloud VOD credentials stay in server environment variables and are never sent to the browser. App login uses `ADMIN_USERNAME` / `ADMIN_PASSWORD` to create the first admin; user data is stored in the `./data` volume.
+The main application container serves the static frontend and proxies `/api` to the company provider service. Canvases, My Assets, and personal API keys are stored in the browser by default. Company image history and credits live in the `./data` volume. Company Tencent Cloud VOD credentials stay in server environment variables and are never sent to the browser. App login uses `ADMIN_USERNAME` / `ADMIN_PASSWORD` to create the first admin.
 
 ## Environment variables
 

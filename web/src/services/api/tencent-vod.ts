@@ -56,7 +56,7 @@ export async function requestTencentVodImages(config: AiConfig, prompt: string, 
 }
 
 async function requestCompanyTencentVodImages(prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, model: string, signal?: AbortSignal) {
-    const response = await appApi.post<{ images?: Array<{ id?: string; dataUrl?: string }>; error?: string }>("/api/tencent-vod/images", {
+    const response = await appApi.post<{ images?: Array<{ id?: string; dataUrl?: string }>; error?: string; creditBalance?: number }>("/api/tencent-vod/images", {
         model,
         prompt,
         references: references.map((image) => ({ dataUrl: image.dataUrl })),
@@ -68,6 +68,9 @@ async function requestCompanyTencentVodImages(prompt: string, references: Refere
     }, { signal, timeout: 0 });
     const images = (response.data.images || []).filter((image) => image.dataUrl).map((image) => ({ id: image.id || nanoid(), dataUrl: image.dataUrl! }));
     if (!images.length) throw new Error(response.data.error || apiText("tencentVodNoImage"));
+    if (typeof response.data.creditBalance === "number") {
+        void import("@/stores/use-user-store").then(({ useUserStore }) => useUserStore.getState().setCreditBalance(response.data.creditBalance!));
+    }
     return images;
 }
 

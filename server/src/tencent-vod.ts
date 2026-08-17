@@ -55,18 +55,28 @@ export function companyTencentVodChannel() {
     return { id: COMPANY_TENCENT_VOD_CHANNEL_ID, apiFormat: "tencent-vod", models: TENCENT_VOD_MODELS };
 }
 
-export async function generateCompanyTencentVodImages(body: CompanyImageRequest, signal?: AbortSignal) {
+export async function generateCompanyTencentVodImagesSettled(body: CompanyImageRequest, signal?: AbortSignal) {
     const credentials = tencentVodCredentials();
     if (!credentials) throw new Error("公司腾讯云点播未配置");
     const prompt = String(body.prompt || "").trim();
     if (!prompt) throw new Error("请输入提示词");
     const images: Array<{ id: string; dataUrl: string }> = [];
+    const errors: string[] = [];
     const total = Math.max(1, Math.min(15, Math.floor(Number(body.count) || 1)));
     for (let index = 0; index < total; index += 1) {
-        if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-        images.push(await generateOne(credentials, prompt, body, signal));
+        if (signal?.aborted) break;
+        try {
+            images.push(await generateOne(credentials, prompt, body, signal));
+        } catch (error) {
+            if (isAbortError(error) || signal?.aborted) break;
+            errors.push(error instanceof Error ? error.message : "腾讯云点播生图失败");
+        }
     }
-    return images;
+    return { images, errors, aborted: Boolean(signal?.aborted) };
+}
+
+function isAbortError(error: unknown) {
+    return error instanceof DOMException && error.name === "AbortError";
 }
 
 async function generateOne(credentials: { secretId: string; secretKey: string; subAppId: string }, prompt: string, body: CompanyImageRequest, signal?: AbortSignal) {

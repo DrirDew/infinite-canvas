@@ -1,4 +1,4 @@
-import { findUserByUsername, insertUser, listUsers } from "./db";
+import { findUserById, findUserByUsername, insertLedger, insertUser, listUsers, setCreditBalance, withImmediate } from "./db";
 import { toPublicUser, type UserRole } from "./schema";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{2,32}$/;
@@ -34,4 +34,16 @@ export async function createUser(username: string, password: string, role: UserR
 
 export function publicUsers() {
     return listUsers().map(toPublicUser);
+}
+
+export function adjustCredits(userId: string, creditBalance: number) {
+    if (!Number.isInteger(creditBalance) || creditBalance < 0) throw new Error("额度必须是大于等于 0 的整数");
+    const row = findUserById(userId);
+    if (!row) throw new Error("用户不存在");
+    const delta = creditBalance - row.credit_balance;
+    withImmediate(() => {
+        setCreditBalance(userId, creditBalance);
+        if (delta) insertLedger({ id: crypto.randomUUID(), user_id: userId, job_id: null, delta, reason: "adjust", created_at: Date.now() });
+    });
+    return toPublicUser({ ...row, credit_balance: creditBalance });
 }

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { createUserRequest, fetchCurrentUser, fetchUsers, loginRequest, logoutRequest, type SessionUser } from "@/services/api/auth";
+import { createUserRequest, fetchCurrentUser, fetchUsers, loginRequest, logoutRequest, adjustCreditsRequest, type SessionUser } from "@/services/api/auth";
 
 type SessionStatus = "unknown" | "ready";
 
@@ -13,6 +13,8 @@ type UserStore = {
     logout: () => Promise<void>;
     loadUsers: () => Promise<void>;
     createUser: (username: string, password: string) => Promise<void>;
+    adjustCredits: (userId: string, creditBalance: number) => Promise<void>;
+    setCreditBalance: (creditBalance: number) => void;
     clearSession: () => void;
 };
 
@@ -41,6 +43,17 @@ export const useUserStore = create<UserStore>()((set, get) => ({
     createUser: async (username, password) => {
         const user = await createUserRequest(username, password);
         set({ users: [...get().users, user] });
+    },
+    adjustCredits: async (userId, creditBalance) => {
+        const user = await adjustCreditsRequest(userId, creditBalance);
+        set({
+            users: get().users.map((item) => (item.id === user.id ? user : item)),
+            user: get().user?.id === user.id ? { ...get().user!, creditBalance: user.creditBalance } : get().user,
+        });
+    },
+    setCreditBalance: (creditBalance) => {
+        const user = get().user;
+        if (user) set({ user: { ...user, creditBalance } });
     },
     clearSession: () => set({ user: null, users: [], status: "ready" }),
 }));
