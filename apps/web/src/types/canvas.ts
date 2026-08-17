@@ -60,7 +60,6 @@ export type CanvasNodeMetadata = {
     mimeType?: string;
     bytes?: number;
     durationMs?: number;
-    interactive?: boolean; // Plugin node interaction/move state; see CanvasNodeDefinition.interactionToggle.
 };
 
 export type CanvasNodeData = CanvasNode<CanvasNodeMetadata>;

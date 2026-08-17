@@ -1,14 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { ChevronRight, Copy, Download, Group, Image as ImageIcon, Music2, Puzzle, RefreshCw, Star, Trash2, Video } from "lucide-react";
+import { ChevronRight, CircleHelp, Copy, Download, Group, Image as ImageIcon, Music2, RefreshCw, Star, Trash2, Video } from "lucide-react";
 import { CanvasNodeConnectionHandles, CanvasNodeResizeHandles, CanvasNodeShell, CanvasUnknownNode, canvasThemes } from "@basketikun/infinite-canvas";
 import { formatBytes } from "@/lib/image-utils";
-import { getNodeDefinition } from "@/lib/canvas/node-registry";
-import { buildNodeContext } from "@/lib/canvas/plugin-node-context";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasNodeType, type CanvasNodeData, type CanvasNodeImage, type Position } from "@/types/canvas";
-import type { CanvasNodeContext, CanvasPluginHost } from "@/types/canvas-plugin";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { useTranslation } from "react-i18next";
 
@@ -26,8 +23,6 @@ type CanvasNodeProps = {
     showPanel: boolean;
     showImageInfo: boolean;
     mentionReferences?: CanvasResourceReference[];
-    pluginHost?: CanvasPluginHost;
-    registryVersion?: number;
     renderPanel?: (node: CanvasNodeData) => ReactNode;
     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
     groupChildCount?: number;
@@ -65,7 +60,6 @@ type NodeContentRendererProps = {
     batchCount: number;
     batchExpanded: boolean;
     renderNodeContent?: (node: CanvasNodeData) => ReactNode;
-    pluginContext?: CanvasNodeContext | null;
     onContentChange: (nodeId: string, content: string) => void;
     onStopEditing: () => void;
     mentionReferences: CanvasResourceReference[];
@@ -92,7 +86,6 @@ export const CanvasNode = React.memo(function CanvasNode({
     showPanel,
     showImageInfo,
     mentionReferences = [],
-    pluginHost,
     renderPanel,
     renderNodeContent,
     groupChildCount = 0,
@@ -123,8 +116,6 @@ export const CanvasNode = React.memo(function CanvasNode({
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
     const [hovered, setHovered] = useState(false);
-    const definition = getNodeDefinition(data.type);
-    const pluginContext = useMemo<CanvasNodeContext | null>(() => (pluginHost ? buildNodeContext(pluginHost, data, theme, scale, isSelected) : null), [pluginHost, data, theme, scale, isSelected]);
     const [isEditingContent, setIsEditingContent] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState(data.title || "");
@@ -134,13 +125,6 @@ export const CanvasNode = React.memo(function CanvasNode({
     const isGroup = data.type === CanvasNodeType.Group;
     const batchCount = data.type === CanvasNodeType.Image ? data.metadata?.images?.length || 0 : 0;
     const isBatchRoot = batchCount > 1;
-    // Nodes with the interaction/move toggle ignore content pointer events in move mode and allow interaction in interactive mode.
-    // forceInteractive states such as editing stay interactive, as do empty nodes so their upload and generation actions remain usable.
-    const supportsInteractionToggle = Boolean(definition?.interactionToggle);
-    const forceInteractive = supportsInteractionToggle ? Boolean(definition?.forceInteractive?.(data)) : false;
-    const contentInteractive = !supportsInteractionToggle || forceInteractive || !data.metadata?.content ? true : Boolean(data.metadata?.interactive);
-    // Transparent nodes such as SVGs blend into the canvas while retaining outlines for selected or related states.
-    const transparentBg = Boolean(definition?.transparentBackground);
     const isActive = isConnectionTarget || isSelected || isFocusRelated;
     const imageBorderColor = isActive ? selectionBlue : isRelated ? theme.node.muted : "transparent";
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -267,8 +251,8 @@ export const CanvasNode = React.memo(function CanvasNode({
             <div
                 className="relative h-full w-full overflow-visible rounded-3xl border-2"
                 style={{
-                    background: isGroup ? `${theme.toolbar.panel}66` : hasImageContent || hasVideoContent || transparentBg ? "transparent" : theme.node.fill,
-                    borderColor: isGroup ? (isGroupDropTarget || isActive ? selectionBlue : theme.node.stroke) : hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : transparentBg ? "transparent" : theme.node.stroke,
+                    background: isGroup ? `${theme.toolbar.panel}66` : hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
+                    borderColor: isGroup ? (isGroupDropTarget || isActive ? selectionBlue : theme.node.stroke) : hasImageContent ? imageBorderColor : isActive ? selectionBlue : isRelated ? theme.node.muted : theme.node.stroke,
                     borderStyle: isGroup ? "dashed" : "solid",
                     boxShadow: isGroupDropTarget ? `0 0 0 2px ${selectionBlue}66, inset 0 0 0 999px ${selectionBlue}10` : isActive ? `0 0 0 1px ${selectionBlue}55` : isRelated ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)` : undefined,
                 }}
@@ -277,10 +261,6 @@ export const CanvasNode = React.memo(function CanvasNode({
                     if (isBatchRoot) {
                         event.stopPropagation();
                         onToggleBatch?.(data.id);
-                        return;
-                    }
-                    if (definition?.onDoubleClick && pluginContext) {
-                        if (definition.onDoubleClick(pluginContext)) event.stopPropagation();
                         return;
                     }
                     if (data.type === CanvasNodeType.Image && hasImageContent) {
@@ -295,12 +275,7 @@ export const CanvasNode = React.memo(function CanvasNode({
             >
                 <div
                     className={`relative flex h-full w-full items-center justify-center rounded-[inherit] ${isBatchRoot ? "overflow-visible" : "overflow-hidden"}`}
-                    style={
-                        {
-                            background: isGroup ? "transparent" : hasImageContent || hasVideoContent || transparentBg ? "transparent" : theme.node.fill,
-                            pointerEvents: contentInteractive ? undefined : "none",
-                        } as React.CSSProperties
-                    }
+                    style={{ background: isGroup ? "transparent" : hasImageContent || hasVideoContent ? "transparent" : theme.node.fill }}
                 >
                     <NodeContent
                         node={data}
@@ -311,7 +286,6 @@ export const CanvasNode = React.memo(function CanvasNode({
                         batchCount={batchCount}
                         batchExpanded={batchExpanded}
                         renderNodeContent={renderNodeContent}
-                        pluginContext={pluginContext}
                         mentionReferences={mentionReferences}
                         onContentChange={onContentChange}
                         onStopEditing={() => setIsEditingContent(false)}
@@ -334,7 +308,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 <CanvasNodeResizeHandles
                     node={data}
                     scale={scale}
-                    keepAspectRatio={(data.type === CanvasNodeType.Image && !data.metadata?.freeResize) || data.type === CanvasNodeType.Video || Boolean(definition?.keepAspectRatio?.(data))}
+                    keepAspectRatio={(data.type === CanvasNodeType.Image && !data.metadata?.freeResize) || data.type === CanvasNodeType.Video}
                     ratio={(data.metadata?.naturalWidth || data.width) / (data.metadata?.naturalHeight || data.height || 1)}
                     minWidth={220}
                     minHeight={160}
@@ -345,7 +319,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 />
             </div>
 
-            {!isGroup ? <CanvasNodeConnectionHandles nodeId={data.id} visible={hovered || isSelected || isConnecting} theme={theme} source={(definition?.hasSourceHandle ?? true) && data.type !== CanvasNodeType.Config} onConnectStart={onConnectStart} /> : null}
+            {!isGroup ? <CanvasNodeConnectionHandles nodeId={data.id} visible={hovered || isSelected || isConnecting} theme={theme} source={data.type !== CanvasNodeType.Config} onConnectStart={onConnectStart} /> : null}
 
             {showPanel && !isGroup && renderPanel ? <div className="absolute left-1/2 top-full z-[70] w-[600px] -translate-x-1/2 pt-4">{renderPanel(data)}</div> : null}
         </CanvasNodeShell>
@@ -362,13 +336,7 @@ function NodeContent(props: NodeContentRendererProps) {
     const Renderer = nodeContentRenderers[props.node.type as CanvasNodeType];
     if (Renderer) return <Renderer {...props} />;
 
-    // Render plugin nodes with their registered renderer, or show the missing-plugin placeholder.
-    const definition = getNodeDefinition(props.node.type);
-    if (definition?.Content && props.pluginContext) {
-        const PluginContent = definition.Content;
-        return <PluginContent ctx={props.pluginContext} />;
-    }
-    return <CanvasUnknownNode type={props.node.type} theme={props.theme} icon={<Puzzle className="size-7 opacity-40" />} title={t("canvas.node.missingPlugin")} description={t("canvas.node.missingPluginDescription", { type: props.node.type })} />;
+    return <CanvasUnknownNode type={props.node.type} theme={props.theme} icon={<CircleHelp className="size-7 opacity-40" />} title={t("canvas.node.unknown")} description={t("canvas.node.unknownDescription", { type: props.node.type })} />;
 }
 
 const nodeContentRenderers = {

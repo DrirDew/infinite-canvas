@@ -94,7 +94,7 @@ Web 是 Core 的主要消费者，在画布引擎之上增加：
 
 ## 6. Desktop 插件系统重构计划
 
-### 6.1 删除旧系统
+### 6.1 删除旧系统（已完成）
 
 第一阶段完整删除以下旧实现：
 
@@ -106,7 +106,7 @@ Web 是 Core 的主要消费者，在画布引擎之上增加：
 
 `plugins/infinite-canvas/` 是 Codex App / MCP 插件，不属于旧 Web 节点插件系统，必须保留。`apps/web/src/services/api/model-plugin.ts` 是模型自定义请求脚本，也不在本次删除范围内。
 
-### 6.2 Web 收敛
+### 6.2 Web 收敛（已完成）
 
 删除动态节点 registry 后，Web 只保留文本、图片、视频、音频、生成配置和分组等内置节点。节点标题、尺寸、图标、资源解析和面板配置改为静态定义。旧插件节点数据不迁移，Core 的未知节点占位只负责避免渲染崩溃。
 
@@ -235,7 +235,7 @@ Core 不提供持久化。第三方使用方自行选择存储方式；官方 We
 1. **Monorepo 基座（已完成）**：Web、文档、Core、Canvas Agent 和现有模块已迁入统一 workspace。
 2. **Core 拆分与 Web 接入（已完成）**：Core 已独立发布，Examples 和官方 Web 已改用公开 API。
 3. **Electron 桌面壳（已完成基础壳）**：先直接加载 Web，桌面原生能力按实际需求增加。
-4. **删除旧 Web 插件系统**：删除旧 loader、runtime、SDK、示例、注册表和发布链路。
+4. **删除旧 Web 插件系统（已完成）**：删除旧 loader、runtime、SDK、示例、注册表和发布链路，并将 Web 收敛为固定内置节点。
 5. **建立 Desktop 插件 runtime**：在 Electron 主进程接入 Cordis，并建立 Host/Client 通信。
 6. **验证最小 Desktop 插件**：只实现命令和画布节点两个扩展点。
 7. **拆分 Agent Panel**：抽离通用 React UI 和宿主适配器，提供独立入口，再由官方 Web 接回同一实现。

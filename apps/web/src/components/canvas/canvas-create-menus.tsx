@@ -1,11 +1,13 @@
 import { useEffect, useRef } from "react";
-import { ImageIcon, List, Music2, Settings2, Video, X } from "lucide-react";
+import { Group, ImageIcon, List, Music2, Settings2, Video, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { canvasThemes } from "@basketikun/infinite-canvas";
+import { getNodeSpec } from "@/constant/canvas";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
 import { CanvasNodeType, type ConnectionHandle, type Position } from "@/types/canvas";
+
+const NODE_CREATE_TYPES = [CanvasNodeType.Text, CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Audio, CanvasNodeType.Config, CanvasNodeType.Group];
 
 export type PendingConnectionCreate = {
     connection: ConnectionHandle;
@@ -75,12 +77,10 @@ export function ConnectionCreateOption({ theme, icon, title, description, onClic
     );
 }
 
-export function NodeCreateMenu({ position, onCreate, onClose }: { position: Position; onCreate: (type: string) => void; onClose: () => void }) {
+export function NodeCreateMenu({ position, onCreate, onClose }: { position: Position; onCreate: (type: CanvasNodeType) => void; onClose: () => void }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
-    useNodeRegistryVersion();
     const menuRef = useRef<HTMLDivElement>(null);
-    const definitions = listNodeDefinitions().filter((def) => def.showInCreateMenu !== false);
     // Close automatically when clicking outside the menu.
     useEffect(() => {
         const handlePointerDown = (event: PointerEvent) => {
@@ -106,10 +106,15 @@ export function NodeCreateMenu({ position, onCreate, onClose }: { position: Posi
                 </button>
             </div>
             <div className="grid gap-1">
-                {definitions.map((def) => (
-                    <ConnectionCreateOption key={def.type} theme={theme} icon={def.icon} title={def.title} description={def.description} onClick={() => onCreate(def.type)} />
+                {NODE_CREATE_TYPES.map((type) => (
+                    <ConnectionCreateOption key={type} theme={theme} icon={nodeCreateIcon(type)} title={getNodeSpec(type).title} onClick={() => onCreate(type)} />
                 ))}
             </div>
         </div>
     );
+}
+
+function nodeCreateIcon(type: CanvasNodeType) {
+    const Icon = type === CanvasNodeType.Image ? ImageIcon : type === CanvasNodeType.Video ? Video : type === CanvasNodeType.Audio ? Music2 : type === CanvasNodeType.Config ? Settings2 : type === CanvasNodeType.Group ? Group : List;
+    return <Icon className="size-5" />;
 }

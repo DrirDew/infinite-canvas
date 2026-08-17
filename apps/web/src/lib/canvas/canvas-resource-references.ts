@@ -1,7 +1,6 @@
 import { imageReferenceLabel } from "@/lib/image-reference-prompt";
 import i18n from "@/i18n";
 import { seedanceReferenceLabel } from "@/lib/seedance-video";
-import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { imageToDataUrl } from "@/services/image-storage";
 import { getCanvasDownstreamNodes, getCanvasUpstreamNodes } from "@basketikun/infinite-canvas";
@@ -83,7 +82,6 @@ function labelResourceNodes(nodes: readonly CanvasNodeData[], active: boolean) {
     return nodes.flatMap((node): CanvasResourceReference[] => {
         const kind = resourceKind(node);
         if (!kind) return [];
-        const resource = getNodeDefinition(node.type)?.resource?.(node);
         const index = counts[kind]++;
         const label = labelForKind(kind, index);
         return [
@@ -93,7 +91,7 @@ function labelResourceNodes(nodes: readonly CanvasNodeData[], active: boolean) {
                 kind,
                 label,
                 title: node.title || label,
-                previewUrl: node.metadata?.content || resource?.url,
+                previewUrl: node.metadata?.content,
                 text: resourceText(node),
                 active,
             },
@@ -114,8 +112,7 @@ function isResourceNode(node: CanvasNodeData) {
 
 function resourceText(node: CanvasNodeData): string | undefined {
     if (node.type === CanvasNodeType.Text) return node.metadata?.content || node.metadata?.prompt;
-    const resource = getNodeDefinition(node.type)?.resource?.(node);
-    return resource?.kind === "text" ? resource.text : undefined;
+    return undefined;
 }
 
 function resourceKind(node: CanvasNodeData): CanvasResourceKind | null {
@@ -123,6 +120,5 @@ function resourceKind(node: CanvasNodeData): CanvasResourceKind | null {
     if (node.type === CanvasNodeType.Video && node.metadata?.content) return "video";
     if (node.type === CanvasNodeType.Audio && node.metadata?.content) return "audio";
     if (node.type === CanvasNodeType.Text && (node.metadata?.content || node.metadata?.prompt)) return "text";
-    // Plugin nodes declare their input eligibility through definition.resource.
-    return getNodeDefinition(node.type)?.resource?.(node)?.kind || null;
+    return null;
 }

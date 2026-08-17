@@ -34,7 +34,7 @@ import {
     type CanvasDocument,
 } from "@basketikun/infinite-canvas";
 import { App, Button, Modal } from "antd";
-import { NODE_DEFAULT_SIZE, getNodeSpec } from "@/constant/canvas";
+import { NODE_DEFAULT_SIZE, getNodeSpec, isBuiltinNodeType } from "@/constant/canvas";
 import { CanvasConfigComposer } from "@/components/canvas/canvas-config-composer";
 import { CanvasConfigNodePanel } from "@/components/canvas/canvas-config-node-panel";
 import { CanvasNodeContextMenu } from "@/components/canvas/canvas-context-menu";
@@ -54,7 +54,6 @@ import { CanvasZoomControls } from "@/components/canvas/canvas-zoom-controls";
 import { useAgentStore } from "@/stores/use-agent-store";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useAgentBridge } from "@/pages/canvas/hooks/use-agent-bridge";
-import { usePluginHost } from "@/pages/canvas/hooks/use-plugin-host";
 import { buildNodeMentionReferences, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
 import { applyNodeConfigPatch, audioMetadata, buildAudioGenerationMetadata, buildImageGenerationMetadata, createCanvasNode, imageMetadata, videoMetadata } from "@/lib/canvas/canvas-node-factory";
@@ -77,8 +76,6 @@ import {
     sourceNodeReferenceImages,
 } from "@/lib/canvas/canvas-generation-helpers";
 import { resolveCanvasConnection } from "@/lib/canvas/canvas-connection";
-import { getNodeDefinition, isBuiltinNodeType as isBuiltinType, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
-import { registerBuiltinNodes } from "@/components/canvas/nodes/builtin-nodes";
 import { CanvasRefreshShell } from "@/components/canvas/canvas-refresh-shell";
 import { CanvasTopBar } from "@/components/canvas/canvas-top-bar";
 import { ConnectionCreateMenu, NodeCreateMenu, type PendingConnectionCreate } from "@/components/canvas/canvas-create-menus";
@@ -93,9 +90,6 @@ import {
     type ContextMenuState,
     type Position,
 } from "@/types/canvas";
-// Register built-in nodes in the shared registry once when the module loads.
-registerBuiltinNodes();
-
 type CanvasGenerationRequest = {
     targetNodeId: string;
     originNodeId: string;
@@ -126,8 +120,6 @@ export default function CanvasPage() {
 function InfiniteCanvasPage() {
     const { message, modal } = App.useApp();
     const { t } = useTranslation();
-    // Subscribe to the registry version so plugin registration changes rerender the canvas.
-    const nodeRegistryVersion = useNodeRegistryVersion((state) => state.version);
     const params = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -392,8 +384,7 @@ function InfiniteCanvasPage() {
         onNodeSelectionChange: (ids, nodeId) => setToolbarNodeId(ids.size === 1 && ids.has(nodeId) ? nodeId : null),
         onNodeClick: (nodeId) => {
             const node = nodesRef.current.find((item) => item.id === nodeId);
-            const definition = node ? getNodeDefinition(node.type) : undefined;
-            if (node?.type === CanvasNodeType.Text || definition?.hidePanel) setDialogNodeId((current) => (current === nodeId ? current : null));
+            if (!node || !isBuiltinNodeType(node.type) || node.type === CanvasNodeType.Text) setDialogNodeId((current) => (current === nodeId ? current : null));
             else if (node?.type !== CanvasNodeType.Group) setDialogNodeId(nodeId);
         },
         onConnectionEnd: (result) => {
@@ -439,7 +430,7 @@ function InfiniteCanvasPage() {
         nodes.forEach((node) => map.set(node.id, buildNodeMentionReferences(node, nodes, connections)));
         return map;
     }, [connections, nodes]);
-    const { applyAgentOps } = useAgentBridge({
+    useAgentBridge({
         projectId,
         title: currentProject?.title,
         nodes,
@@ -457,18 +448,6 @@ function InfiniteCanvasPage() {
         setContextMenu,
     });
 
-    const { pluginHost, renderPluginPanel, buildNodeToolbarItems } = usePluginHost({
-        effectiveConfig,
-        isAiConfigReady,
-        openConfigDialog,
-        theme,
-        nodesRef,
-        connectionsRef,
-        viewportRef,
-        updateNode: canvasCommands.updateNode,
-        setDialogNodeId,
-        applyAgentOps,
-    });
     const createNode = useCallback(
         (type: CanvasNodeTypeId, position?: Position) => {
             const targetPosition = position || getCanvasCenter();
@@ -484,18 +463,7 @@ function InfiniteCanvasPage() {
 
             canvasCommands.addNode(newNode);
             canvasCommands.selectNodes([newNode.id]);
-            const definition = getNodeDefinition(type);
-            // Display-only plugin nodes with hidePanel do not open a panel; custom Panels require autoOpenPanel on creation.
-            // Plugin nodes declaring useBuiltinPanel open the built-in generation panel on creation, like image nodes.
-            // Built-in image, video, and config nodes retain their existing open-on-create behavior.
-            const wantsPanel = definition?.hidePanel
-                ? false
-                : definition?.Panel
-                  ? Boolean(definition.autoOpenPanel)
-                  : definition?.useBuiltinPanel
-                    ? true
-                    : isBuiltinType(type) && type !== CanvasNodeType.Text && type !== CanvasNodeType.Audio && type !== CanvasNodeType.Group;
-            if (wantsPanel) setDialogNodeId(newNode.id);
+            if (type === CanvasNodeType.Image || type === CanvasNodeType.Video || type === CanvasNodeType.Config) setDialogNodeId(newNode.id);
         },
         [canvasCommands, effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, getCanvasCenter],
     );
@@ -1228,45 +1196,6 @@ function InfiniteCanvasPage() {
                 return;
             }
 
-            // useBuiltinPanel.writeBackToSelf reuses built-in generation while writing the result back to the plugin node.
-            // Image mode currently supports display-only nodes such as panoramas, with a useBuiltinPanel.promptPrefix.
-            const builtinPanel = sourceNode ? getNodeDefinition(sourceNode.type)?.useBuiltinPanel : undefined;
-            if (sourceNode && builtinPanel?.writeBackToSelf && builtinPanel.mode === "image") {
-                const scene = prompt.trim();
-                if (!scene) return;
-                setRunningNodeId(nodeId);
-                const controller = startGenerationRequest(nodeId, nodeId, nodeId);
-                canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, prompt: scene, status: NODE_STATUS_LOADING, errorDetails: undefined } }));
-                try {
-                    const fullPrompt = (builtinPanel.promptPrefix || "") + scene;
-                    // Upstream image nodes become references; without them this is text-to-image.
-                    const upstreamNodes = connectionsRef.current
-                        .filter((conn) => conn.toNodeId === nodeId)
-                        .map((conn) => nodesRef.current.find((node) => node.id === conn.fromNodeId))
-                        .filter((node): node is CanvasNodeData => Boolean(node));
-                    const refs = upstreamNodes.flatMap((up) =>
-                        typeof up.metadata?.content === "string" && up.metadata.content && up.type !== sourceNode.type
-                            ? [{ id: up.id, name: `${up.title || up.id}.png`, type: up.metadata.mimeType || "image/png", dataUrl: up.metadata.content, storageKey: up.metadata.storageKey }]
-                            : [],
-                    );
-                    const image = refs.length
-                        ? await requestEdit({ ...generationConfig, count: "1" }, fullPrompt, refs, undefined, { signal: controller.signal }).then((items) => items[0])
-                        : await requestGeneration({ ...generationConfig, count: "1" }, fullPrompt, { signal: controller.signal }).then((items) => items[0]);
-                    const uploaded = await uploadImage(image.dataUrl);
-                    canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, ...imageMetadata(uploaded), prompt: scene, model: generationConfig.model, status: NODE_STATUS_SUCCESS, errorDetails: undefined } }));
-                    setDialogNodeId(null);
-                } catch (error) {
-                    if (!isGenerationCanceled(error)) {
-                        const errorDetails = error instanceof Error ? error.message : t("canvas.projectPage.generationFailed");
-                        message.error(errorDetails);
-                        canvasCommands.updateNode(nodeId, (node) => ({ ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails } }));
-                    }
-                } finally {
-                    finishGenerationRequest(nodeId, controller);
-                }
-                return;
-            }
-
             setRunningNodeId(nodeId);
             const runController = startGenerationRequest(nodeId, nodeId, nodeId);
             const sourceTextContent = sourceNode?.type === CanvasNodeType.Text ? sourceNode.metadata?.content?.trim() || "" : "";
@@ -1893,9 +1822,7 @@ function InfiniteCanvasPage() {
 
     const renderNodePanel = useCallback(
         (panelNode: CanvasNodeData) =>
-            getNodeDefinition(panelNode.type)?.Panel ? (
-                renderPluginPanel(panelNode)
-            ) : panelNode.type === CanvasNodeType.Config ? (
+            panelNode.type === CanvasNodeType.Config ? (
                 <CanvasConfigComposer
                     value={panelNode.metadata?.composerContent ?? panelNode.metadata?.prompt ?? ""}
                     inputs={configInputsById.get(panelNode.id) || []}
@@ -1911,14 +1838,13 @@ function InfiniteCanvasPage() {
                     onConfigChange={handleConfigNodeChange}
                     onGenerate={handleGenerateNode}
                     onStop={confirmStopGeneration}
-                    modeOverride={getNodeDefinition(panelNode.type)?.useBuiltinPanel?.mode}
                     onImageSettingsOpenChange={(open) => {
                         setNodeImageSettingsOpen(open);
                         if (open) setToolbarNodeId(null);
                     }}
                 />
             ),
-        [configInputsById, confirmStopGeneration, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, renderPluginPanel, runningNodeId],
+        [configInputsById, confirmStopGeneration, handleConfigNodeChange, handleGenerateNode, handleNodePromptChange, mentionReferencesByNodeId, runningNodeId],
     );
 
     const renderNodeContentPanel = useCallback(
@@ -2008,14 +1934,12 @@ function InfiniteCanvasPage() {
                             isConnectionTarget={connectionInteraction?.targetNodeId === node.id}
                             isConnecting={Boolean(connectionInteraction)}
                             editRequestNonce={editingNodeId === node.id ? editRequestNonce : 0}
-                            showPanel={dialogNodeId === node.id && !selectionRect && !getNodeDefinition(node.type)?.hidePanel}
+                            showPanel={dialogNodeId === node.id && !selectionRect}
                             groupChildCount={groupChildCountById.get(node.id) || 0}
                             isGroupDropTarget={dropTargetGroupId === node.id}
                             batchExpanded={expandedImageNodeId === node.id}
                             showImageInfo={showImageInfo}
                             mentionReferences={mentionReferencesByNodeId.get(node.id) || EMPTY_REFERENCES}
-                            pluginHost={pluginHost}
-                            registryVersion={nodeRegistryVersion}
                             renderPanel={renderNodePanel}
                             renderNodeContent={renderNodeContentPanel}
                             onPointerDown={onNodePointerDown}
@@ -2059,7 +1983,6 @@ function InfiniteCanvasPage() {
                 <CanvasNodeHoverToolbar
                     node={isNodeDragging || isNodeResizing || nodeImageSettingsOpen || expandedImageNodeId ? null : toolbarNode}
                     viewport={viewport}
-                    extraTools={toolbarNode ? buildNodeToolbarItems(toolbarNode) : undefined}
                     onKeep={keepNodeToolbar}
                     onLeave={hideNodeToolbar}
                     onInfo={(node) => setInfoNodeId(node.id)}
@@ -2107,7 +2030,7 @@ function InfiniteCanvasPage() {
                     onShowImageInfoChange={setShowImageInfo}
                 />
 
-                {isMiniMapOpen ? <CanvasMinimap nodes={nodes} viewport={viewport} viewportSize={size} theme={theme} onViewportChange={handleViewportChange} nodeColor={(node) => getNodeDefinition(node.type)?.minimapColor || theme.node.muted} /> : null}
+                {isMiniMapOpen ? <CanvasMinimap nodes={nodes} viewport={viewport} viewportSize={size} theme={theme} onViewportChange={handleViewportChange} nodeColor={(node) => getNodeSpec(node.type).minimapColor || theme.node.muted} /> : null}
 
                 <CanvasZoomControls scale={viewport.k} onScaleChange={setZoomScale} onReset={resetViewport} isMiniMapOpen={isMiniMapOpen} onToggleMiniMap={() => setIsMiniMapOpen((value) => !value)} />
 

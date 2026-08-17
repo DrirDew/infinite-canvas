@@ -256,7 +256,7 @@ export default {
         },
         node: {
             node: "节点",
-            untitled: "未命名节点", renameHint: "双击修改节点名称", group: "组", nodeCount: "{{count}} 个节点", generating: "生成中", failed: "生成失败", retry: "重试", missingPlugin: "缺少插件", missingPluginDescription: "节点类型“{{type}}”的插件未安装或未启用", generateImage: "用文本生图", generate: "生图", editText: "双击编辑文字", emptyImage: "空图片节点", emptyVideo: "空视频节点", emptyAudio: "空音频节点", audio: "音频", batchExpanded: "图片组已展开", batchCollapsed: "图片组已收起", createCopy: "创建副本", setPrimary: "设为主图",
+            untitled: "未命名节点", renameHint: "双击修改节点名称", group: "组", nodeCount: "{{count}} 个节点", generating: "生成中", failed: "生成失败", retry: "重试", unknown: "未知节点", unknownDescription: "当前版本不支持节点类型“{{type}}”", generateImage: "用文本生图", generate: "生图", editText: "双击编辑文字", emptyImage: "空图片节点", emptyVideo: "空视频节点", emptyAudio: "空音频节点", audio: "音频", batchExpanded: "图片组已展开", batchCollapsed: "图片组已收起", createCopy: "创建副本", setPrimary: "设为主图",
         },
         sidePanel: {
             canvas: "画布", assets: "资产", prompts: "提示词库", resize: "调整左侧面板宽度", elements: "画布元素", select: "选择", searchNodes: "搜索节点", focusNode: "定位到节点", preview: "放大预览", noNodes: "画布暂无节点", clearAll: "取消全选", selected: "已选 {{count}}", exporting: "正在导出选中元素…", exportName: "画布元素-{{count}}个", exported: "已导出 {{count}} 个元素", exportFailed: "导出失败，请重试",
@@ -280,7 +280,6 @@ export default {
             maskTitle: "局部遮罩编辑", maskHint: "滚轮缩放 · 中键或空格+左键拖动画面 · Alt+左/右键横拖调笔刷 · Ctrl/Cmd+Z 撤回 · Ctrl/Cmd+Shift+Z 重做", brush: "画笔", erase: "擦除", undoMaskTitle: "撤回局部涂抹 (Ctrl/Cmd+Z)", undoMask: "撤回局部涂抹", redoMaskTitle: "重做局部涂抹 (Ctrl/Cmd+Shift+Z)", redoMask: "重做局部涂抹", brushSize: "笔刷大小", editInstructions: "修改要求", maskPlaceholder: "例如：把选中区域改成金属材质，保持原图光影", maskPromptRequired: "请输入修改要求", maskRequired: "请先涂抹局部区域", aiEdit: "AI 修改",
             splitTitle: "切分图片", splitDescription: "生成 {{count}} 个图片子节点，并按原图网格排列到画布右侧", splitHint: "滚轮缩放 · 中键或空格+左键拖动画面 · Delete 删除选中线 · Ctrl/Cmd+Z 撤回 · Ctrl/Cmd+Shift+Z 重做", undoSplitTitle: "撤回切图调整 (Ctrl/Cmd+Z)", undoSplit: "撤回切图调整", redoSplitTitle: "重做切图调整 (Ctrl/Cmd+Shift+Z)", redoSplit: "重做切图调整", rows: "行数", columns: "列数", horizontalLine: "横向线", verticalLine: "纵向线", deleteLine: "删除线", resetLines: "重置线", pieceCount: "切片数量", pieces: "{{count}} 个", averageSize: "平均约", generateChildren: "生成子节点",
         },
-        plugins: { aiConfigRequired: "AI 配置未就绪，请先在设置里配置模型与密钥", interactiveTitle: "当前：交互中。点击切回「移动」", movableTitle: "当前：可移动。点击切到「交互」", move: "移动", interact: "交互" },
         promptPanel: { video: "描述要生成的视频内容", audio: "描述要生成的音频内容", image: "描述要生成的图片内容", text: "请输入你想要生成的文本内容", editImage: "请输入你想要把这张图修改成什么", editText: "请输入你想要将本段文本修改成什么", expandEditor: "放大编辑", editorTitle: "编辑提示词", stopGeneration: "停止生成", generate: "生成", stop: "停止" },
         composer: { title: "组装提示词", description: "@ 引用已连接资产，发送前按当前连接重新编号", placeholder: "输入提示词，按 @ 引用连接的图片或文本", imagePreview: "引用图片预览", resources: { image: "图片{{index}}", video: "视频{{index}}", audio: "音频{{index}}", text: "文本{{index}}" } },
         controls: { ratio: "比例", duplicate: "复制", delete: "删除", images: "{{count}} 张", reasoning: "推理" },
