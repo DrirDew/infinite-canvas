@@ -4,7 +4,7 @@ import { clearSessionCookie, createSession, requireAdmin, requireUser, writeSess
 import { bootstrapChannels, createSharedChannel, patchSharedChannel, publicChannels, removeSharedChannel, type ChannelInput } from "./channels";
 import { bootstrapAdmin, findUserByUsername, generatedCountForUser } from "./db";
 import { loadRootEnv } from "./env";
-import { CreditError, generateCompanyImages, getGeneration, listGenerations, readGenerationAsset, removeGeneration } from "./generations";
+import { CreditError, createGeneration, generateCompanyImages, getGeneration, listGenerations, patchGeneration, readGenerationAsset, removeGeneration } from "./generations";
 import { toPublicUser } from "./schema";
 import { type CompanyImageRequest } from "./tencent-vod";
 import { usageForUser } from "./usage";
@@ -81,7 +81,18 @@ app.post("/api/tencent-vod/images", requireUser, async (c) => {
     }
 });
 
-app.get("/api/generations", requireUser, (c) => c.json({ generations: listGenerations(c.get("user").id) }));
+app.get("/api/generations", requireUser, (c) => c.json({ generations: listGenerations(c.get("user").id, c.req.query("kind")) }));
+
+app.post("/api/generations", requireUser, async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { kind?: string };
+    if (body.kind !== "image" && body.kind !== "video") return c.json({ error: "记录类型无效" }, 400);
+    return c.json(createGeneration(c.get("user").id, body));
+});
+
+app.patch("/api/generations/:id", requireUser, async (c) => {
+    const item = patchGeneration(c.get("user").id, c.req.param("id"), (await c.req.json().catch(() => ({}))) as object);
+    return item ? c.json(item) : c.json({ error: "记录不存在" }, 404);
+});
 
 app.get("/api/generations/:id", requireUser, (c) => {
     const item = getGeneration(c.get("user").id, c.req.param("id"));

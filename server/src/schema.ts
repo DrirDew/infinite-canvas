@@ -24,6 +24,8 @@ export type PublicUser = {
     generatedCount: number;
 };
 
+export type GenerationJobStatus = "draft" | "running" | "success" | "failed";
+
 export type GenerationJobRow = {
     id: string;
     user_id: string;
@@ -33,12 +35,16 @@ export type GenerationJobRow = {
     size: string;
     quality: string;
     count: number;
-    status: "success" | "failed";
+    status: GenerationJobStatus;
     error: string;
     duration_ms: number;
     success_count: number;
     fail_count: number;
+    extra_json: string;
     created_at: number;
+    updated_at: number;
+    started_at: number;
+    finished_at: number;
 };
 
 export type GenerationAssetRow = {

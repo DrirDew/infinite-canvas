@@ -1,7 +1,6 @@
-import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, LoaderCircle, Music2, Plus, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, LoaderCircle, Music2, Plus, Save, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { App, Button, Checkbox, Drawer, Empty, Input, Modal, Tag, Typography } from "antd";
-import localforage from "localforage";
 import { nanoid } from "nanoid";
 import { saveAs } from "file-saver";
 import { useTranslation } from "react-i18next";
@@ -14,8 +13,9 @@ import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
 import { boolConfig, isSeedanceVideoConfig, normalizeSeedanceRatio, seedanceReferenceLabel, seedanceVideoReferenceError, seedanceVideoReferenceHint, SEEDANCE_REFERENCE_LIMITS, SEEDANCE_VIDEO_MIME_TYPES } from "@/lib/seedance-video";
 import { deleteStoredMedia, resolveMediaUrl, uploadMediaFile } from "@/services/file-storage";
-import { resolveImageUrl, uploadImage } from "@/services/image-storage";
+import { uploadImage } from "@/services/image-storage";
 import { createVideoGenerationTask, pollVideoGenerationTask, storeGeneratedVideo, type VideoGenerationTask } from "@/services/api/video";
+import { createGeneration, deleteGeneration, fetchGenerations, updateGeneration, type GenerationRecord, type GenerationStatus, type GenerationWriteInput } from "@/services/api/generations";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import { modelOptionLabel, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
@@ -58,7 +58,10 @@ type GenerationLog = {
     size: string;
     resolution: string;
     seconds: string;
-    status: "pending" | "success" | "failed";
+    status: GenerationStatus;
+    startedAt?: number;
+    finishedAt?: number;
+    updatedAt?: number;
     task?: VideoGenerationTask;
     video?: GeneratedVideo;
     error?: string;
@@ -68,16 +71,12 @@ type GenerationLogConfig = Pick<AiConfig, "model" | "videoModel" | "size" | "vqu
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
 
-const LOG_STORE_KEY = "infinite-canvas:video_generation_logs";
-const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
-
 export default function VideoPage() {
     const { message } = App.useApp();
     const { t } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dragDepthRef = useRef(0);
     const activeLogIdsRef = useRef<Set<string>>(new Set());
-    const config = useConfigStore((state) => state.config);
     const effectiveConfig = useEffectiveConfig();
     const updateConfig = useConfigStore((state) => state.updateConfig);
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
@@ -106,6 +105,8 @@ export default function VideoPage() {
     const updateAgentTask = useWorkbenchAgentStore((state) => state.updateTask);
     const processedCommandRef = useRef(0);
     const agentTaskIdRef = useRef<string | undefined>(undefined);
+    const currentJobIdRef = useRef<string | null>(null);
+    const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
     const model = effectiveConfig.videoModel || effectiveConfig.model;
     const canGenerate = Boolean(prompt.trim());
@@ -211,16 +212,59 @@ export default function VideoPage() {
         setResults([{ id: nanoid(), status: "pending" }]);
         const batchStartedAt = performance.now();
         setStartedAt(batchStartedAt);
+        let jobId: string | undefined;
         try {
+            const currentStatus = logs.find((log) => log.id === currentJobIdRef.current)?.status;
+            const reuse = currentStatus === "draft" || currentStatus === "running";
+            const startedAt = Date.now();
+            jobId = await persistSession("running", {
+                jobId: reuse ? currentJobIdRef.current : null,
+                startedAt,
+                error: "",
+                durationMs: 0,
+                successCount: 0,
+                failCount: 0,
+            });
             const task = await createVideoGenerationTask(snapshot.config, snapshot.text, snapshot.references, snapshot.videoReferences, snapshot.audioReferences);
-            const log = buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, videoReferences: snapshot.videoReferences, audioReferences: snapshot.audioReferences, durationMs: 0, status: "pending", task });
-            await saveLog(log, false);
-            void pollGenerationLog(log, snapshot.config, agentTaskId);
+            await persistSession("running", { jobId, extra: { task } });
+            await refreshLogs(false);
+            void pollGenerationLog(
+                {
+                    id: jobId,
+                    createdAt: startedAt,
+                    title: snapshot.text.slice(0, 12) || t("workbench.untitled"),
+                    prompt: snapshot.text,
+                    time: new Date(startedAt).toLocaleString(i18n.resolvedLanguage, { hour12: false }),
+                    model,
+                    config: {
+                        model: snapshot.config.model,
+                        videoModel: snapshot.config.videoModel,
+                        size: snapshot.config.size,
+                        vquality: normalizeResolution(snapshot.config.vquality),
+                        videoSeconds: snapshot.config.videoSeconds,
+                        videoGenerateAudio: snapshot.config.videoGenerateAudio,
+                        videoWatermark: snapshot.config.videoWatermark,
+                    },
+                    references: snapshot.references,
+                    videoReferences: snapshot.videoReferences,
+                    audioReferences: snapshot.audioReferences,
+                    durationMs: 0,
+                    size: snapshot.config.size,
+                    resolution: normalizeResolution(snapshot.config.vquality),
+                    seconds: snapshot.config.videoSeconds,
+                    status: "running",
+                    startedAt,
+                    task,
+                },
+                snapshot.config,
+                agentTaskId,
+            );
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : t("workbench.generationFailed");
             setResults([{ id: nanoid(), status: "failed", error: errorMessage }]);
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", successCount: 0, failCount: 1, error: errorMessage });
-            await saveLog(buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, videoReferences: snapshot.videoReferences, audioReferences: snapshot.audioReferences, durationMs: performance.now() - batchStartedAt, status: "failed", error: errorMessage }));
+            if (jobId) await persistSession("failed", { jobId, error: errorMessage, durationMs: performance.now() - batchStartedAt, successCount: 0, failCount: 1, finishedAt: Date.now() }).catch(() => undefined);
+            await refreshLogs(false);
             message.error(errorMessage);
             setRunning(false);
         }
@@ -300,16 +344,65 @@ export default function VideoPage() {
         setAssetPickerOpen(false);
     };
 
+    const setSessionId = (id: string | null) => {
+        currentJobIdRef.current = id;
+        setCurrentJobId(id);
+    };
+
+    const draftFields = (extra?: Record<string, unknown>): GenerationWriteInput => ({
+        kind: "video",
+        prompt,
+        model,
+        size: effectiveConfig.size,
+        quality: normalizeResolution(effectiveConfig.vquality),
+        count: 1,
+        extra: {
+            videoModel: model,
+            vquality: normalizeResolution(effectiveConfig.vquality),
+            videoSeconds: normalizeVideoSeconds(effectiveConfig.videoSeconds),
+            videoGenerateAudio: effectiveConfig.videoGenerateAudio,
+            videoWatermark: effectiveConfig.videoWatermark,
+            ...extra,
+        },
+    });
+
+    const persistSession = async (status: GenerationStatus, options?: { jobId?: string | null; error?: string; durationMs?: number; successCount?: number; failCount?: number; extra?: Record<string, unknown>; startedAt?: number; finishedAt?: number }) => {
+        const fields = { ...draftFields(options?.extra), status, error: options?.error, durationMs: options?.durationMs, successCount: options?.successCount, failCount: options?.failCount, startedAt: options?.startedAt, finishedAt: options?.finishedAt };
+        const jobId = options && "jobId" in options ? options.jobId : currentJobIdRef.current;
+        const record = jobId ? await updateGeneration(jobId, fields) : await createGeneration(fields);
+        setSessionId(record.id);
+        return record.id;
+    };
+
     const createSession = () => {
-        setPrompt("");
-        setReferences([]);
-        setVideoReferences([]);
-        setAudioReferences([]);
-        setResults([]);
-        setElapsedMs(0);
-        setStartedAt(0);
-        setSelectedLogIds([]);
-        setPreviewLog(null);
+        void (async () => {
+            try {
+                const record = await createGeneration({ kind: "video", status: "draft" });
+                setSessionId(record.id);
+                setPrompt("");
+                setReferences([]);
+                setVideoReferences([]);
+                setAudioReferences([]);
+                setResults([]);
+                setElapsedMs(0);
+                setStartedAt(0);
+                setSelectedLogIds([]);
+                setPreviewLog(await toGenerationLog(record));
+                await refreshLogs(false);
+            } catch {
+                message.error(t("workbench.createFailed"));
+            }
+        })();
+    };
+
+    const saveDraft = () => {
+        const currentStatus = logs.find((log) => log.id === currentJobIdRef.current)?.status;
+        void persistSession(nextSavedStatus(currentStatus))
+            .then(() => {
+                message.success(t("workbench.draftSaved"));
+                return refreshLogs(false);
+            })
+            .catch(() => message.error(t("workbench.draftSaveFailed")));
     };
 
     const deleteSelectedLogs = () => {
@@ -317,7 +410,8 @@ export default function VideoPage() {
             .filter((log) => selectedLogIds.includes(log.id))
             .map((log) => log.video?.storageKey)
             .filter((key): key is string => Boolean(key));
-        void Promise.all([deleteStoredMedia(mediaKeys), ...selectedLogIds.map((id) => logStore.removeItem(id))]).then(() => refreshLogs());
+        void Promise.all([deleteStoredMedia(mediaKeys), ...selectedLogIds.map((id) => deleteGeneration(id).catch(() => undefined))]).then(() => refreshLogs(false));
+        if (currentJobIdRef.current && selectedLogIds.includes(currentJobIdRef.current)) setSessionId(null);
         if (previewLog && selectedLogIds.includes(previewLog.id)) {
             setPreviewLog(null);
             setResults([]);
@@ -326,21 +420,21 @@ export default function VideoPage() {
         setDeleteConfirmOpen(false);
     };
 
-    const saveLog = async (log: GenerationLog, resumePending = true) => {
-        await logStore.setItem(log.id, serializeLog(log));
-        await refreshLogs(resumePending);
-    };
-
     const refreshLogs = async (resumePending = true) => {
-        const nextLogs = await readStoredLogs();
-        setLogs(nextLogs);
-        if (resumePending) resumePendingLogs(nextLogs);
-        return nextLogs;
+        try {
+            const nextLogs = await Promise.all((await fetchGenerations("video")).map(toGenerationLog));
+            setLogs(nextLogs);
+            if (resumePending) resumePendingLogs(nextLogs);
+            return nextLogs;
+        } catch {
+            setLogs([]);
+            return [];
+        }
     };
 
     const resumePendingLogs = (items: GenerationLog[]) => {
         for (const log of items) {
-            if (log.status === "pending" && log.task) void pollGenerationLog(log);
+            if (log.status === "running" && log.task) void pollGenerationLog(log);
         }
     };
 
@@ -360,7 +454,7 @@ export default function VideoPage() {
                         id: nanoid(),
                         url: stored.url,
                         storageKey: stored.storageKey,
-                        durationMs: Date.now() - log.createdAt,
+                        durationMs: Date.now() - (log.startedAt || log.createdAt),
                         width: stored.width || 1280,
                         height: stored.height || 720,
                         bytes: stored.bytes,
@@ -368,7 +462,28 @@ export default function VideoPage() {
                     };
                     setResults([{ id: nextVideo.id, status: "success", video: nextVideo }]);
                     if (agentTaskId) updateAgentTask(agentTaskId, { status: "succeeded", successCount: 1, failCount: 0, error: undefined });
-                    await saveLog({ ...log, status: "success", durationMs: nextVideo.durationMs, video: nextVideo, error: undefined });
+                    await updateGeneration(log.id, {
+                        status: "success",
+                        prompt: log.prompt,
+                        model: log.model,
+                        size: log.size,
+                        quality: log.resolution,
+                        extra: {
+                            videoModel: log.config.videoModel,
+                            vquality: log.config.vquality,
+                            videoSeconds: log.config.videoSeconds,
+                            videoGenerateAudio: log.config.videoGenerateAudio,
+                            videoWatermark: log.config.videoWatermark,
+                            task: log.task,
+                            video: nextVideo.storageKey ? { ...nextVideo, url: "" } : nextVideo,
+                        },
+                        durationMs: nextVideo.durationMs,
+                        successCount: 1,
+                        failCount: 0,
+                        error: "",
+                        finishedAt: Date.now(),
+                    });
+                    await refreshLogs(false);
                     message.success(t("videoWorkbench.generated"));
                     return;
                 }
@@ -380,7 +495,20 @@ export default function VideoPage() {
             const errorMessage = error instanceof Error ? error.message : t("workbench.generationFailed");
             setResults([{ id: log.id, status: "failed", error: errorMessage }]);
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", successCount: 0, failCount: 1, error: errorMessage });
-            await saveLog({ ...log, status: "failed", durationMs: Date.now() - log.createdAt, error: errorMessage });
+            await updateGeneration(log.id, {
+                status: "failed",
+                prompt: log.prompt,
+                model: log.model,
+                size: log.size,
+                quality: log.resolution,
+                extra: { task: log.task },
+                durationMs: Date.now() - (log.startedAt || log.createdAt),
+                successCount: 0,
+                failCount: 1,
+                error: errorMessage,
+                finishedAt: Date.now(),
+            }).catch(() => undefined);
+            await refreshLogs(false);
             message.error(errorMessage);
         } finally {
             activeLogIdsRef.current.delete(log.id);
@@ -392,6 +520,7 @@ export default function VideoPage() {
     };
 
     const previewGenerationLog = (log: GenerationLog) => {
+        setSessionId(log.id);
         setPreviewLog(log);
         setLogsOpen(false);
         setPrompt(log.prompt);
@@ -404,14 +533,14 @@ export default function VideoPage() {
         if (log.config.videoSeconds) updateConfig("videoSeconds", log.config.videoSeconds);
         if (log.config.videoGenerateAudio) updateConfig("videoGenerateAudio", log.config.videoGenerateAudio);
         if (log.config.videoWatermark) updateConfig("videoWatermark", log.config.videoWatermark);
-        setResults(log.status === "pending" ? [{ id: log.id, status: "pending" }] : log.video ? [{ id: log.video.id, status: "success", video: log.video }] : [{ id: log.id, status: "failed", error: log.error || t("workbench.generationFailed") }]);
+        setResults(log.status === "running" ? [{ id: log.id, status: "pending" }] : log.video ? [{ id: log.video.id, status: "success", video: log.video }] : log.status === "draft" ? [] : [{ id: log.id, status: "failed", error: log.error || t("workbench.generationFailed") }]);
     };
 
     return (
         <div className="flex h-full flex-col overflow-hidden bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
             <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[300px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)]">
                 <aside className="thin-scrollbar hidden min-h-0 overflow-y-auto rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:block">
-                    <LogPanel logs={logs} selectedLogIds={selectedLogIds} activeLogId={previewLog?.id} onSelectedLogIdsChange={setSelectedLogIds} onCreateSession={createSession} onDeleteSelected={() => setDeleteConfirmOpen(true)} onPreviewLog={previewGenerationLog} />
+                    <LogPanel logs={logs} selectedLogIds={selectedLogIds} activeLogId={currentJobId} onSelectedLogIdsChange={setSelectedLogIds} onCreateSession={createSession} onDeleteSelected={() => setDeleteConfirmOpen(true)} onPreviewLog={previewGenerationLog} />
                 </aside>
 
                 <section className="grid gap-3 lg:min-h-0 lg:overflow-hidden xl:grid-cols-[420px_minmax(0,1fr)]">
@@ -561,9 +690,14 @@ export default function VideoPage() {
                         </div>
 
                         <div className="mt-auto pt-6">
-                            <Button type="primary" size="large" block icon={<Sparkles className="size-4" />} loading={running} disabled={!canGenerate || running} onClick={() => void generate()}>
-                                {t("workbench.generate")}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button type="primary" size="large" className="min-w-0 flex-1" icon={<Sparkles className="size-4" />} loading={running} disabled={!canGenerate || running} onClick={() => void generate()}>
+                                    {t("workbench.generate")}
+                                </Button>
+                                <Button size="large" className="shrink-0 px-4 whitespace-nowrap" icon={<Save className="size-4" />} disabled={running} onClick={saveDraft}>
+                                    {t("workbench.saveDraft")}
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
@@ -597,7 +731,7 @@ export default function VideoPage() {
                 }}
             />
             <Drawer title={t("workbench.logs")} placement="bottom" size="large" open={logsOpen} onClose={() => setLogsOpen(false)}>
-                <LogPanel logs={logs} selectedLogIds={selectedLogIds} activeLogId={previewLog?.id} onSelectedLogIdsChange={setSelectedLogIds} onCreateSession={createSession} onDeleteSelected={() => setDeleteConfirmOpen(true)} onPreviewLog={previewGenerationLog} />
+                <LogPanel logs={logs} selectedLogIds={selectedLogIds} activeLogId={currentJobId} onSelectedLogIdsChange={setSelectedLogIds} onCreateSession={createSession} onDeleteSelected={() => setDeleteConfirmOpen(true)} onPreviewLog={previewGenerationLog} />
             </Drawer>
             <Drawer title={t("workbench.settings")} placement="bottom" height="82vh" open={settingsOpen} onClose={() => setSettingsOpen(false)}>
                 <div className="grid grid-cols-2 gap-3 pb-4">
@@ -748,8 +882,8 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
                     </div>
                 </div>
                 <div className="grid justify-items-end gap-2">
-                    <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color={log.status === "success" ? "blue" : log.status === "pending" ? "processing" : "red"}>
-                        {t(`workbench.${log.status === "success" ? "success" : log.status === "pending" ? "generating" : "failed"}`)}
+                    <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color={log.status === "success" ? "blue" : log.status === "running" || log.status === "draft" ? (log.status === "running" ? "processing" : "default") : "red"}>
+                        {t(`workbench.${log.status === "success" ? "success" : log.status === "running" ? "generating" : log.status === "draft" ? "draft" : "failed"}`)}
                     </Tag>
                     <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color="green">
                         {formatDuration(log.durationMs)}
@@ -760,70 +894,47 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
     );
 }
 
-async function readStoredLogs() {
-    if (typeof window === "undefined") return [];
-    try {
-        const logs: GenerationLog[] = [];
-        await logStore.iterate<GenerationLog, void>((value) => {
-            logs.push(value);
-        });
-        return (await Promise.all(logs.map(normalizeLog))).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    } catch {
-        return [];
-    }
-}
-
-async function normalizeLog(log: Partial<GenerationLog>): Promise<GenerationLog> {
-    const video = log.video?.storageKey ? { ...log.video, url: await resolveMediaUrl(log.video.storageKey, log.video.url) } : log.video;
-    const videoReferences = await Promise.all(
-        (log.videoReferences || []).map(async (item) => ({
-            ...item,
-            url: item.storageKey ? await resolveMediaUrl(item.storageKey, item.url) : item.url,
-        })),
-    );
-    const audioReferences = await Promise.all(
-        (log.audioReferences || []).map(async (item) => ({
-            ...item,
-            url: item.storageKey ? await resolveMediaUrl(item.storageKey, item.url) : item.url,
-        })),
-    );
-    const references = await Promise.all(
-        (log.references || []).map(async (item) => ({
-            ...item,
-            dataUrl: await resolveImageUrl(item.storageKey, item.dataUrl),
-        })),
-    );
-    const config = normalizeLogConfig(log);
+async function toGenerationLog(item: GenerationRecord): Promise<GenerationLog> {
+    const extra = item.extra || {};
+    const storedVideo = extra.video as GeneratedVideo | undefined;
+    const video = storedVideo?.storageKey ? { ...storedVideo, url: await resolveMediaUrl(storedVideo.storageKey, storedVideo.url) } : storedVideo;
+    const config = {
+        model: item.model,
+        videoModel: String(extra.videoModel || item.model || ""),
+        size: item.size,
+        vquality: normalizeResolution(String(extra.vquality || item.quality || "")),
+        videoSeconds: String(extra.videoSeconds || ""),
+        videoGenerateAudio: String(extra.videoGenerateAudio || "true"),
+        videoWatermark: String(extra.videoWatermark || "false"),
+    };
     return {
-        id: log.id || nanoid(),
-        createdAt: log.createdAt || Date.now(),
-        title: log.title || log.model || i18n.t("workbench.untitled"),
-        prompt: log.prompt || "",
-        time: log.time || new Date().toLocaleString(i18n.resolvedLanguage, { hour12: false }),
-        model: log.model || config.videoModel || "",
+        id: item.id,
+        createdAt: item.createdAt,
+        title: item.prompt.slice(0, 12) || i18n.t("workbench.untitled"),
+        prompt: item.prompt,
+        time: new Date(item.updatedAt || item.createdAt).toLocaleString(i18n.resolvedLanguage, { hour12: false }),
+        model: item.model,
         config,
-        references,
-        videoReferences,
-        audioReferences,
-        durationMs: log.durationMs || 0,
-        size: log.size || config.size || "",
-        resolution: normalizeResolution(log.resolution || config.vquality || ""),
-        seconds: log.seconds || config.videoSeconds || "",
-        status: log.status || "success",
-        task: log.task,
+        references: [],
+        videoReferences: [],
+        audioReferences: [],
+        durationMs: item.durationMs,
+        size: config.size,
+        resolution: config.vquality,
+        seconds: config.videoSeconds,
+        status: item.status,
+        startedAt: item.startedAt,
+        finishedAt: item.finishedAt,
+        updatedAt: item.updatedAt,
+        task: extra.task as VideoGenerationTask | undefined,
         video,
-        error: log.error,
+        error: item.error,
     };
 }
 
-function serializeLog(log: GenerationLog): GenerationLog {
-    return {
-        ...log,
-        references: log.references.map((item) => ({ ...item, dataUrl: item.storageKey ? "" : item.dataUrl })),
-        videoReferences: log.videoReferences.map((item) => (item.storageKey ? { ...item, url: "" } : item)),
-        audioReferences: log.audioReferences.map((item) => (item.storageKey ? { ...item, url: "" } : item)),
-        video: log.video?.storageKey ? { ...log.video, url: "" } : log.video,
-    };
+function nextSavedStatus(status?: GenerationStatus): GenerationStatus {
+    if (status === "running" || status === "success" || status === "failed") return status;
+    return "draft";
 }
 
 function isSupportedAudioFile(file: File) {
@@ -866,50 +977,6 @@ function ReferenceOrderButtons({ index, total, onMove }: { index: number; total:
             <Button size="small" className="!h-6 !w-6 !min-w-6 !rounded-full !bg-white/85 !p-0 !shadow-sm" icon={<ArrowRight className="size-3" />} disabled={index >= total - 1} onClick={() => onMove(1)} />
         </div>
     );
-}
-
-function normalizeLogConfig(log: Partial<GenerationLog>): GenerationLogConfig {
-    return {
-        model: log.config?.model || log.model || "",
-        videoModel: log.config?.videoModel || log.model || "",
-        size: log.config?.size || log.size || "",
-        vquality: normalizeResolution(log.config?.vquality || log.resolution || ""),
-        videoSeconds: log.config?.videoSeconds || log.seconds || "",
-        videoGenerateAudio: log.config?.videoGenerateAudio || "true",
-        videoWatermark: log.config?.videoWatermark || "false",
-    };
-}
-
-function buildLog({ prompt, model, config, references, videoReferences, audioReferences, durationMs, status, task, video, error }: { prompt: string; model: string; config: AiConfig; references: ReferenceImage[]; videoReferences: ReferenceVideo[]; audioReferences: ReferenceAudio[]; durationMs: number; status: GenerationLog["status"]; task?: VideoGenerationTask; video?: GeneratedVideo; error?: string }): GenerationLog {
-    const logConfig = {
-        model: config.model,
-        videoModel: config.videoModel,
-        size: config.size,
-        vquality: normalizeResolution(config.vquality),
-        videoSeconds: config.videoSeconds,
-        videoGenerateAudio: config.videoGenerateAudio,
-        videoWatermark: config.videoWatermark,
-    };
-    return {
-        id: nanoid(),
-        createdAt: Date.now(),
-        title: prompt.slice(0, 12) || i18n.t("workbench.untitled"),
-        prompt,
-        time: new Date().toLocaleString(i18n.resolvedLanguage, { hour12: false }),
-        model,
-        config: logConfig,
-        references,
-        videoReferences,
-        audioReferences,
-        durationMs,
-        size: logConfig.size,
-        resolution: logConfig.vquality,
-        seconds: logConfig.videoSeconds,
-        status,
-        task,
-        video,
-        error,
-    };
 }
 
 function buildVideoConfig(config: AiConfig, model: string): AiConfig {

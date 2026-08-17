@@ -46,7 +46,11 @@ export function db() {
             duration_ms INTEGER NOT NULL,
             success_count INTEGER NOT NULL,
             fail_count INTEGER NOT NULL,
+            extra_json TEXT NOT NULL DEFAULT '',
             created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL DEFAULT 0,
+            started_at INTEGER NOT NULL DEFAULT 0,
+            finished_at INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
         CREATE INDEX IF NOT EXISTS generation_jobs_user_id ON generation_jobs(user_id, created_at);
@@ -90,6 +94,26 @@ export function db() {
         sqlite.exec("ALTER TABLE channels DROP COLUMN is_default");
     } catch {
         // New databases have no is_default column.
+    }
+    try {
+        sqlite.exec("ALTER TABLE generation_jobs ADD COLUMN extra_json TEXT NOT NULL DEFAULT ''");
+    } catch {
+        // New databases already have extra_json.
+    }
+    try {
+        sqlite.exec("ALTER TABLE generation_jobs ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0");
+    } catch {
+        // New databases already have updated_at.
+    }
+    try {
+        sqlite.exec("ALTER TABLE generation_jobs ADD COLUMN started_at INTEGER NOT NULL DEFAULT 0");
+    } catch {
+        // New databases already have started_at.
+    }
+    try {
+        sqlite.exec("ALTER TABLE generation_jobs ADD COLUMN finished_at INTEGER NOT NULL DEFAULT 0");
+    } catch {
+        // New databases already have finished_at.
     }
     return sqlite;
 }
@@ -145,9 +169,21 @@ export function setPasswordHash(userId: string, passwordHash: string) {
 export function insertJob(row: GenerationJobRow) {
     db()
         .query(
-            "INSERT INTO generation_jobs (id, user_id, kind, prompt, model, size, quality, count, status, error, duration_ms, success_count, fail_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO generation_jobs (id, user_id, kind, prompt, model, size, quality, count, status, error, duration_ms, success_count, fail_count, extra_json, created_at, updated_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
-        .run(row.id, row.user_id, row.kind, row.prompt, row.model, row.size, row.quality, row.count, row.status, row.error, row.duration_ms, row.success_count, row.fail_count, row.created_at);
+        .run(row.id, row.user_id, row.kind, row.prompt, row.model, row.size, row.quality, row.count, row.status, row.error, row.duration_ms, row.success_count, row.fail_count, row.extra_json, row.created_at, row.updated_at, row.started_at, row.finished_at);
+}
+
+export function updateJob(row: GenerationJobRow) {
+    db()
+        .query(
+            "UPDATE generation_jobs SET prompt = ?, model = ?, size = ?, quality = ?, count = ?, status = ?, error = ?, duration_ms = ?, success_count = ?, fail_count = ?, extra_json = ?, updated_at = ?, started_at = ?, finished_at = ? WHERE id = ?",
+        )
+        .run(row.prompt, row.model, row.size, row.quality, row.count, row.status, row.error, row.duration_ms, row.success_count, row.fail_count, row.extra_json, row.updated_at, row.started_at, row.finished_at, row.id);
+}
+
+export function deleteAssetsByJob(jobId: string) {
+    db().query("DELETE FROM generation_assets WHERE job_id = ?").run(jobId);
 }
 
 export function insertAsset(row: GenerationAssetRow) {
@@ -175,11 +211,16 @@ export function generatedCountMap() {
 }
 
 export function jobCountByUser(userId: string) {
-    return (db().query("SELECT COUNT(*) AS count FROM generation_jobs WHERE user_id = ?").get(userId) as { count: number }).count;
+    return (db().query("SELECT COUNT(*) AS count FROM generation_jobs WHERE user_id = ? AND status != 'draft'").get(userId) as { count: number }).count;
 }
 
-export function listJobsByUser(userId: string) {
-    return db().query("SELECT * FROM generation_jobs WHERE user_id = ? ORDER BY created_at DESC").all(userId) as GenerationJobRow[];
+export function listJobsByUser(userId: string, kind?: string) {
+    if (kind) {
+        return db()
+            .query("SELECT * FROM generation_jobs WHERE user_id = ? AND kind = ? ORDER BY CASE WHEN updated_at > 0 THEN updated_at ELSE created_at END DESC")
+            .all(userId, kind) as GenerationJobRow[];
+    }
+    return db().query("SELECT * FROM generation_jobs WHERE user_id = ? ORDER BY CASE WHEN updated_at > 0 THEN updated_at ELSE created_at END DESC").all(userId) as GenerationJobRow[];
 }
 
 export function findJobById(id: string) {

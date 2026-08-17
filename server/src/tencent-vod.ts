@@ -33,6 +33,7 @@ type FileInfo = { Type: "Base64"; Base64: string; ReferenceType?: "mask" };
 
 export type CompanyImageRequest = {
     channelId?: string;
+    jobId?: string;
     model?: string;
     prompt?: string;
     references?: Array<{ dataUrl?: string }>;

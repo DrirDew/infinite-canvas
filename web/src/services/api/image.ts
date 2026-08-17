@@ -95,7 +95,7 @@ type GeminiPayload = {
     promptFeedback?: { blockReason?: string };
 };
 type GeminiStreamState = { buffer: string; text: string; toolCalls: ResponseToolCall[]; error?: string };
-type RequestOptions = { signal?: AbortSignal };
+type RequestOptions = { signal?: AbortSignal; jobId?: string };
 
 const QUALITY_BASE: Record<string, number> = {
     low: 1024,
@@ -749,7 +749,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
         const requestSize = resolveRequestSize(quality, config.size);
         const background = normalizeBackground(config.background);
         try {
-            return await requestTencentVodImages(requestConfig, withSystemPrompt(requestConfig, prompt), [], undefined, n, quality, requestSize, background, options?.signal);
+            return await requestTencentVodImages(requestConfig, withSystemPrompt(requestConfig, prompt), [], undefined, n, quality, requestSize, background, options?.signal, options?.jobId);
         } catch (error) {
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
@@ -823,7 +823,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
         const refs = await Promise.all(references.map(async (image) => ({ ...image, dataUrl: await imageToDataUrl(image) })));
         const maskImage = mask ? { ...mask, dataUrl: await imageToDataUrl(mask) } : undefined;
         try {
-            return await requestTencentVodImages(requestConfig, withSystemPrompt(requestConfig, requestPrompt), refs, maskImage, n, quality, requestSize, background, options?.signal);
+            return await requestTencentVodImages(requestConfig, withSystemPrompt(requestConfig, requestPrompt), refs, maskImage, n, quality, requestSize, background, options?.signal, options?.jobId);
         } catch (error) {
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }

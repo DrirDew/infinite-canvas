@@ -43,8 +43,8 @@ export function assertTencentVodReady(config: AiConfig) {
     if (!config.subAppId?.trim()) throw new Error(apiText("tencentVodSubAppIdRequired"));
 }
 
-export async function requestTencentVodImages(config: AiConfig, prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, signal?: AbortSignal) {
-    if (config.managed) return requestCompanyTencentVodImages(prompt, references, mask, count, quality, size, background, config.model, config.channelId, signal);
+export async function requestTencentVodImages(config: AiConfig, prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, signal?: AbortSignal, jobId?: string) {
+    if (config.managed) return requestCompanyTencentVodImages(prompt, references, mask, count, quality, size, background, config.model, config.channelId, signal, jobId);
     assertTencentVodReady(config);
     const images: Array<{ id: string; dataUrl: string }> = [];
     const total = Math.max(1, count);
@@ -55,9 +55,10 @@ export async function requestTencentVodImages(config: AiConfig, prompt: string, 
     return images;
 }
 
-async function requestCompanyTencentVodImages(prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, model: string, channelId: string | undefined, signal?: AbortSignal) {
+async function requestCompanyTencentVodImages(prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, model: string, channelId: string | undefined, signal?: AbortSignal, jobId?: string) {
     const response = await appApi.post<{ images?: Array<{ id?: string; dataUrl?: string }>; error?: string; creditBalance?: number }>("/api/tencent-vod/images", {
         channelId,
+        jobId,
         model,
         prompt,
         references: references.map((image) => ({ dataUrl: image.dataUrl })),

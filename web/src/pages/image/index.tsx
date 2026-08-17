@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, ImagePlus, LoaderCircle, PenLine, Plus, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, ImagePlus, LoaderCircle, PenLine, Plus, Save, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Checkbox, Drawer, Empty, Image, Input, Modal, Tag, Tooltip, Typography } from "antd";
 import { saveAs } from "file-saver";
@@ -16,7 +16,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { nanoid } from "nanoid";
 import { formatBytes, formatDuration, getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { requestEdit, requestGeneration } from "@/services/api/image";
-import { deleteGeneration, fetchGenerations, type GenerationRecord } from "@/services/api/generations";
+import { createGeneration, deleteGeneration, fetchGenerations, updateGeneration, type GenerationRecord, type GenerationStatus, type GenerationWriteInput } from "@/services/api/generations";
 import { uploadImage } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -57,7 +57,10 @@ type GenerationLog = {
     imageCount: number;
     size: string;
     quality: string;
-    status: "success" | "failed";
+    status: GenerationStatus;
+    startedAt?: number;
+    finishedAt?: number;
+    updatedAt?: number;
     images: GeneratedImage[];
     thumbnails: string[];
 };
@@ -101,6 +104,8 @@ export default function ImagePage() {
     const updateAgentTask = useWorkbenchAgentStore((state) => state.updateTask);
     const processedCommandRef = useRef(0);
     const agentTaskIdRef = useRef<string | undefined>(undefined);
+    const currentJobIdRef = useRef<string | null>(null);
+    const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
     const model = effectiveConfig.imageModel || effectiveConfig.model;
     const isManaged = isManagedChannel(resolveModelChannel(effectiveConfig, model));
@@ -187,9 +192,22 @@ export default function ImagePage() {
         let successCount = 0;
         let failCount = generationCount;
         let error: string | undefined;
+        let completedImages: GeneratedImage[] = [];
+        let jobId: string | undefined;
         try {
+            const currentStatus = logs.find((log) => log.id === currentJobIdRef.current)?.status;
+            const reuse = currentStatus === "draft" || currentStatus === "running";
+            jobId = await persistSession("running", {
+                jobId: reuse ? currentJobIdRef.current : null,
+                startedAt: Date.now(),
+                error: "",
+                durationMs: 0,
+                successCount: 0,
+                failCount: 0,
+            });
+            await refreshLogs();
             if (isManaged) {
-                const images = snapshot.references.length ? await requestEdit(snapshot.config, snapshot.text, snapshot.references) : await requestGeneration(snapshot.config, snapshot.text);
+                const images = snapshot.references.length ? await requestEdit(snapshot.config, snapshot.text, snapshot.references, undefined, { jobId }) : await requestGeneration(snapshot.config, snapshot.text, { jobId });
                 const durationMs = performance.now() - batchStartedAt;
                 const nextResults = await Promise.all(
                     Array.from({ length: generationCount }, async (_, index) => {
@@ -204,13 +222,14 @@ export default function ImagePage() {
                     }),
                 );
                 setResults(nextResults);
-                successCount = nextResults.filter((item) => item.status === "success").length;
+                completedImages = nextResults.flatMap((item) => (item.image ? [item.image] : []));
+                successCount = completedImages.length;
                 failCount = generationCount - successCount;
                 error = failCount ? t("workbench.generationFailed") : undefined;
             } else {
                 const result = await Promise.allSettled(Array.from({ length: generationCount }, (_, index) => runGenerationSlot(index, snapshot)));
-                const successImages = result.filter((item): item is PromiseFulfilledResult<GeneratedImage> => item.status === "fulfilled").map((item) => item.value);
-                successCount = successImages.length;
+                completedImages = result.filter((item): item is PromiseFulfilledResult<GeneratedImage> => item.status === "fulfilled").map((item) => item.value);
+                successCount = completedImages.length;
                 failCount = generationCount - successCount;
                 const failed = result.find((item): item is PromiseRejectedResult => item.status === "rejected");
                 error = failed?.reason instanceof Error ? failed.reason.message : failCount ? t("workbench.generationFailed") : undefined;
@@ -222,6 +241,23 @@ export default function ImagePage() {
         } finally {
             setRunning(false);
             if (agentTaskId) updateAgentTask(agentTaskId, { status: successCount ? "succeeded" : "failed", successCount, failCount, error: successCount ? undefined : error });
+            if (jobId && !isManaged) {
+                const images = completedImages.flatMap((image) => (image.dataUrl.startsWith("data:") ? [{ dataUrl: image.dataUrl }] : []));
+                await updateGeneration(jobId, {
+                    ...draftFields(),
+                    prompt: snapshot.text,
+                    model: snapshot.config.model,
+                    size: snapshot.config.size,
+                    quality: snapshot.config.quality,
+                    status: successCount ? "success" : "failed",
+                    error: successCount ? "" : error || t("workbench.generationFailed"),
+                    durationMs: performance.now() - batchStartedAt,
+                    successCount,
+                    failCount,
+                    finishedAt: Date.now(),
+                    ...(images.length ? { images } : {}),
+                }).catch(() => undefined);
+            }
             void refreshLogs();
             successCount ? message.success(t("imageWorkbench.generated")) : message.error(error || t("workbench.generationFailed"));
         }
@@ -290,18 +326,61 @@ export default function ImagePage() {
         setAssetPickerOpen(false);
     };
 
+    const setSessionId = (id: string | null) => {
+        currentJobIdRef.current = id;
+        setCurrentJobId(id);
+    };
+
+    const draftFields = (): GenerationWriteInput => ({
+        kind: "image",
+        prompt,
+        model,
+        size: effectiveConfig.size,
+        quality: effectiveConfig.quality,
+        count: generationCount,
+        extra: { imageModel: model },
+    });
+
+    const persistSession = async (status: GenerationStatus, options?: { jobId?: string | null; error?: string; durationMs?: number; successCount?: number; failCount?: number; images?: Array<{ dataUrl: string }>; startedAt?: number; finishedAt?: number }) => {
+        const fields = { ...draftFields(), status, error: options?.error, durationMs: options?.durationMs, successCount: options?.successCount, failCount: options?.failCount, images: options?.images, startedAt: options?.startedAt, finishedAt: options?.finishedAt };
+        const jobId = options && "jobId" in options ? options.jobId : currentJobIdRef.current;
+        const record = jobId ? await updateGeneration(jobId, fields) : await createGeneration(fields);
+        setSessionId(record.id);
+        return record.id;
+    };
+
     const createSession = () => {
-        setPrompt("");
-        setReferences([]);
-        setResults([]);
-        setElapsedMs(0);
-        setStartedAt(0);
-        setSelectedLogIds([]);
-        setPreviewLog(null);
+        void (async () => {
+            try {
+                const record = await createGeneration({ kind: "image", status: "draft" });
+                setSessionId(record.id);
+                setPrompt("");
+                setReferences([]);
+                setResults([]);
+                setElapsedMs(0);
+                setStartedAt(0);
+                setSelectedLogIds([]);
+                setPreviewLog(toGenerationLog(record));
+                await refreshLogs();
+            } catch {
+                message.error(t("workbench.createFailed"));
+            }
+        })();
+    };
+
+    const saveDraft = () => {
+        const currentStatus = logs.find((log) => log.id === currentJobIdRef.current)?.status;
+        void persistSession(nextSavedStatus(currentStatus))
+            .then(() => {
+                message.success(t("workbench.draftSaved"));
+                return refreshLogs();
+            })
+            .catch(() => message.error(t("workbench.draftSaveFailed")));
     };
 
     const deleteSelectedLogs = () => {
         void Promise.all(selectedLogIds.map((id) => deleteGeneration(id).catch(() => undefined))).then(refreshLogs);
+        if (currentJobIdRef.current && selectedLogIds.includes(currentJobIdRef.current)) setSessionId(null);
         if (previewLog && selectedLogIds.includes(previewLog.id)) {
             setPreviewLog(null);
             setResults([]);
@@ -312,13 +391,14 @@ export default function ImagePage() {
 
     const refreshLogs = async () => {
         try {
-            setLogs((await fetchGenerations()).map(toGenerationLog));
+            setLogs((await fetchGenerations("image")).map(toGenerationLog));
         } catch {
             setLogs([]);
         }
     };
 
     const previewGenerationLog = async (log: GenerationLog) => {
+        setSessionId(log.id);
         setPreviewLog(log);
         setLogsOpen(false);
         setPrompt(log.prompt);
@@ -381,7 +461,7 @@ export default function ImagePage() {
                     <LogPanel
                         logs={logs}
                         selectedLogIds={selectedLogIds}
-                        activeLogId={previewLog?.id}
+                        activeLogId={currentJobId}
                         onSelectedLogIdsChange={setSelectedLogIds}
                         onCreateSession={createSession}
                         onDeleteSelected={() => setDeleteConfirmOpen(true)}
@@ -498,9 +578,14 @@ export default function ImagePage() {
 
                         <div className="mt-auto pt-6">
                             <div className="mb-2 text-xs text-stone-500">{t("auth.creditsLeft", { count: creditBalance })}</div>
-                            <Button type="primary" size="large" block icon={<Sparkles className="size-4" />} loading={running} disabled={!canGenerate || running} onClick={() => void generate()}>
-                                {t("workbench.generate")}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button type="primary" size="large" className="min-w-0 flex-1" icon={<Sparkles className="size-4" />} loading={running} disabled={!canGenerate || running} onClick={() => void generate()}>
+                                    {t("workbench.generate")}
+                                </Button>
+                                <Button size="large" className="shrink-0 px-4 whitespace-nowrap" icon={<Save className="size-4" />} disabled={running} onClick={saveDraft}>
+                                    {t("workbench.saveDraft")}
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
@@ -547,7 +632,7 @@ export default function ImagePage() {
                 <LogPanel
                     logs={logs}
                     selectedLogIds={selectedLogIds}
-                    activeLogId={previewLog?.id}
+                    activeLogId={currentJobId}
                     onSelectedLogIdsChange={setSelectedLogIds}
                     onCreateSession={createSession}
                     onDeleteSelected={() => setDeleteConfirmOpen(true)}
@@ -754,16 +839,22 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
                     </div>
                 </div>
                 <div className="grid justify-items-end gap-2">
-                    <div className="flex gap-1">
-                        <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color="blue">
-                            {t("workbench.successCount", { count: log.successCount ?? log.imageCount })}
+                    {log.status === "draft" || log.status === "running" ? (
+                        <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color={log.status === "running" ? "processing" : "default"}>
+                            {t(log.status === "running" ? "workbench.generating" : "workbench.draft")}
                         </Tag>
-                        {log.failCount ? (
-                            <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color="red">
-                                {t("workbench.failCount", { count: log.failCount })}
+                    ) : (
+                        <div className="flex gap-1">
+                            <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color="blue">
+                                {t("workbench.successCount", { count: log.successCount ?? log.imageCount })}
                             </Tag>
-                        ) : null}
-                    </div>
+                            {log.failCount ? (
+                                <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color="red">
+                                    {t("workbench.failCount", { count: log.failCount })}
+                                </Tag>
+                            ) : null}
+                        </div>
+                    )}
                     <div className="flex flex-wrap justify-end gap-1">
                         <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none">{t("workbench.itemCount", { count: log.imageCount })}</Tag>
                         <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color="green">
@@ -794,7 +885,7 @@ function toGenerationLog(item: GenerationRecord): GenerationLog {
         createdAt: item.createdAt,
         title: item.prompt.slice(0, 12) || i18n.t("workbench.untitled"),
         prompt: item.prompt,
-        time: new Date(item.createdAt).toLocaleString(i18n.resolvedLanguage, { hour12: false }),
+        time: new Date(item.updatedAt || item.createdAt).toLocaleString(i18n.resolvedLanguage, { hour12: false }),
         model: item.model,
         config: { model: item.model, imageModel: item.model, quality: item.quality, size: item.size, count: String(item.count) },
         references: [],
@@ -805,9 +896,17 @@ function toGenerationLog(item: GenerationRecord): GenerationLog {
         size: item.size,
         quality: item.quality,
         status: item.status,
+        startedAt: item.startedAt,
+        finishedAt: item.finishedAt,
+        updatedAt: item.updatedAt,
         images,
         thumbnails: images.map((image) => image.dataUrl),
     };
+}
+
+function nextSavedStatus(status?: GenerationStatus): GenerationStatus {
+    if (status === "running" || status === "success" || status === "failed") return status;
+    return "draft";
 }
 
 function moveListItem<T>(items: T[], index: number, offset: number) {
