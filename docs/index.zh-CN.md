@@ -31,13 +31,14 @@
 ## 项目进度
 
 - [更新日志](/zh-CN/docs/progress/changelog)
+- [团队工作台轻量后端方案](/zh-CN/docs/progress/team-backend-plan)
 - [待测试](/zh-CN/docs/progress/pending-test)
 - [TODO](/zh-CN/docs/progress/todo)
 
 ## 说明
 
 - 当前画布项目和“我的素材”主要保存在浏览器本地，跨设备可自行配置 WebDAV 同步。
-- AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。
+- 个人 AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。公司腾讯云点播密钥只放服务端环境变量。
 
 ## 原理说明
 

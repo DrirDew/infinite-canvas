@@ -1,0 +1,199 @@
+---
+title: Lightweight Team Backend Plan
+description: Grow the existing server/ with login, roles, generation history, and credits. No Django, no separate platform.
+---
+
+# Lightweight Team Backend Plan
+
+Turn the current `server/` into a small application backend with identity and a credit ledger. Admins manage configuration and quotas. Regular users generate images through the company channel. History and remaining credits follow the account. Keep the workbench. Do not introduce Django.
+
+## Goals
+
+1. **Users**: admins can open and change the config page; regular users cannot see or change it.
+2. **Generation history follows the user**: stored on the server. Closing the browser or switching machines does not clear it.
+3. **Usage**: regular users see their own usage and remaining credits; admins see everyone and can adjust credits.
+
+The image workbench stays. The backend changes from anonymous signing to: identify the user, check credits, then sign Tencent Cloud VOD requests.
+
+## Out of scope
+
+- No Django, Python stack, microservices, or internal platform.
+- No SSO / LDAP / OAuth. Username and password is enough for a small team.
+- No money billing or per-model prices. One successful image costs one credit.
+- Canvas projects and My Assets stay in the browser. This plan does not add cloud sync for them.
+- Do not migrate existing `localforage` generation logs. New records go to the server only.
+- Do not expose Tencent Cloud SecretId / SecretKey / SubAppId in the UI. They stay in server environment variables.
+- Video can share the same tables later. Phase 1 acceptance is the image workbench.
+
+## Current state
+
+| Capability | Where it lives today | Gap |
+| --- | --- | --- |
+| Company channel signing | Anonymous `server/` APIs | No user identity |
+| Site gate | Docker HTTP Basic Auth | One shared lock, no roles |
+| Config page `/config` | Frontend zustand persist | Anyone can change it |
+| Image history | Browser `localforage` | Lost when the client is cleared or switched |
+| Credits | None | No limits or stats |
+
+Personal BYOK channels can remain for admins and still call third-party APIs from the browser. Regular users only use the company channel and never see secrets.
+
+## Stack
+
+Keep growing `server/` in TypeScript on Bun.
+
+| Layer | Choice | Why |
+| --- | --- | --- |
+| HTTP | [Hono](https://hono.dev) on Bun | Clearer routing than raw `Bun.serve`, middleware fits auth |
+| Database | SQLite (`bun:sqlite`) | Enough for a small team; one Docker volume |
+| ORM / migrations | Drizzle | Typed, same language as the rest of the repo |
+| Auth | Server session + HttpOnly cookie | Fine for an internal site; no token in JS |
+| Passwords | `Bun.password` (argon2) | No extra bcrypt dependency |
+| Generated images | Files on disk, not SQLite blobs | Avoid storing data URLs in the database |
+
+Move to PostgreSQL only if you need multiple API instances. Do not split the database in phase 1.
+
+## Architecture
+
+```txt
+Browser workbench
+  ├─ Login / session cookie
+  ├─ Company image generation ──► server/ (auth → credits → sign Tencent VOD → save job, debit)
+  ├─ History / usage ──► server/ SQLite + image files
+  └─ Personal BYOK (admin only, optional) ──► browser calls the vendor directly
+
+Nginx keeps proxying /api to server. The existing frontend image still serves the static app.
+```
+
+Company secrets stay on the same path as today: the browser only talks to `/api`. Responses must never include SecretId / SecretKey / SubAppId.
+
+## Roles
+
+| | Regular user | Admin |
+| --- | --- | --- |
+| Generate with the company channel | Yes | Yes |
+| Own history, usage, remaining credits | Yes | Yes |
+| Open `/config`, change channels / preferences | No | Yes |
+| See all users, create accounts, adjust credits | No | Yes |
+
+Keep the existing config page. Hide it in the nav and reject writes on the server. Do not add a separate Django Admin.
+
+Regular users get models only from the company channel API. If none are configured, tell them to contact an admin. Do not send them to the config page.
+
+## Data model
+
+Put SQLite outside the image, for example `data/app.db`, mounted as a Docker volume.
+
+**users**: `id`, unique `username`, `passwordHash`, `role` (`admin` \| `user`), `creditBalance`, `createdAt`
+
+**sessions**: `id`, `userId`, `expiresAt`, `createdAt`
+
+**generation_jobs**: `id`, `userId`, `kind` (`image` in phase 1), prompt / model / size / quality / count, `status`, `error`, `durationMs`, `successCount`, `failCount`, `createdAt`
+
+**generation_assets**: `id`, `jobId`, `index`, `mime`, `path` (relative to `data/generations/`)
+
+**usage_ledger**: `id`, `userId`, `jobId`, `delta` (negative for successful images, signed for admin adjustments), `reason` (`generate` \| `adjust`), `createdAt`
+
+Image files: `data/generations/{userId}/{jobId}/{index}.png`. List APIs return metadata and authenticated image URLs, not full data URLs.
+
+On first boot, if the user table is empty, create the first admin from `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Do not bake a default password into the image.
+
+## Credit rules
+
+- Unit: **successfully returned images**. A request that returns 4 images costs 4.
+- Before calling Tencent Cloud, require `creditBalance >= requested count`. Otherwise 403.
+- Use a SQLite `BEGIN IMMEDIATE` transaction so concurrent jobs cannot overdraw.
+- Failed jobs do not debit. Partial success debits only the successful count and stores those images.
+- Admin adjustments set `creditBalance` and write a ledger row with `reason=adjust`.
+- No monthly reset in phase 1.
+
+## API sketch
+
+Keep the `/api` prefix. Everything except login requires a session.
+
+| Method | Path | Who | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/login` | Anonymous | Username / password, set session cookie |
+| `POST` | `/api/auth/logout` | Signed in | Clear session |
+| `GET` | `/api/auth/me` | Signed in | id, username, role, remaining credits |
+| `GET` | `/api/company/channels` | Signed in | Company channel metadata, no secrets |
+| `POST` | `/api/tencent-vod/images` | Signed in | Auth → credits → sign → persist |
+| `GET` | `/api/generations` | Signed in | Current user's jobs |
+| `GET` | `/api/generations/:id` | Signed in | One job; 404 if not owner and not admin |
+| `GET` | `/api/generations/:id/assets/:index` | Signed in | Authenticated image file |
+| `GET` | `/api/usage/me` | Signed in | Own summary and ledger |
+| `GET` | `/api/users` | Admin | All users with usage and balance |
+| `POST` | `/api/users` | Admin | Create a regular user |
+| `PATCH` | `/api/users/:id/credits` | Admin | Adjust credits |
+| `PATCH` | `/api/users/:id/password` | Admin | Reset password (include in phase 1 if cheap) |
+
+The current anonymous company-channel and image endpoints must require login. Do not keep an anonymous signing path.
+
+Cookie: `HttpOnly`, `SameSite=Lax`, path `/`. Local Vite already proxies `/api` same-origin. Production Nginx is same-origin too.
+
+## Frontend changes
+
+Keep the image workbench interaction. Change where data comes from.
+
+1. **Login page**: unauthenticated visits redirect to login. Restore session with `GET /api/auth/me`.
+2. **Current user**: a global store (for example `use-session-store`). Read role from the store instead of threading props.
+3. **Config**: nav and `openConfigDialog` are admin-only. Regular users who lack a model are told to contact an admin. `/config` redirects for non-admins.
+4. **History**: `image/index.tsx` stops using `localforage` `image_generation_logs` and loads `/api/generations`. Thumbnails use authenticated image URLs.
+5. **Usage page**: new route such as `/usage`. Regular users see their own cards and ledger. Admins also get a user table to adjust credits and create accounts.
+6. **Company API calls**: stay under `web/src/services/api/` with `credentials: "include"`.
+
+Personal BYOK stays in the admin's browser. Team history, credits, and the company channel must not depend on `localforage`.
+
+## Deploy and env
+
+Add:
+
+- `ADMIN_USERNAME` / `ADMIN_PASSWORD` — empty-database bootstrap only
+- `SESSION_SECRET`
+- `DATA_DIR` — default `./data`, holds `app.db` and `generations/`
+
+Mount a volume on `infinite-canvas-api` at `DATA_DIR`. Keep the Nginx `/api` proxy. Docker Basic Auth can remain as an outer gate; application login is the real identity. Drop Basic Auth later if it feels redundant.
+
+## Delivery stages
+
+### Stage 1: identity and roles
+
+Hono + Drizzle + SQLite; login / logout / `me`; bootstrap admin; login page; hide config by role; company APIs require login.
+
+Done when a regular user can see company models and cannot open config, and an admin can open config.
+
+### Stage 2: history and credits on generate
+
+Wire credit checks, file storage, and ledger into the image API. The workbench reads history from the server. Failures do not debit.
+
+Done when history survives a browser restart, and a user with no credits cannot reach Tencent Cloud.
+
+### Stage 3: usage page and admin adjustments
+
+`/usage`; admin table; adjust credits; create users.
+
+Done when regular users only see their own numbers, and an admin can add credits so a teammate can generate again.
+
+Finish one stage before starting the next. Do not build a platform in one pass.
+
+## Suggested layout
+
+```txt
+server/src/
+  index.ts          # Hono entry
+  db.ts             # SQLite + Drizzle
+  auth.ts           # sessions, passwords, middleware
+  users.ts
+  generations.ts
+  usage.ts
+  sign.ts           # existing Tencent signing
+  tencent-vod.ts    # existing proxy, now behind user + credits
+```
+
+Frontend adds a login page, a usage page, and a session store. The image page drops local log storage.
+
+## Implementation notes
+
+- Company secrets must not appear in frontend code, config export, or API responses (`AGENTS.md`).
+- Do not migrate old browser generation logs.
+- Do not move canvas / assets to the server as a side effect.
+- After each shipped stage, update `todo.mdx`, `pending-test.mdx`, and `CHANGELOG.md` Unreleased.

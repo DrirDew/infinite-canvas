@@ -32,6 +32,7 @@
 ## Project Progress
 
 - [Changelog](/docs/progress/changelog)
+- [Lightweight Team Backend Plan](/docs/progress/team-backend-plan)
 - [Pending Tests](/docs/progress/pending-test)
 - [TODO](/docs/progress/todo)
 

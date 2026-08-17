@@ -1,0 +1,216 @@
+---
+title: 团队工作台轻量后端方案
+description: 在现有 server/ 上补齐登录、角色、生成记录和额度，不新开 Django 或独立中台
+---
+
+# 团队工作台轻量后端方案
+
+把现有 `server/` 做成带身份和账本的应用后端：管理员管配置和额度，普通用户用公司渠道生图，记录和额度跟账号走。不换工作台，不上 Django。
+
+## 目标
+
+1. **用户系统**：管理员能打开并修改配置页；普通用户看不到、也不能改。
+2. **生成记录跟用户走**：存在服务端。关浏览器、换电脑，登录后仍能看到自己的历史。
+3. **使用统计**：普通用户看自己的用量和剩余额度；管理员看全员，并能调整额度。
+
+前端仍是现在的生图工作台。后端从「匿名代签」变成「先认出人，再记账，再代签腾讯云」。
+
+## 明确不做
+
+- 不上 Django、独立 Python 栈、微服务或完整中台。
+- 不做 SSO / LDAP / OAuth（小团队用账号密码即可）。
+- 不做按金额计费、发票、按模型差异化单价。额度按「成功生成的图片张数」计数。
+- 不把画布项目、「我的素材」做成云同步；它们继续留在浏览器。
+- 不迁移浏览器里已有的 `localforage` 生成记录。新记录一律走服务端。
+- 本期不把腾讯云 SecretId / SecretKey / SubAppId 做成可在页面里编辑的字段，密钥继续只放服务端环境变量。
+- 视频工作台的服务端记录可与生图共用同一套表结构，但第一期验收以生图为准。
+
+## 现状
+
+| 能力 | 现在在哪 | 问题 |
+| --- | --- | --- |
+| 公司渠道代签 | `server/` 匿名接口 | 不知道是谁在用 |
+| 站点大门 | Docker HTTP Basic Auth | 全站一把锁，分不出管理员和普通用户 |
+| 配置页 `/config` | 前端 zustand persist | 谁打开都能改 |
+| 生图记录 | 浏览器 `localforage` | 关客户端或换机器就没有 |
+| 额度 | 无 | 无法限制和统计 |
+
+个人 OpenAI 等 BYOK 渠道仍可由管理员在配置页填写，浏览器直连。普通用户只使用公司渠道，不碰密钥。
+
+## 技术选型
+
+继续长 `server/`，和前端同一套 TypeScript / Bun。
+
+| 层 | 选择 | 原因 |
+| --- | --- | --- |
+| HTTP | [Hono](https://hono.dev) 跑在 Bun 上 | 比手写 `Bun.serve` 路由更清晰，中间件适合鉴权 |
+| 数据库 | SQLite（`bun:sqlite`） | 小团队单机够用，Docker 挂一个数据卷即可 |
+| ORM / 迁移 | Drizzle | 类型和现有 TS 一致，迁移文件可进仓库 |
+| 登录 | 服务端 Session + HttpOnly Cookie | 内部站点够用，前端不存 token |
+| 密码 | `Bun.password`（argon2） | 不必另引 bcrypt |
+| 生成图文件 | 磁盘目录，不进 SQLite | 避免把 dataURL 塞进数据库 |
+
+人多到要多实例再迁 PostgreSQL。第一期不要为这个提前拆库。
+
+## 架构
+
+```txt
+浏览器工作台
+  ├─ 登录 / 会话 Cookie
+  ├─ 公司渠道生图 ──► server/（鉴权 → 查额度 → 代签腾讯云 → 落记录、扣额度）
+  ├─ 生成记录 / 用量 ──► server/ SQLite + 本地图片文件
+  └─ 个人 BYOK（仅管理员可选）──► 浏览器直连第三方
+
+Nginx 继续反代 /api 到 server，静态页仍由现有前端镜像提供。
+```
+
+公司密钥路径不变：浏览器永远只打自家 `/api`，响应里不得出现 SecretId / SecretKey / SubAppId。
+
+## 角色与配置
+
+| | 普通用户 | 管理员 |
+| --- | --- | --- |
+| 登录后用公司渠道生图 | 是 | 是 |
+| 看自己的生成记录、用量、剩余额度 | 是 | 是 |
+| 打开 `/config`、改渠道/偏好 | 否 | 是 |
+| 看全员用量、创建用户、改额度 | 否 | 是 |
+
+配置页继续用现有页面，只做入口和接口双层拦截：前端按角色隐藏导航；后端写接口拒绝非管理员。不要另做一套 Django Admin。
+
+普通用户侧的模型列表只来自服务端下发的公司渠道。缺渠道时提示找管理员，不要再把他们领进配置页。
+
+## 数据模型
+
+SQLite 文件建议放在仓库外的数据目录，例如 `data/app.db`（Docker volume 挂载）。
+
+**users**
+
+- `id`、`username`（唯一）、`passwordHash`、`role`（`admin` \| `user`）
+- `creditBalance`：剩余可生成张数，管理员可改
+- `createdAt`
+
+**sessions**
+
+- `id`、`userId`、`expiresAt`、`createdAt`
+
+**generation_jobs**
+
+- `id`、`userId`、`kind`（第一期 `image`）
+- `prompt`、`model`、`size`、`quality`、`count`
+- `status`（`success` \| `failed`）、`error`
+- `durationMs`、`successCount`、`failCount`
+- `createdAt`
+
+**generation_assets**
+
+- `id`、`jobId`、`index`、`mime`、`path`（相对 `data/generations/` 的文件路径）
+
+**usage_ledger**
+
+- `id`、`userId`、`jobId`、`delta`（成功生图为负数，管理员调额可正可负）
+- `reason`（`generate` \| `adjust`）、`createdAt`
+
+图片文件：`data/generations/{userId}/{jobId}/{index}.png`。列表接口只返回元数据和需鉴权的图片 URL，不把整图 dataURL 塞进 JSON。
+
+首次启动：若用户表为空，用环境变量 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 创建第一个管理员。不要写死默认密码进镜像。
+
+## 额度规则
+
+- 单位：**成功返回的图片张数**。一次请求生成 4 张且全部成功，扣 4。
+- 发请求前检查 `creditBalance >= 本次计划张数`，不够则 403，不调腾讯云。
+- 用 SQLite 事务（`BEGIN IMMEDIATE`）避免并发超扣。
+- 失败不扣；部分成功只扣成功张数，并把成功图写入记录。
+- 管理员改额度是直接改 `creditBalance`，同时写一条 `usage_ledger`（`reason=adjust`），便于审计。
+- 第一期不做按月自动清零。
+
+## 接口草案
+
+前缀继续 `/api`。除登录外默认要登录。
+
+| 方法 | 路径 | 谁能调 | 作用 |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/login` | 匿名 | 校验用户名密码，写 Session Cookie |
+| `POST` | `/api/auth/logout` | 登录用户 | 清会话 |
+| `GET` | `/api/auth/me` | 登录用户 | 返回 id、用户名、角色、剩余额度 |
+| `GET` | `/api/company/channels` | 登录用户 | 现有公司渠道元数据，不含密钥 |
+| `POST` | `/api/tencent-vod/images` | 登录用户 | 鉴权 → 额度 → 代签生图 → 落库扣费 |
+| `GET` | `/api/generations` | 登录用户 | 自己的生成记录列表 |
+| `GET` | `/api/generations/:id` | 登录用户 | 单条记录；非本人且非管理员 404 |
+| `GET` | `/api/generations/:id/assets/:index` | 登录用户 | 鉴权后输出图片文件 |
+| `GET` | `/api/usage/me` | 登录用户 | 自己的用量汇总和流水 |
+| `GET` | `/api/users` | 管理员 | 全员列表（用量、余额） |
+| `POST` | `/api/users` | 管理员 | 创建普通用户 |
+| `PATCH` | `/api/users/:id/credits` | 管理员 | 调整额度 |
+| `PATCH` | `/api/users/:id/password` | 管理员 | 重置密码（可选，建议第一期带上） |
+
+现有匿名 `GET /api/company/channels` 和 `POST /api/tencent-vod/images` 改为必须登录。不要再保留匿名代签入口。
+
+Cookie 建议：`HttpOnly`、`SameSite=Lax`、路径 `/`。本地 Vite 与 `/api` 同源反代，不必上跨域 Cookie。生产走 Nginx 同源即可。
+
+## 前端改动
+
+工作台页面（提示词、参考图、尺寸、结果操作）保持现有交互，只换数据来源。
+
+1. **登录页**：未登录访问业务页时跳到登录。会话用 `GET /api/auth/me` 恢复。
+2. **当前用户**：全局 store（例如 `use-session-store`），组件需要角色时直接读 store，不要层层传 props。
+3. **配置入口**：导航和 `openConfigDialog` 仅管理员可用；普通用户缺模型时提示联系管理员。`/config` 路由对普通用户重定向。
+4. **生图记录**：`image/index.tsx` 不再读写 `localforage` 的 `image_generation_logs`，改为拉 `/api/generations`。缩略图走鉴权图片地址。
+5. **使用统计页**：新路由，例如 `/usage`。普通用户看自己的卡片和流水；管理员多一张全员表，可改额度、创建账号。
+6. **公司渠道请求**：继续走 `web/src/services/api/`，带上 Cookie（`credentials: "include"`）。
+
+个人 BYOK 仍只存在管理员浏览器本地，和「跟用户走的团队数据」分开。团队记录、额度、公司渠道不要再依赖 `localforage`。
+
+## 部署与环境变量
+
+在现有变量之外增加：
+
+- `ADMIN_USERNAME` / `ADMIN_PASSWORD`：仅用于空库引导
+- `SESSION_SECRET`：会话签名或随机 session id 的熵来源
+- `DATA_DIR`：默认 `./data`，内含 `app.db` 和 `generations/`
+
+Docker：给 `infinite-canvas-api` 挂 volume 到 `DATA_DIR`。Nginx `/api` 反代保持不变。站点 Basic Auth 可暂时保留当外部门禁，应用内登录才是身份；以后若觉得重复，再去掉 Basic Auth。
+
+## 分期交付
+
+### 第一期：身份和权限
+
+Hono + Drizzle + SQLite；登录登出；`me`；引导管理员；前端登录页；按角色隐藏配置；公司渠道和代签接口必须登录。
+
+验收：普通用户登录后能看到公司模型、打不开配置页；管理员能打开配置页。
+
+### 第二期：记录和额度接入生图
+
+生图接口串上额度检查、落盘、记账；工作台记录改为服务端；失败不扣费。
+
+验收：关浏览器再打开，记录还在；额度不够时不能发到腾讯云。
+
+### 第三期：使用统计和管理员调额
+
+`/usage` 页；管理员全员表、改额度、创建用户。
+
+验收：普通用户只看见自己的数；管理员能给同事加额度后对方可以继续生图。
+
+每期做完再开下一期，不要一次改成中台。
+
+## 建议目录
+
+```txt
+server/src/
+  index.ts          # Hono 入口
+  db.ts             # SQLite + Drizzle
+  auth.ts           # 会话、密码、中间件
+  users.ts
+  generations.ts
+  usage.ts
+  sign.ts           # 现有腾讯云签名
+  tencent-vod.ts    # 现有代签，调用处加上用户与额度
+```
+
+前端新增登录页、使用统计页、session store；生图页去掉本地日志存储。
+
+## 实施时要注意
+
+- 公司密钥禁止出现在前端代码、配置导出、接口响应里（见 `AGENTS.md`）。
+- 不要为旧的浏览器生成记录写迁移。
+- 不要顺手把画布/素材改成服务端存储。
+- 写完代码后按项目规范更新 `todo.mdx` / `pending-test.mdx` 和 `CHANGELOG.md` Unreleased。
