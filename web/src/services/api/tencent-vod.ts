@@ -10,8 +10,7 @@ import { nanoid } from "nanoid";
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
 const SERVICE = "vod";
 const API_VERSION = "2018-07-17";
-const POLL_INTERVAL_MS = 2500;
-const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+const POLL_INTERVAL_MS = 5000;
 const GG_ASPECT_RATIOS = ["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
 
 type VodModel = { modelName: "OG" | "GG"; modelVersion: string };
@@ -85,20 +84,19 @@ async function generateOne(config: AiConfig, prompt: string, references: Referen
 }
 
 async function pollTask(config: AiConfig, taskId: string, signal?: AbortSignal) {
-    const started = Date.now();
-    while (Date.now() - started < POLL_TIMEOUT_MS) {
+    while (true) {
         if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
         const detail = await callVod<DescribeTaskPayload>(config, "DescribeTaskDetail", { SubAppId: Number(config.subAppId), TaskId: taskId }, signal);
         const task = detail.AigcImageTask;
-        if (task?.ErrCode || task?.ErrCodeExt) throw new Error(task.Message || task.ErrCodeExt || apiText("tencentVodFailed"));
-        if (task?.Status === "FINISH" || detail.Status === "FINISH") {
+        const status = (task?.Status || detail.Status || "").toUpperCase();
+        if (task?.ErrCode || task?.ErrCodeExt || status === "FAIL") throw new Error(task?.Message || task?.ErrCodeExt || apiText("tencentVodFailed"));
+        if (status === "FINISH") {
             const fileUrl = task?.Output?.FileInfos?.map((item) => item.FileUrl).find(Boolean);
             if (!fileUrl) throw new Error(apiText("tencentVodNoImage"));
             return fileUrl;
         }
         await sleep(POLL_INTERVAL_MS, signal);
     }
-    throw new Error(apiText("tencentVodTimeout"));
 }
 
 async function callVod<T>(config: AiConfig, action: string, payload: Record<string, unknown>, signal?: AbortSignal) {
