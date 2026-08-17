@@ -9,7 +9,6 @@ export type PromptSource = {
     builtIn: boolean;
 };
 
-export const PROMPT_REGISTRY_HOMEPAGE = "https://github.com/yukkcat/image-prompts";
 const PROMPT_REGISTRY_SOURCE_BASE = "https://raw.githubusercontent.com/yukkcat/image-prompts/main/dist/sources";
 
 export function createPromptSource(source?: Partial<PromptSource>): PromptSource {

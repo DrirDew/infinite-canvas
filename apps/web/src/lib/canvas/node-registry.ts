@@ -22,15 +22,6 @@ export function registerNodeDefinitions(defs: CanvasNodeDefinition[], pluginId =
     bump();
 }
 
-export function unregisterPluginNodes(pluginId: string) {
-    for (const [type, owner] of ownerByType) {
-        if (owner !== pluginId) continue;
-        definitions.delete(type);
-        ownerByType.delete(type);
-    }
-    bump();
-}
-
 export function getNodeDefinition(type: string) {
     return definitions.get(type);
 }

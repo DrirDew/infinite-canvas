@@ -13,13 +13,6 @@ export type Prompt = RawPrompt & {
 
 export const ALL_PROMPTS_OPTION = "all";
 
-export type PromptListResponse = {
-    items: Prompt[];
-    tags: string[];
-    categories: string[];
-    total: number;
-};
-
 export type PromptSourceStatus = {
     sourceId: string;
     count: number;

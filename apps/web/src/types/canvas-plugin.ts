@@ -124,24 +124,3 @@ export type CanvasNodeDefinition = {
     toolbar?: (ctx: CanvasNodeContext) => CanvasNodeToolbarItem[];
     onDoubleClick?: (ctx: CanvasNodeContext) => boolean; // Return true when handled.
 };
-
-// Application capabilities available while a plugin starts.
-export type CanvasPluginApp = {
-    version: string;
-    emit: (event: string, payload?: unknown) => void;
-    on: (event: string, handler: (payload: unknown) => void) => () => void;
-    // Injects plugin styles and returns a cleanup function; the same key replaces previous styles.
-    injectCSS: (css: string, key?: string) => () => void;
-};
-
-// Default plugin package export.
-export type CanvasPlugin = {
-    id: string;
-    name: string;
-    version: string;
-    description?: string;
-    minAppVersion?: string;
-    css?: string; // Injected when enabled and removed when uninstalled or disabled.
-    nodes: CanvasNodeDefinition[];
-    setup?: (app: CanvasPluginApp) => void | (() => void);
-};
