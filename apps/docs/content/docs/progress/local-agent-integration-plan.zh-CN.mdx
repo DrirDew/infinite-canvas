@@ -104,7 +104,7 @@ canvasAgent.exportSnapshot()
 
 建议先支持最小操作集：
 
-- `add_node`：新增图片、文本、音频、视频、生成配置节点。
+- `add_node`：新增图片、文本、音频和视频节点。
 - `update_node`：更新节点位置、尺寸、内容和配置。
 - `delete_node`：删除节点。
 - `connect_nodes`：连接两个节点。
@@ -130,7 +130,7 @@ Codex CLI <-> canvas-agent MCP <-> 当前网页画布
 - `canvas_get_selection`：读取当前选中的节点。
 - `canvas_export_snapshot`：导出当前画布快照，用于让 Agent 理解布局。
 - `canvas_create_text_node`：快捷创建文本节点。
-- `canvas_create_image_prompt_flow`：快捷创建提示词文本节点和图片生成配置节点。
+- `canvas_create_image_prompt_flow`：快捷创建提示词文本节点和目标图片节点。
 
 用户本机 Codex 配置示例：
 

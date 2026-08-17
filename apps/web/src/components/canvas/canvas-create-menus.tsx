@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Group, ImageIcon, List, Music2, Settings2, Video, X } from "lucide-react";
+import { Group, ImageIcon, List, Music2, Video, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { canvasThemes } from "@basketikun/infinite-canvas";
@@ -7,7 +7,7 @@ import { getNodeSpec } from "@/constant/canvas";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasNodeType, type ConnectionHandle, type Position } from "@/types/canvas";
 
-const NODE_CREATE_TYPES = [CanvasNodeType.Text, CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Audio, CanvasNodeType.Config, CanvasNodeType.Group];
+const NODE_CREATE_TYPES = [CanvasNodeType.Text, CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Audio, CanvasNodeType.Group];
 
 export type PendingConnectionCreate = {
     connection: ConnectionHandle;
@@ -20,7 +20,7 @@ export function ConnectionCreateMenu({
     onClose,
 }: {
     pending: PendingConnectionCreate;
-    onCreate: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Config | CanvasNodeType.Video | CanvasNodeType.Audio) => void;
+    onCreate: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Video | CanvasNodeType.Audio) => void;
     onClose: () => void;
 }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
@@ -46,7 +46,6 @@ export function ConnectionCreateMenu({
                 <ConnectionCreateOption theme={theme} icon={<ImageIcon className="size-5" />} title={t("canvas.createMenu.image")} onClick={() => onCreate(CanvasNodeType.Image)} />
                 <ConnectionCreateOption theme={theme} icon={<Video className="size-5" />} title={t("canvas.createMenu.video")} onClick={() => onCreate(CanvasNodeType.Video)} />
                 <ConnectionCreateOption theme={theme} icon={<Music2 className="size-5" />} title={t("canvas.createMenu.audio")} onClick={() => onCreate(CanvasNodeType.Audio)} />
-                <ConnectionCreateOption theme={theme} icon={<Settings2 className="size-5" />} title={t("canvas.createMenu.config")} description={t("canvas.createMenu.configDescription")} onClick={() => onCreate(CanvasNodeType.Config)} />
             </div>
         </div>
     );
@@ -115,6 +114,6 @@ export function NodeCreateMenu({ position, onCreate, onClose }: { position: Posi
 }
 
 function nodeCreateIcon(type: CanvasNodeType) {
-    const Icon = type === CanvasNodeType.Image ? ImageIcon : type === CanvasNodeType.Video ? Video : type === CanvasNodeType.Audio ? Music2 : type === CanvasNodeType.Config ? Settings2 : type === CanvasNodeType.Group ? Group : List;
+    const Icon = type === CanvasNodeType.Image ? ImageIcon : type === CanvasNodeType.Video ? Video : type === CanvasNodeType.Audio ? Music2 : type === CanvasNodeType.Group ? Group : List;
     return <Icon className="size-5" />;
 }

@@ -56,7 +56,7 @@ type CanvasProject = {
 ```ts
 type CanvasNodeData = {
   id: string;
-  type: "image" | "text" | "config" | "video";
+  type: "image" | "text" | "video" | "audio" | "group";
   title: string;
   position: { x: number; y: number };
   width: number;
@@ -68,7 +68,7 @@ type CanvasNodeData = {
 通用字段：
 
 - `id`：节点 ID。
-- `type`：节点类型，当前有图片、文本、生成配置、视频四类。
+- `type`：节点类型，当前有图片、文本、视频、音频和分组五类。
 - `title`：节点标题。
 - `position`：画布世界坐标，不是屏幕坐标。
 - `width` / `height`：画布世界坐标下的节点尺寸。
@@ -95,7 +95,6 @@ type CanvasNodeMetadata = {
   status?: "idle" | "success" | "loading" | "error";
   errorDetails?: string;
   fontSize?: number;
-  generationMode?: "text" | "image" | "video";
   model?: string;
   size?: string;
   count?: number;
@@ -104,7 +103,6 @@ type CanvasNodeMetadata = {
   freeResize?: boolean;
   images?: CanvasNodeImage[];
   primaryImageId?: string;
-  inputOrder?: string[];
   storageKey?: string;
   mimeType?: string;
   bytes?: number;
@@ -116,7 +114,7 @@ type CanvasNodeMetadata = {
 - 图片节点：`content` 是当前可展示的图片 URL，通常是 `blob:` URL；`storageKey` 指向本地图片 Blob；`naturalWidth/naturalHeight/bytes/mimeType` 保存原图信息。
 - 视频节点：`content` 是当前可播放的视频 URL，通常是 `blob:` URL；`storageKey` 指向本地视频 Blob；`bytes/mimeType` 保存文件信息。
 - 文本节点：`content` 保存文本内容；`fontSize` 保存字体大小；`prompt/status/errorDetails` 保存生成状态。
-- 生成配置节点：`generationMode/model/size/count/inputOrder` 保存生成配置；`generationMode` 可选择文本、图片或视频；上游输入通过 `connections` 计算。
+- 图片、视频和音频节点：直接在 `metadata` 中保存当前节点使用的模型与生成参数，上游输入通过 `connections` 计算。
 - 多图图片节点：批量生成仍只保存为一个图片节点，请求开始前会在 `images` 中创建全部图片槽位，每个槽位通过 `status/errorDetails` 独立记录实时状态，成功后补充图片数据；最先成功的槽位会立即写入 `primaryImageId`，并由节点级 `content` 和图片元数据展示；展开状态仅属于当前界面，不写入项目数据。
 
 ## 连线结构

@@ -33,7 +33,7 @@ The viewport stores screen translation in `x` and `y`, and scale in `k`.
 ```ts
 type CanvasNodeData = {
   id: string;
-  type: "image" | "text" | "config" | "video";
+  type: "image" | "text" | "video" | "audio" | "group";
   title: string;
   position: { x: number; y: number };
   width: number;

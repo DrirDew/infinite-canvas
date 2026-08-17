@@ -471,7 +471,7 @@ test("画布 Skill 草稿源匿名化任意字符串中的已知节点 ID", () =
             position: { x: 0, y: 0 },
             width: 320,
             height: 180,
-            metadata: { composerContent: `参考 @[node:${imageNodeId}] 生成商品图` },
+            metadata: { editPrompt: `参考 @[node:${imageNodeId}] 生成商品图` },
         }, {
             id: imageNodeId,
             type: "image",
@@ -485,7 +485,7 @@ test("画布 Skill 草稿源匿名化任意字符串中的已知节点 ID", () =
     });
 
     assert.equal(
-        ((source.nodes as Array<Record<string, unknown>>)[0]?.metadata as Record<string, unknown>).composerContent,
+        ((source.nodes as Array<Record<string, unknown>>)[0]?.metadata as Record<string, unknown>).editPrompt,
         "参考 @[node:node-2] 生成商品图",
     );
     assert.doesNotMatch(JSON.stringify(source), new RegExp(imageNodeId));
@@ -528,12 +528,12 @@ test("画布 Skill 草稿源为截断节点保留完整快照范围内的安全�
         position: { x: index * 10, y: 0 },
         width: 320,
         height: 180,
-        metadata: index === 0 ? { composerContent: `参考 @[node:${targetNodeId}]` } : {},
+        metadata: index === 0 ? { editPrompt: `参考 @[node:${targetNodeId}]` } : {},
     }));
     const source = canvasSkillSource({ nodes, connections: [] });
     const firstMetadata = (source.nodes as Array<Record<string, unknown>>)[0]?.metadata as Record<string, unknown>;
 
-    assert.equal(firstMetadata.composerContent, "参考 @[node:node-301]");
+    assert.equal(firstMetadata.editPrompt, "参考 @[node:node-301]");
     assert.equal(source.truncated, true);
     assert.doesNotMatch(JSON.stringify(source), new RegExp(targetNodeId));
 });

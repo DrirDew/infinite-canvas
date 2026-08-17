@@ -3,7 +3,7 @@ import i18n from "@/i18n";
 import { seedanceReferenceLabel } from "@/lib/seedance-video";
 import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { imageToDataUrl } from "@/services/image-storage";
-import { getCanvasDownstreamNodes, getCanvasUpstreamNodes } from "@basketikun/infinite-canvas";
+import { getCanvasUpstreamNodes } from "@basketikun/infinite-canvas";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/types/canvas";
 
 export type CanvasResourceKind = "image" | "video" | "audio" | "text";
@@ -52,8 +52,6 @@ export async function resolveCanvasReferenceImages(references: readonly CanvasRe
 }
 
 export function getMentionResourceNodes(nodeId: string, nodes: readonly CanvasNodeData[], connections: readonly CanvasConnection[]) {
-    const configInputs = getConnectedConfigResourceNodes(nodeId, nodes, connections);
-    if (configInputs.length) return configInputs;
     const ownInputs = getContextResourceNodes(nodeId, nodes, connections);
     if (ownInputs.length) return ownInputs;
     const node = nodes.find((item) => item.id === nodeId);
@@ -61,8 +59,6 @@ export function getMentionResourceNodes(nodeId: string, nodes: readonly CanvasNo
 }
 
 export function getGenerationResourceNodes(nodeId: string, nodes: readonly CanvasNodeData[], connections: readonly CanvasConnection[]) {
-    const configInputs = getConnectedConfigResourceNodes(nodeId, nodes, connections);
-    if (configInputs.length) return configInputs;
     const ownInputs = getContextResourceNodes(nodeId, nodes, connections);
     if (ownInputs.length) return ownInputs;
     return [];
@@ -70,11 +66,6 @@ export function getGenerationResourceNodes(nodeId: string, nodes: readonly Canva
 
 function getContextResourceNodes(nodeId: string, nodes: readonly CanvasNodeData[], connections: readonly CanvasConnection[]) {
     return getCanvasUpstreamNodes(nodeId, nodes, connections).filter(isResourceNode);
-}
-
-function getConnectedConfigResourceNodes(nodeId: string, nodes: readonly CanvasNodeData[], connections: readonly CanvasConnection[]) {
-    const config = getCanvasDownstreamNodes(nodeId, nodes, connections).find((node) => node.type === CanvasNodeType.Config);
-    return config ? getContextResourceNodes(config.id, nodes, connections).filter((node) => node.id !== nodeId) : [];
 }
 
 function labelResourceNodes(nodes: readonly CanvasNodeData[], active: boolean) {

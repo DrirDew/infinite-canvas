@@ -39,18 +39,18 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const hasTextContent = node.type === CanvasNodeType.Text && Boolean(node.metadata?.content?.trim());
     const hasImageContent = node.type === CanvasNodeType.Image && Boolean(node.metadata?.content);
     const isEditingExistingContent = hasTextContent || hasImageContent;
-    const [prompt, setPrompt] = useState(node.metadata?.composerContent ?? node.metadata?.prompt ?? "");
+    const [prompt, setPrompt] = useState(node.metadata?.editPrompt ?? node.metadata?.prompt ?? "");
     const [expanded, setExpanded] = useState(false);
 
     // Restore prompts only when switching nodes; preserve the current input after generation on the same node.
     useEffect(() => {
-        setPrompt(node.metadata?.composerContent ?? node.metadata?.prompt ?? "");
+        setPrompt(node.metadata?.editPrompt ?? node.metadata?.prompt ?? "");
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [node.id]);
 
     const updatePrompt = (value: string) => {
         setPrompt(value);
-        if (isEditingExistingContent) onConfigChange(node.id, { composerContent: value });
+        if (isEditingExistingContent) onConfigChange(node.id, { editPrompt: value });
         else onPromptChange(node.id, value);
     };
 

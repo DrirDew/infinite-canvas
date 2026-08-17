@@ -3,12 +3,10 @@ import i18n from "@/i18n";
 import { resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { resolveMediaUrl } from "@/services/file-storage";
 import { imageMetadata, referenceUrl } from "@/lib/canvas/canvas-node-factory";
-import { findCanvasUpstreamNode } from "@basketikun/infinite-canvas";
-import type { NodeGenerationInput } from "@/components/canvas/canvas-node-generation";
 import type { CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-prompt-panel";
 import type { CanvasImageAngleParams } from "@/components/canvas/canvas-node-angle-dialog";
 import type { ReferenceImage } from "@/types/image";
-import { CanvasNodeType, type CanvasAssistantSession, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata } from "@/types/canvas";
+import { CanvasNodeType, type CanvasAssistantSession, type CanvasNodeData, type CanvasNodeMetadata } from "@/types/canvas";
 
 export function imageExtension(dataUrl: string) {
     return dataUrl.match(/^data:image[/]([^;]+)/)?.[1] || dataUrl.match(/image[/]([^;]+)/)?.[1] || "png";
@@ -84,15 +82,6 @@ export function getGenerationCount(count: string) {
     return Math.max(1, Math.min(15, Math.floor(Math.abs(Number(count)) || 1)));
 }
 
-export function getInputSummary(inputs: NodeGenerationInput[]) {
-    return {
-        textCount: inputs.filter((input) => input.type === "text").length,
-        imageCount: inputs.filter((input) => input.type === "image").length,
-        videoCount: inputs.filter((input) => input.type === "video").length,
-        audioCount: inputs.filter((input) => input.type === "audio").length,
-    };
-}
-
 export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | undefined, mode: CanvasNodeGenerationMode): AiConfig {
     return {
         ...config,
@@ -131,10 +120,6 @@ export function resetInterruptedGeneration(nodes: readonly CanvasNodeData[]) {
 
 export function isGenerationCanceled(error: unknown) {
     return error instanceof Error && (error.message === i18n.t("common.requestCanceled") || error.name === "AbortError");
-}
-
-export function findRetrySourceNode(nodeId: string, nodes: readonly CanvasNodeData[], connections: readonly CanvasConnection[]) {
-    return findCanvasUpstreamNode(nodeId, nodes, connections, (node) => node.type === CanvasNodeType.Config);
 }
 
 export function sourceNodeReferenceImages(node: CanvasNodeData | null) {

@@ -25,14 +25,6 @@ export function buildCanvasToolRequest(name: ToolName, input: Record<string, unk
         return applyOps(data.items.map((item, index) => textNodeOp(item, item.x ?? (data.direction === "row" ? x + index * (340 + gap) : x), item.y ?? (data.direction === "row" ? y : y + index * (240 + gap)))));
     }
     if (name === "canvas_create_image_prompt_flow") return applyOps(generationFlowOps({ ...input, mode: "image" }, state));
-    if (name === "canvas_create_config_node") {
-        const x = Number(input.x ?? nextCanvasX(state));
-        const y = Number(input.y ?? 0);
-        const configId = `config-${crypto.randomUUID()}`;
-        const mode = generationMode(input.mode);
-        const prompt = String(input.prompt || "");
-        return applyOps([configNodeOp(configId, input, x, y), ...(input.autoRun ? [runGenerationOp(configId, mode, prompt)] : [])]);
-    }
     if (name === "canvas_create_generation_flow") return applyOps(generationFlowOps(input, state));
     if (name === "canvas_generate_text" || name === "canvas_generate_image" || name === "canvas_generate_video" || name === "canvas_generate_audio") {
         return applyOps(generationFlowOps({ ...input, mode: name.replace("canvas_generate_", ""), autoRun: true }, state));
@@ -86,22 +78,19 @@ function textNodeOp(input: { id?: string; text?: string; title?: string; width?:
     return { type: "add_node", id: input.id, nodeType: "text", title: input.title, position: { x, y }, width: input.width, height: input.height, metadata: { content: input.text || "", status: "success", fontSize: 14 } };
 }
 
-/** 创建生成配置节点操作。 */
-function configNodeOp(id: string, input: Record<string, unknown>, x: number, y: number) {
+/** 创建目标生成节点操作。 */
+function generationNodeOp(id: string, input: Record<string, unknown>, x: number, y: number) {
     const mode = generationMode(input.mode);
-    const prompt = String(input.prompt || "");
     return {
         type: "add_node",
         id,
-        nodeType: "config",
+        nodeType: mode,
         title: String(input.title || generationTitle(mode)),
         position: { x, y },
         width: typeof input.width === "number" ? input.width : undefined,
         height: typeof input.height === "number" ? input.height : undefined,
         metadata: cleanRecord({
-            generationMode: mode,
-            composerContent: prompt,
-            prompt,
+            prompt: "",
             status: "idle",
             model: input.model,
             size: input.size,
@@ -119,23 +108,22 @@ function configNodeOp(id: string, input: Record<string, unknown>, x: number, y: 
     };
 }
 
-/** 创建包含提示词、配置节点和引用连线的生成流程。 */
+/** 创建包含提示词、目标节点和引用连线的生成流程。 */
 function generationFlowOps(input: Record<string, unknown>, state: CanvasSnapshot | null) {
     const mode = generationMode(input.mode);
     const prompt = String(input.prompt || "");
     const x = Number(input.x ?? nextCanvasX(state));
     const y = Number(input.y ?? 0);
     const textId = `text-${crypto.randomUUID()}`;
-    const configId = `config-${crypto.randomUUID()}`;
+    const targetId = `${mode}-${crypto.randomUUID()}`;
     const referenceNodeIds = Array.isArray(input.referenceNodeIds) ? input.referenceNodeIds.filter((id): id is string => typeof id === "string") : [];
-    const tokens = [`@[node:${textId}]`, ...referenceNodeIds.map((id) => `@[node:${id}]`)];
     return [
         textNodeOp({ id: textId, text: prompt, title: String(input.title || "提示词") }, x, y),
-        configNodeOp(configId, { ...input, prompt: tokens.join("\n") }, x + 420, y),
-        { type: "connect_nodes", fromNodeId: textId, toNodeId: configId },
-        ...referenceNodeIds.map((fromNodeId) => ({ type: "connect_nodes", fromNodeId, toNodeId: configId })),
-        { type: "select_nodes", ids: [configId] },
-        ...(input.autoRun ? [runGenerationOp(configId, mode, tokens.join("\n"))] : []),
+        generationNodeOp(targetId, input, x + 420, y),
+        { type: "connect_nodes", fromNodeId: textId, toNodeId: targetId },
+        ...referenceNodeIds.map((fromNodeId) => ({ type: "connect_nodes", fromNodeId, toNodeId: targetId })),
+        { type: "select_nodes", ids: [targetId] },
+        ...(input.autoRun ? [runGenerationOp(targetId, mode, "")] : []),
     ];
 }
 

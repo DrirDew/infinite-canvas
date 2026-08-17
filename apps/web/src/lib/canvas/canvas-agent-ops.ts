@@ -3,7 +3,6 @@ import { normalizeConnection, removeDocumentConnections, removeDocumentNodes } f
 
 import i18n from "@/i18n";
 import { getNodeSpec, isBuiltinNodeType } from "@/constant/canvas";
-import { resolveCanvasConnection } from "@/lib/canvas/canvas-connection";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type CanvasNodeTypeId, type ViewportTransform } from "@/types/canvas";
 
 export type CanvasAgentOp =
@@ -80,7 +79,7 @@ export function applyCanvasAgentOps(snapshot: CanvasAgentSnapshot, ops?: CanvasA
         }
         if (op.type === "connect_nodes") {
             if (!op.fromNodeId || !op.toNodeId) return;
-            const connection = normalizeConnection(op.fromNodeId, op.toNodeId, nodes, "source", resolveCanvasConnection);
+            const connection = normalizeConnection(op.fromNodeId, op.toNodeId, nodes, "source");
             const exists = connection && connections.some((item) => item.fromNodeId === connection.fromNodeId && item.toNodeId === connection.toNodeId);
             if (connection && !exists) connections = [...connections, { id: op.id || nanoid(), ...connection }];
         }

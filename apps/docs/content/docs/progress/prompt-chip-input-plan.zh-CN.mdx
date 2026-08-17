@@ -9,7 +9,7 @@ description: 将提示词面板输入框从 textarea 改造为 contentEditable�
 
 提示词面板（`CanvasNodePromptPanel`）的输入框里，`@` 引用一张图片后，显示的是蓝色文字 chip「图片1」。期望**直接显示这张图片的真实缩略图**，而不是文字编号。
 
-当前该输入框是原生 `<textarea>`，只能承载纯文本，无法内嵌图片。要显示缩略图，必须改用 `contentEditable`（可编辑 div），把引用做成带 `<img>` 的原子小卡片。项目里「组装提示词」组件（`CanvasConfigComposer`）已经是这套 contentEditable + 图片 chip 的成熟实现，可作蓝本。
+当前该输入框是原生 `<textarea>`，只能承载纯文本，无法内嵌图片。要显示缩略图，必须改用 `contentEditable`（可编辑 div），把引用做成带 `<img>` 的原子小卡片。
 
 ## 关键约束（为什么不能直接改现有组件）
 
@@ -22,7 +22,7 @@ description: 将提示词面板输入框从 textarea 改造为 contentEditable�
 
 ## 方案：新增 `CanvasPromptChipInput` 组件
 
-新文件 `apps/web/src/components/canvas/canvas-prompt-chip-input.tsx`，参照 `canvas-config-composer.tsx` 的 contentEditable 模式，但有一处**核心差异**：
+新文件 `apps/web/src/components/canvas/canvas-prompt-chip-input.tsx`，使用 contentEditable 实现图片引用 chip：
 
 - 「组装提示词」把引用序列化成 `@[node:UUID]` 标记；
 - 本组件的 value 必须保持**引用的 label 文本**（如「图片1」），这样发给生成的提示词语义不变。因此 chip ↔ 文本的序列化用 **label 文本**，不是 node 标记。
@@ -31,13 +31,13 @@ description: 将提示词面板输入框从 textarea 改造为 contentEditable�
 
 Props：`value: string`、`references: CanvasResourceReference[]`、`onChange(value)`、`onSubmit?()`、`className`、`style`、`placeholder`。图片缩略图取 `reference.previewUrl`（即 `node.metadata.content`，已存在于 `CanvasResourceReference`）。
 
-### 实现要点（大量复用 composer 的做法）
+### 实现要点
 
-1. **DOM ← value（未聚焦时重建）**：仿 `CanvasConfigComposer` 的重建 effect。用 active label 列表（`references.filter(active).map(label)`，按长度降序）把 value 字符串切成「文本片段 + 命中 label」，命中处插入 chip。聚焦时不重建（`document.activeElement === editor` 直接 return），避免与输入 / IME 打架。
+1. **DOM ← value（未聚焦时重建）**：用 active label 列表（`references.filter(active).map(label)`，按长度降序）把 value 字符串切成「文本片段 + 命中 label」，命中处插入 chip。聚焦时不重建（`document.activeElement === editor` 直接 return），避免与输入 / IME 打架。
 2. **chip 渲染**：仿 `createReferenceChip`。image 类型 → `size-6` 的 `<img src={reference.previewUrl}>`；其它类型 → 截断文字。chip 为 `contentEditable="false"` 的 `<span>`，用 `dataset.refLabel` 存 label 以便序列化。
 3. **value ← DOM（syncFromEditor）**：仿 `serializeNodes`，但 chip 序列化为 `dataset.refLabel`（label 文本）而非 node 标记；文本节点原样拼接，`<br>` → `\n`。
 4. **@ 菜单**：复用 `textBeforeCaret` + `/@([^\s@]*)$/` 检测；菜单定位改用 `getSelection().getRangeAt(0).getBoundingClientRect()`（比 textarea 的镜像 div 更简单、天然贴着光标）。菜单 UI 沿用现有 `MentionMenu` 的视觉（缩略图 + label + 副标题）。
-5. **原子删除**：直接复用 composer 的 `deleteAdjacentReference` / `adjacentReferenceNode` / `findReferenceSibling`——contentEditable + `contentEditable="false"` chip 天然整体删除。可把这几个通用 DOM 助手连同 `textBeforeCaret` / `placeCaretAtEnd` / `closestEditor` 复制进新组件（保持 composer 不动，规避回归风险）。
+5. **原子删除**：通过 `deleteAdjacentReference` / `adjacentReferenceNode` / `findReferenceSibling` 处理——contentEditable + `contentEditable="false"` chip 天然整体删除。
 6. **回车发送 + IME**：复用 `isPlainEnterKey` / `isImeComposing`（`@/lib/keyboard-event`）与 `onCompositionStart/End`，发送时调用 `onSubmit`。
 7. **占位符 & 样式**：空值时显示 placeholder（absolute 占位层）；容器套用面板传入的 `className/style`（`min-h-40`、透明底、无边框，与当前一致）。
 

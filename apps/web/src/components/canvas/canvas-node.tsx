@@ -24,7 +24,6 @@ type CanvasNodeProps = {
     showImageInfo: boolean;
     mentionReferences?: CanvasResourceReference[];
     renderPanel?: (node: CanvasNodeData) => ReactNode;
-    renderNodeContent?: (node: CanvasNodeData) => ReactNode;
     groupChildCount?: number;
     isGroupDropTarget?: boolean;
     batchExpanded?: boolean;
@@ -59,7 +58,6 @@ type NodeContentRendererProps = {
     isBatchRoot: boolean;
     batchCount: number;
     batchExpanded: boolean;
-    renderNodeContent?: (node: CanvasNodeData) => ReactNode;
     onContentChange: (nodeId: string, content: string) => void;
     onStopEditing: () => void;
     mentionReferences: CanvasResourceReference[];
@@ -87,7 +85,6 @@ export const CanvasNode = React.memo(function CanvasNode({
     showImageInfo,
     mentionReferences = [],
     renderPanel,
-    renderNodeContent,
     groupChildCount = 0,
     isGroupDropTarget = false,
     batchExpanded = false,
@@ -285,7 +282,6 @@ export const CanvasNode = React.memo(function CanvasNode({
                         isBatchRoot={isBatchRoot}
                         batchCount={batchCount}
                         batchExpanded={batchExpanded}
-                        renderNodeContent={renderNodeContent}
                         mentionReferences={mentionReferences}
                         onContentChange={onContentChange}
                         onStopEditing={() => setIsEditingContent(false)}
@@ -319,7 +315,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 />
             </div>
 
-            {!isGroup ? <CanvasNodeConnectionHandles nodeId={data.id} visible={hovered || isSelected || isConnecting} theme={theme} source={data.type !== CanvasNodeType.Config} onConnectStart={onConnectStart} /> : null}
+            {!isGroup ? <CanvasNodeConnectionHandles nodeId={data.id} visible={hovered || isSelected || isConnecting} theme={theme} onConnectStart={onConnectStart} /> : null}
 
             {showPanel && !isGroup && renderPanel ? <div className="absolute left-1/2 top-full z-[70] w-[600px] -translate-x-1/2 pt-4">{renderPanel(data)}</div> : null}
         </CanvasNodeShell>
@@ -328,7 +324,6 @@ export const CanvasNode = React.memo(function CanvasNode({
 
 function NodeContent(props: NodeContentRendererProps) {
     const { t } = useTranslation();
-    if (props.node.type === CanvasNodeType.Config && props.renderNodeContent) return props.renderNodeContent(props.node);
     if (props.isBatchRoot) return <ImageNodeContent {...props} />;
     if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
@@ -342,7 +337,6 @@ function NodeContent(props: NodeContentRendererProps) {
 const nodeContentRenderers = {
     [CanvasNodeType.Text]: TextContent,
     [CanvasNodeType.Image]: ImageNodeContent,
-    [CanvasNodeType.Config]: EmptyImageContent,
     [CanvasNodeType.Video]: VideoNodeContent,
     [CanvasNodeType.Audio]: AudioNodeContent,
     [CanvasNodeType.Group]: GroupNodeContent,

@@ -92,8 +92,8 @@ function getGenerationStatus(input: SiteToolInput, canvasSnapshot?: CanvasAgentS
             const status = normalizeCanvasGenerationStatus(node.metadata?.status);
             if (!status || (nodeIds.size && !nodeIds.has(node.id))) return;
             const metadata = node.metadata || {};
-            if (!nodeIds.size && node.type !== "config" && status !== "running" && status !== "failed" && !metadata.generationMode && !metadata.generationType && !metadata.model) return;
-            tasks.push({ id: node.id, source: "canvas", status, kind: metadata.generationMode || node.type, title: node.title, prompt: compactPrompt(metadata.prompt || metadata.composerContent), projectId: canvasSnapshot.projectId, error: metadata.errorDetails });
+            if (!nodeIds.size && status !== "running" && status !== "failed" && !metadata.generationType && !metadata.model) return;
+            tasks.push({ id: node.id, source: "canvas", status, kind: node.type, title: node.title, prompt: compactPrompt(metadata.prompt || metadata.editPrompt), projectId: canvasSnapshot.projectId, error: metadata.errorDetails });
         });
     }
 

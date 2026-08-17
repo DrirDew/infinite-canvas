@@ -3,7 +3,6 @@ import type { CanvasConnection, CanvasNode, ConnectionHandle, Position, Viewport
 export enum CanvasNodeType {
     Image = "image",
     Text = "text",
-    Config = "config",
     Video = "video",
     Audio = "audio",
     Group = "group",
@@ -29,12 +28,11 @@ export type CanvasNodeImage = {
 
 export type CanvasNodeMetadata = {
     content?: string;
-    composerContent?: string;
+    editPrompt?: string;
     prompt?: string;
     status?: CanvasNodeStatus;
     errorDetails?: string;
     fontSize?: number;
-    generationMode?: CanvasGenerationMode;
     generationType?: CanvasImageGenerationType;
     model?: string;
     reasoningEffort?: "auto" | "low" | "medium" | "high" | "xhigh";
