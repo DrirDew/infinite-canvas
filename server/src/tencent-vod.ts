@@ -3,7 +3,6 @@ import { signTencentCloudRequest } from "./sign";
 const SERVICE = "vod";
 const API_VERSION = "2018-07-17";
 const HOST = "vod.tencentcloudapi.com";
-const POLL_INTERVAL_MS = 5000;
 const GG_ASPECT_RATIOS = ["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
 
 export const COMPANY_TENCENT_VOD_CHANNEL_ID = "company-tencent-vod";
@@ -19,17 +18,31 @@ export const TENCENT_VOD_MODELS = [
 type VodModel = { modelName: "OG" | "GG"; modelVersion: string };
 type TencentCloudResponse<T> = { Response?: T & { Error?: { Code?: string; Message?: string } } };
 type CreateTaskPayload = { TaskId?: string };
+type AigcTaskPayload = {
+    TaskId?: string;
+    Status?: string;
+    ErrCode?: number;
+    ErrCodeExt?: string;
+    Message?: string;
+    SessionContext?: string;
+    Output?: { FileInfos?: Array<{ FileUrl?: string }> };
+};
 type DescribeTaskPayload = {
     Status?: string;
-    AigcImageTask?: {
-        Status?: string;
-        ErrCode?: number;
-        ErrCodeExt?: string;
-        Message?: string;
-        Output?: { FileInfos?: Array<{ FileUrl?: string }> };
-    };
+    AigcImageTask?: AigcTaskPayload;
+    AigcVideoTask?: AigcTaskPayload;
 };
 type FileInfo = { Type: "Base64"; Base64: string; ReferenceType?: "mask" };
+
+export type VodTaskKind = "image" | "video";
+export type VodTaskSnapshot = {
+    taskId: string;
+    kind: VodTaskKind;
+    status: "PROCESSING" | "FINISH" | "FAIL";
+    fileUrl: string;
+    error: string;
+    sessionContext: string;
+};
 
 export type CompanyImageRequest = {
     channelId?: string;
@@ -62,29 +75,23 @@ export function companyTencentVodChannel() {
     };
 }
 
-export async function generateCompanyTencentVodImagesSettled(body: CompanyImageRequest, credentials: { secretId: string; secretKey: string; subAppId: string }, signal?: AbortSignal) {
-    const prompt = String(body.prompt || "").trim();
-    if (!prompt) throw new Error("请输入提示词");
-    const images: Array<{ id: string; dataUrl: string; sourceUrl?: string }> = [];
-    const errors: string[] = [];
-    const total = Math.max(1, Math.min(15, Math.floor(Number(body.count) || 1)));
-    for (let index = 0; index < total; index += 1) {
-        if (signal?.aborted) break;
-        try {
-            images.push(await generateOne(credentials, prompt, body, signal));
-        } catch (error) {
-            if (isAbortError(error) || signal?.aborted) break;
-            errors.push(error instanceof Error ? error.message : "腾讯云点播生图失败");
-        }
+export function encodeTaskContext(jobId: string, index: number) {
+    return JSON.stringify({ j: jobId, i: index });
+}
+
+export function decodeTaskContext(value: string) {
+    try {
+        const parsed = JSON.parse(value || "") as { j?: unknown; i?: unknown };
+        const jobId = String(parsed.j || "").trim();
+        const index = Math.round(Number(parsed.i));
+        if (!jobId || !Number.isFinite(index) || index < 0) return null;
+        return { jobId, index };
+    } catch {
+        return null;
     }
-    return { images, errors, aborted: Boolean(signal?.aborted) };
 }
 
-function isAbortError(error: unknown) {
-    return error instanceof DOMException && error.name === "AbortError";
-}
-
-async function generateOne(credentials: { secretId: string; secretKey: string; subAppId: string }, prompt: string, body: CompanyImageRequest, signal?: AbortSignal) {
+export async function createCompanyImageTask(credentials: { secretId: string; secretKey: string; subAppId: string }, prompt: string, body: CompanyImageRequest, sessionContext: string, signal?: AbortSignal) {
     const resolved = resolveVodModel(body.model || "", body.quality);
     const isGg = resolved.modelName === "GG";
     if (isGg && body.mask?.dataUrl) throw new Error("蒙版编辑暂不支持该模型，请使用其他渠道");
@@ -105,30 +112,76 @@ async function generateOne(credentials: { secretId: string; secretKey: string; s
         ModelVersion: resolved.modelVersion,
         Prompt: prompt,
         EnhancePrompt: "Disabled",
+        SessionContext: sessionContext,
         OutputConfig: outputConfig,
         ...(fileInfos.length ? { FileInfos: fileInfos } : {}),
         ...(Object.keys(additional).length ? { ExtInfo: JSON.stringify({ AdditionalParameters: JSON.stringify(additional) }) } : {}),
     }, signal);
     const taskId = created.TaskId?.trim();
     if (!taskId) throw new Error("腾讯云点播生图失败");
-    const fileUrl = await pollTask(credentials, taskId, signal);
-    return { id: crypto.randomUUID(), dataUrl: await fileUrlToDataUrl(fileUrl, signal), sourceUrl: fileUrl };
+    return taskId;
 }
 
-async function pollTask(credentials: { secretId: string; secretKey: string; subAppId: string }, taskId: string, signal?: AbortSignal) {
-    while (true) {
-        if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-        const detail = await callVod<DescribeTaskPayload>(credentials, "DescribeTaskDetail", { SubAppId: Number(credentials.subAppId), TaskId: taskId }, signal);
-        const task = detail.AigcImageTask;
-        const status = (task?.Status || detail.Status || "").toUpperCase();
-        if (task?.ErrCode || task?.ErrCodeExt || status === "FAIL") throw new Error(task?.Message || task?.ErrCodeExt || "腾讯云点播生图失败");
-        if (status === "FINISH") {
-            const fileUrl = task?.Output?.FileInfos?.map((item) => item.FileUrl).find(Boolean);
-            if (!fileUrl) throw new Error("腾讯云点播任务完成但没有返回图片");
-            return fileUrl;
+export async function describeVodTask(credentials: { secretId: string; secretKey: string; subAppId: string }, taskId: string): Promise<VodTaskSnapshot> {
+    const detail = await callVod<DescribeTaskPayload>(credentials, "DescribeTaskDetail", { SubAppId: Number(credentials.subAppId), TaskId: taskId });
+    const kind: VodTaskKind = detail.AigcVideoTask ? "video" : "image";
+    const snapshot = snapshotFromAigcTask(detail.AigcImageTask || detail.AigcVideoTask || { TaskId: taskId, Status: detail.Status }, kind, detail.Status) || {
+        taskId,
+        kind,
+        status: "PROCESSING",
+        fileUrl: "",
+        error: "",
+        sessionContext: "",
+    };
+    return { ...snapshot, taskId: snapshot.taskId || taskId };
+}
+
+export function parseVodCallback(body: unknown) {
+    const snapshots: VodTaskSnapshot[] = [];
+    const visit = (value: unknown) => {
+        if (!value) return;
+        if (Array.isArray(value)) {
+            value.forEach(visit);
+            return;
         }
-        await sleep(POLL_INTERVAL_MS, signal);
+        if (typeof value !== "object") return;
+        const record = value as Record<string, unknown>;
+        const eventType = String(record.EventType || "").trim();
+        if (eventType === "AigcImageTaskComplete" || record.AigcImageCompleteEvent) {
+            const snapshot = snapshotFromAigcTask(record.AigcImageCompleteEvent, "image");
+            if (snapshot) snapshots.push(snapshot);
+        }
+        if (eventType === "AigcVideoTaskComplete" || record.AigcVideoCompleteEvent) {
+            const snapshot = snapshotFromAigcTask(record.AigcVideoCompleteEvent, "video");
+            if (snapshot) snapshots.push(snapshot);
+        }
+        visit(record.EventSet);
+        visit(record.EventContent);
+        visit(record.Response);
+    };
+    visit(body);
+    return snapshots;
+}
+
+function snapshotFromAigcTask(value: unknown, kind: VodTaskKind, fallbackStatus?: string): VodTaskSnapshot | null {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        if (!fallbackStatus) return null;
+        return { taskId: "", kind, status: normalizeTaskStatus(fallbackStatus, 0, ""), fileUrl: "", error: "", sessionContext: "" };
     }
+    const task = value as AigcTaskPayload;
+    const taskId = String(task.TaskId || "").trim();
+    const error = String(task.Message || task.ErrCodeExt || "").trim();
+    const status = normalizeTaskStatus(task.Status || fallbackStatus, task.ErrCode, task.ErrCodeExt);
+    const fileUrl = (task.Output?.FileInfos || []).map((item) => String(item.FileUrl || "").trim()).find(Boolean) || "";
+    if (!taskId && status === "PROCESSING") return null;
+    return { taskId, kind, status, fileUrl, error, sessionContext: String(task.SessionContext || "").trim() };
+}
+
+function normalizeTaskStatus(status: string | undefined, errCode?: number, errCodeExt?: string): VodTaskSnapshot["status"] {
+    const value = String(status || "").toUpperCase();
+    if (errCode || errCodeExt || value === "FAIL" || value === "FAILED") return "FAIL";
+    if (value === "FINISH" || value === "DONE" || value === "SUCCESS") return "FINISH";
+    return "PROCESSING";
 }
 
 async function callVod<T>(credentials: { secretId: string; secretKey: string }, action: string, payload: Record<string, unknown>, signal?: AbortSignal) {
@@ -219,7 +272,7 @@ function toRawBase64(dataUrl: string) {
     return index >= 0 ? dataUrl.slice(index + 1) : dataUrl;
 }
 
-async function fileUrlToDataUrl(url: string, signal?: AbortSignal) {
+export async function fileUrlToDataUrl(url: string, signal?: AbortSignal) {
     try {
         const response = await fetch(url, { signal });
         const mime = response.headers.get("content-type") || "image/png";
@@ -228,19 +281,4 @@ async function fileUrlToDataUrl(url: string, signal?: AbortSignal) {
     } catch {
         return url;
     }
-}
-
-function sleep(ms: number, signal?: AbortSignal) {
-    return new Promise<void>((resolve, reject) => {
-        if (signal?.aborted) {
-            reject(new DOMException("Aborted", "AbortError"));
-            return;
-        }
-        const timer = setTimeout(resolve, ms);
-        const onAbort = () => {
-            clearTimeout(timer);
-            reject(new DOMException("Aborted", "AbortError"));
-        };
-        signal?.addEventListener("abort", onAbort, { once: true });
-    });
 }

@@ -1,10 +1,11 @@
 import { mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
-import { addCredits, deleteAssetsByJobRole, deleteJob, findAsset, findJobById, findUserById, getAppSetting, insertAsset, insertJob, insertLedger, listAssetsByJob, listJobsByUser, setAppSetting, updateJob, withImmediate } from "./db";
+import { addCredits, deleteAsset, deleteAssetsByJobRole, deleteJob, findAsset, findJobById, findUserById, getAppSetting, insertAsset, insertJob, insertLedger, listAssetsByJob, listJobsByStatus, listJobsByUser, setAppSetting, updateJob, withImmediate } from "./db";
 import type { GenerationAssetRole, GenerationJobRow } from "./schema";
 import { dataDir } from "./env";
-import { generateCompanyTencentVodImagesSettled, type CompanyImageRequest } from "./tencent-vod";
+import { publishGenerationEvent } from "./generation-events";
+import { createCompanyImageTask, decodeTaskContext, describeVodTask, encodeTaskContext, fileUrlToDataUrl, parseVodCallback, type CompanyImageRequest, type VodTaskSnapshot } from "./tencent-vod";
 import { resolveSharedTencentChannel } from "./channels";
 
 export class CreditError extends Error {}
@@ -17,6 +18,43 @@ function generationsRoot() {
 
 function plannedCount(body: CompanyImageRequest) {
     return Math.max(1, Math.min(15, Math.floor(Number(body.count) || 1)));
+}
+
+type TencentTaskSlot = {
+    taskId: string;
+    index: number;
+    kind: "image" | "video";
+    status: "processing" | "finish" | "fail";
+    error?: string;
+    fileUrl?: string;
+};
+
+function isAbortError(error: unknown) {
+    return error instanceof DOMException && error.name === "AbortError";
+}
+
+function tencentSlots(extra: Record<string, unknown>): TencentTaskSlot[] {
+    if (!Array.isArray(extra.tencentTasks)) return [];
+    return extra.tencentTasks.flatMap((item) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+        const record = item as Record<string, unknown>;
+        const status = record.status === "finish" || record.status === "fail" ? record.status : "processing";
+        return [
+            {
+                taskId: String(record.taskId || "").trim(),
+                index: Math.max(0, Math.round(Number(record.index) || 0)),
+                kind: record.kind === "video" ? "video" : "image",
+                status,
+                error: String(record.error || ""),
+                fileUrl: String(record.fileUrl || ""),
+            },
+        ];
+    });
+}
+
+function notifyJob(job: GenerationJobRow) {
+    const user = findUserById(job.user_id);
+    publishGenerationEvent(job.user_id, { generation: publicJob(job), creditBalance: user?.credit_balance ?? 0 });
 }
 
 function reserveCredits(userId: string, count: number) {
@@ -97,7 +135,7 @@ function publicJob(job: NonNullable<ReturnType<typeof findJobById>>, assets = li
             height: asset.height,
             bytes: asset.bytes,
         })),
-        resultUrls: sanitizeResultUrls(extra.resultUrls),
+        resultUrls: Array.isArray(extra.resultUrls) ? extra.resultUrls.map((item) => String(item || "")).filter(isRemoteUrl) : [],
         references: mapStoredRefs(job.id, extra.references, assets),
         videoReferences: mapStoredRefs(job.id, extra.videoReferences, assets),
         audioReferences: mapStoredRefs(job.id, extra.audioReferences, assets),
@@ -231,25 +269,124 @@ async function replaceRoleMedia(userId: string, jobId: string, role: GenerationA
     return meta;
 }
 
-function saveJob(input: {
-    userId: string;
-    jobId?: string;
-    body: CompanyImageRequest;
-    planned: number;
-    images: Array<{ dataUrl: string; sourceUrl?: string }>;
-    error: string;
-    durationMs: number;
-}) {
-    const successCount = input.images.length;
-    const failCount = input.planned - successCount;
+function replaceResultAsset(userId: string, jobId: string, index: number, file: { mime: string; bytes: Buffer; width: number; height: number }) {
+    const itemIndex = ROLE_INDEX.result + index;
+    const existing = findAsset(jobId, itemIndex);
+    if (existing) {
+        try {
+            unlinkSync(join(generationsRoot(), existing.path));
+        } catch {
+            // Missing files should not block replacing assets.
+        }
+        deleteAsset(jobId, itemIndex);
+    }
+    writeParsedAsset(userId, jobId, "result", index, file);
+}
+
+function findJobForVodSnapshot(snapshot: VodTaskSnapshot) {
+    const context = decodeTaskContext(snapshot.sessionContext);
+    if (context) {
+        const job = findJobById(context.jobId);
+        if (job) return { job, index: context.index };
+    }
+    if (!snapshot.taskId) return null;
+    for (const job of listJobsByStatus("running")) {
+        const slot = tencentSlots(parseExtra(job.extra_json)).find((item) => item.taskId === snapshot.taskId);
+        if (slot) return { job, index: slot.index };
+    }
+    return null;
+}
+
+async function applyVodTaskSnapshot(snapshot: VodTaskSnapshot) {
+    const matched = findJobForVodSnapshot(snapshot);
+    if (!matched) return null;
+    const { job, index } = matched;
+    if (job.status !== "running") return publicJob(job);
+    const extra = parseExtra(job.extra_json);
+    const slots = tencentSlots(extra);
+    const slot = slots.find((item) => item.index === index) || { taskId: snapshot.taskId, index, kind: snapshot.kind, status: "processing" as const };
+    if (!slots.some((item) => item.index === index)) slots.push(slot);
+    if (slot.status === "finish" || slot.status === "fail") return publicJob(job);
+    if (snapshot.status === "PROCESSING") return publicJob(job);
+    slot.taskId = slot.taskId || snapshot.taskId;
+    slot.kind = snapshot.kind;
+    const now = Date.now();
+    if (snapshot.status === "FINISH" && snapshot.fileUrl) {
+        slot.status = "finish";
+        slot.fileUrl = snapshot.fileUrl;
+        slot.error = "";
+        if (getStoreMediaSetting()) {
+            delete extra.resultUrls;
+            const dataUrl = await fileUrlToDataUrl(snapshot.fileUrl);
+            const parsed = parseDataUrl(dataUrl);
+            if (parsed) replaceResultAsset(job.user_id, job.id, index, parsed);
+            else extra.resultUrls = upsertResultUrl(extra.resultUrls, index, snapshot.fileUrl, job.count);
+        } else {
+            extra.resultUrls = upsertResultUrl(extra.resultUrls, index, snapshot.fileUrl, job.count);
+        }
+        withImmediate(() => insertLedger({ id: crypto.randomUUID(), user_id: job.user_id, job_id: job.id, delta: -1, reason: "generate", created_at: now }));
+    } else {
+        slot.status = "fail";
+        slot.error = snapshot.error || (snapshot.status === "FINISH" ? "腾讯云点播任务完成但没有返回文件" : "腾讯云点播任务失败");
+        withImmediate(() => addCredits(job.user_id, 1));
+    }
+    extra.tencentTasks = slots;
+    const successCount = slots.filter((item) => item.status === "finish").length;
+    const failCount = slots.filter((item) => item.status === "fail").length;
+    const pending = slots.some((item) => item.status === "processing");
+    const next: GenerationJobRow = {
+        ...job,
+        extra_json: JSON.stringify(extra),
+        success_count: successCount,
+        fail_count: failCount,
+        status: pending ? "running" : successCount ? "success" : "failed",
+        error: pending ? "" : successCount ? "" : slot.error || job.error || "腾讯云点播生图失败",
+        duration_ms: Math.max(0, now - (job.started_at || job.created_at || now)),
+        updated_at: now,
+        finished_at: pending ? 0 : now,
+    };
+    updateJob(next);
+    const saved = findJobById(job.id)!;
+    notifyJob(saved);
+    return publicJob(saved);
+}
+
+function upsertResultUrl(value: unknown, index: number, url: string, count: number) {
+    const current = Array.isArray(value) ? value.map((item) => String(item || "")) : [];
+    const next = Array.from({ length: Math.max(count, index + 1, current.length) }, (_, itemIndex) => current[itemIndex] || "");
+    next[index] = url;
+    return next;
+}
+
+export async function handleTencentVodCallback(body: unknown) {
+    for (const snapshot of parseVodCallback(body)) {
+        await applyVodTaskSnapshot(snapshot);
+    }
+}
+
+export async function refreshGenerationJob(userId: string, jobId: string) {
+    const job = findJobById(jobId);
+    if (!job || job.user_id !== userId) return null;
+    const extra = parseExtra(job.extra_json);
+    const slots = tencentSlots(extra);
+    if (job.status === "running" && slots.length) {
+        const { credentials } = resolveSharedTencentChannel(String(extra.channelId || ""));
+        for (const slot of slots) {
+            if (slot.status !== "processing" || !slot.taskId) continue;
+            const snapshot = await describeVodTask(credentials, slot.taskId);
+            await applyVodTaskSnapshot({ ...snapshot, taskId: slot.taskId, sessionContext: snapshot.sessionContext || encodeTaskContext(job.id, slot.index) });
+        }
+    }
+    const latest = findJobById(jobId);
+    if (!latest || latest.user_id !== userId) return null;
+    return publicJob(latest);
+}
+
+function saveRunningJob(input: { userId: string; jobId?: string; body: CompanyImageRequest; planned: number; extra: Record<string, unknown> }) {
     const existing = input.jobId ? findJobById(input.jobId) : null;
     if (input.jobId && (!existing || existing.user_id !== input.userId)) throw new Error("记录不存在");
-    const jobId = existing?.id || crypto.randomUUID();
     const now = Date.now();
-    const storeMedia = getStoreMediaSetting();
-    const extra = parseExtra(existing?.extra_json);
-    if (storeMedia) delete extra.resultUrls;
-    else extra.resultUrls = input.images.map((image) => image.sourceUrl || "").filter(isRemoteUrl);
+    const jobId = existing?.id || crypto.randomUUID();
     const row: GenerationJobRow = {
         id: jobId,
         user_id: input.userId,
@@ -259,32 +396,22 @@ function saveJob(input: {
         size: String(input.body.size || existing?.size || ""),
         quality: String(input.body.quality || existing?.quality || ""),
         count: input.planned,
-        status: successCount ? "success" : "failed",
-        error: successCount ? "" : input.error,
-        duration_ms: Math.round(input.durationMs),
-        success_count: successCount,
-        fail_count: failCount,
-        extra_json: JSON.stringify(extra),
+        status: "running",
+        error: "",
+        duration_ms: 0,
+        success_count: 0,
+        fail_count: 0,
+        extra_json: JSON.stringify(input.extra),
         created_at: existing?.created_at || now,
         updated_at: now,
-        started_at: existing?.started_at || now - Math.round(input.durationMs),
-        finished_at: now,
+        started_at: existing?.started_at || now,
+        finished_at: 0,
     };
-    withImmediate(() => {
-        addCredits(input.userId, failCount);
-        if (existing) updateJob(row);
-        else insertJob(row);
-        if (storeMedia) {
-            clearRoleAssets(jobId, "result");
-            input.images.forEach((image, index) => {
-                const parsed = parseDataUrl(image.dataUrl);
-                if (parsed) writeParsedAsset(input.userId, jobId, "result", index, parsed);
-            });
-        }
-        if (successCount) {
-            insertLedger({ id: crypto.randomUUID(), user_id: input.userId, job_id: jobId, delta: -successCount, reason: "generate", created_at: now });
-        }
-    });
+    const slots = tencentSlots(input.extra);
+    row.success_count = slots.filter((item) => item.status === "finish").length;
+    row.fail_count = slots.filter((item) => item.status === "fail").length;
+    if (existing) updateJob(row);
+    else insertJob(row);
     return findJobById(jobId)!;
 }
 
@@ -297,50 +424,53 @@ function markJobFailed(userId: string, jobId: string, error: string) {
 export async function generateCompanyImages(userId: string, body: CompanyImageRequest, signal?: AbortSignal) {
     const prompt = String(body.prompt || "").trim();
     if (!prompt) throw new Error("请输入提示词");
-    const { credentials } = resolveSharedTencentChannel(body.channelId);
+    const { credentials, row } = resolveSharedTencentChannel(body.channelId);
     const planned = plannedCount(body);
     const jobId = String(body.jobId || "").trim() || undefined;
     reserveCredits(userId, planned);
-    const started = Date.now();
-    let settled = false;
+    const extra = parseExtra(jobId ? findJobById(jobId)?.extra_json : undefined);
+    extra.channelId = row.id;
+    extra.tencentTasks = [];
+    let job = saveRunningJob({ userId, jobId, body: { ...body, prompt, count: planned }, planned, extra });
+    const slots: TencentTaskSlot[] = [];
     try {
-        const result = await generateCompanyTencentVodImagesSettled({ ...body, count: planned }, credentials, signal);
-        if (result.aborted && !result.images.length) {
-            withImmediate(() => addCredits(userId, planned));
-            if (jobId) markJobFailed(userId, jobId, "请求已取消");
-            settled = true;
-            throw new DOMException("Aborted", "AbortError");
-        }
-        const job = saveJob({
-            userId,
-            jobId,
-            body,
-            planned,
-            images: result.images,
-            error: result.errors[0] || (result.aborted ? "请求已取消" : "腾讯云点播生图失败"),
-            durationMs: Date.now() - started,
-        });
-        settled = true;
-        const user = findUserById(userId);
-        if (result.aborted) throw new DOMException("Aborted", "AbortError");
-        if (!result.images.length) throw new Error(job.error || "腾讯云点播生图失败");
-        return {
-            id: job.id,
-            images: result.images,
-            failCount: job.fail_count,
-            creditBalance: user?.credit_balance ?? 0,
-        };
-    } catch (error) {
-        if (!settled) {
+        for (let index = 0; index < planned; index += 1) {
+            if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
             try {
-                withImmediate(() => addCredits(userId, planned));
-            } catch {
-                // Keep the original generate error.
+                const taskId = await createCompanyImageTask(credentials, prompt, { ...body, count: 1 }, encodeTaskContext(job.id, index), signal);
+                slots.push({ taskId, index, kind: "image", status: "processing" });
+            } catch (error) {
+                if (isAbortError(error) || signal?.aborted) throw error;
+                slots.push({ taskId: "", index, kind: "image", status: "fail", error: error instanceof Error ? error.message : "腾讯云点播生图失败" });
+                withImmediate(() => addCredits(userId, 1));
             }
-            if (jobId) markJobFailed(userId, jobId, error instanceof Error ? error.message : "腾讯云点播生图失败");
+            extra.tencentTasks = slots;
+            job = saveRunningJob({ userId, jobId: job.id, body: { ...body, prompt, count: planned }, planned, extra });
         }
-        throw error;
+    } catch (error) {
+        const uncreated = planned - slots.length;
+        if (uncreated > 0) withImmediate(() => addCredits(userId, uncreated));
+        for (let index = slots.length; index < planned; index += 1) {
+            slots.push({ taskId: "", index, kind: "image", status: "fail", error: isAbortError(error) ? "请求已取消" : error instanceof Error ? error.message : "腾讯云点播生图失败" });
+        }
+        extra.tencentTasks = slots;
+        job = saveRunningJob({ userId, jobId: job.id, body: { ...body, prompt, count: planned }, planned, extra });
+        if (!slots.some((slot) => slot.status === "processing")) {
+            markJobFailed(userId, job.id, isAbortError(error) ? "请求已取消" : error instanceof Error ? error.message : "腾讯云点播生图失败");
+            throw error;
+        }
     }
+    if (!slots.some((slot) => slot.status === "processing")) {
+        const failed = findJobById(job.id)!;
+        const error = slots.find((slot) => slot.error)?.error || "腾讯云点播生图失败";
+        const next = { ...failed, extra_json: failed.extra_json || "", status: "failed" as const, error, fail_count: slots.length, updated_at: Date.now(), finished_at: Date.now(), started_at: failed.started_at || 0 };
+        updateJob(next);
+        notifyJob(findJobById(job.id)!);
+        throw new Error(error);
+    }
+    const latest = findJobById(job.id)!;
+    notifyJob(latest);
+    return { id: latest.id, status: latest.status, creditBalance: findUserById(userId)?.credit_balance ?? 0 };
 }
 
 type MediaInput = {

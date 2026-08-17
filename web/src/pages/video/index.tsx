@@ -1,6 +1,6 @@
-import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, LoaderCircle, Music2, Plus, Save, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, LoaderCircle, Music2, Plus, RefreshCw, Save, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { App, Button, Checkbox, Drawer, Empty, Input, Modal, Tag, Typography } from "antd";
+import { App, Button, Checkbox, Drawer, Empty, Input, Modal, Tag, Tooltip, Typography } from "antd";
 import { nanoid } from "nanoid";
 import { saveAs } from "file-saver";
 import { useTranslation } from "react-i18next";
@@ -16,8 +16,10 @@ import { boolConfig, isSeedanceVideoConfig, normalizeSeedanceRatio, seedanceRefe
 import { deleteStoredMedia, resolveMediaUrl, uploadMediaFile } from "@/services/file-storage";
 import { uploadImage } from "@/services/image-storage";
 import { createVideoGenerationTask, pollVideoGenerationTask, storeGeneratedVideo, type VideoGenerationTask } from "@/services/api/video";
-import { createGeneration, deleteGeneration, fetchGenerations, updateGeneration, type GenerationRecord, type GenerationStatus, type GenerationWriteInput } from "@/services/api/generations";
+import { subscribeGenerationEvents } from "@/services/api/generation-events";
+import { createGeneration, deleteGeneration, fetchGenerations, refreshGeneration, updateGeneration, type GenerationRecord, type GenerationStatus, type GenerationWriteInput } from "@/services/api/generations";
 import { useAssetStore } from "@/stores/use-asset-store";
+import { useUserStore } from "@/stores/use-user-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import { modelOptionLabel, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useConfigAccess } from "@/hooks/use-config-access";
@@ -74,6 +76,8 @@ type GenerationLogConfig = Pick<AiConfig, "model" | "videoModel" | "size" | "vqu
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
 
+const REFRESH_INTERVAL_MS = 5000;
+
 export default function VideoPage() {
     const { message } = App.useApp();
     const { t } = useTranslation();
@@ -110,7 +114,11 @@ export default function VideoPage() {
     const processedCommandRef = useRef(0);
     const agentTaskIdRef = useRef<string | undefined>(undefined);
     const currentJobIdRef = useRef<string | null>(null);
+    const applyRemoteJobRef = useRef<(record: GenerationRecord) => void>(() => undefined);
+    const jobStatusRef = useRef<Record<string, GenerationStatus>>({});
     const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
+    const [refreshLockedUntil, setRefreshLockedUntil] = useState(0);
 
     const model = effectiveConfig.videoModel || effectiveConfig.model;
     const canGenerate = Boolean(prompt.trim());
@@ -124,6 +132,20 @@ export default function VideoPage() {
     useEffect(() => {
         void refreshLogs();
     }, []);
+
+    useEffect(() => {
+        return subscribeGenerationEvents((payload) => {
+            if (typeof payload.creditBalance === "number") useUserStore.getState().setCreditBalance(payload.creditBalance);
+            if (payload.generation.kind && payload.generation.kind !== "video") return;
+            applyRemoteJobRef.current(payload.generation);
+        });
+    }, []);
+
+    useEffect(() => {
+        if (refreshLockedUntil <= Date.now()) return;
+        const timer = window.setTimeout(() => setRefreshLockedUntil(0), refreshLockedUntil - Date.now());
+        return () => window.clearTimeout(timer);
+    }, [refreshLockedUntil]);
 
     const addReferences = async (files?: FileList | null) => {
         const selectedFiles = Array.from(files || []);
@@ -445,11 +467,50 @@ export default function VideoPage() {
         try {
             const nextLogs = await Promise.all((await fetchGenerations("video")).map(toGenerationLog));
             setLogs(nextLogs);
+            nextLogs.forEach((log) => {
+                jobStatusRef.current[log.id] = log.status;
+            });
             if (resumePending) resumePendingLogs(nextLogs);
             return nextLogs;
         } catch {
             setLogs([]);
             return [];
+        }
+    };
+
+    const applyRemoteJob = (record: GenerationRecord) => {
+        void toGenerationLog(record).then((log) => {
+            setLogs((items) => {
+                const next = items.some((item) => item.id === log.id) ? items.map((item) => (item.id === log.id ? log : item)) : [log, ...items];
+                return next.toSorted((left, right) => (right.updatedAt || right.createdAt) - (left.updatedAt || left.createdAt));
+            });
+            const previous = jobStatusRef.current[record.id];
+            jobStatusRef.current[record.id] = record.status;
+            if (record.id !== currentJobIdRef.current) return;
+            previewResults(log);
+            if (record.status === "running") {
+                setRunning(true);
+                return;
+            }
+            if (!activeLogIdsRef.current.size) setRunning(false);
+            if ((record.status === "success" || record.status === "failed") && previous !== record.status) {
+                record.status === "success" ? message.success(t("videoWorkbench.generated")) : message.error(record.error || t("workbench.generationFailed"));
+            }
+        });
+    };
+    applyRemoteJobRef.current = applyRemoteJob;
+
+    const refreshTask = async () => {
+        const jobId = currentJobIdRef.current;
+        if (!jobId || refreshing || Date.now() < refreshLockedUntil) return;
+        setRefreshLockedUntil(Date.now() + REFRESH_INTERVAL_MS);
+        setRefreshing(true);
+        try {
+            applyRemoteJob(await refreshGeneration(jobId));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t("workbench.refreshFailed"));
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -549,6 +610,10 @@ export default function VideoPage() {
         }
     };
 
+    const previewResults = (log: GenerationLog) => {
+        setResults(log.status === "running" ? [{ id: log.id, status: "pending" }] : log.video ? [{ id: log.video.id, status: "success", video: log.video }] : log.resultUnsaved ? [{ id: log.id, status: "unsaved" }] : log.status === "draft" ? [] : [{ id: log.id, status: "failed", error: log.error || t("workbench.generationFailed") }]);
+    };
+
     const previewGenerationLog = (log: GenerationLog) => {
         setSessionId(log.id);
         setPreviewLog(log);
@@ -563,7 +628,9 @@ export default function VideoPage() {
         if (log.config.videoSeconds) updateConfig("videoSeconds", log.config.videoSeconds);
         if (log.config.videoGenerateAudio) updateConfig("videoGenerateAudio", log.config.videoGenerateAudio);
         if (log.config.videoWatermark) updateConfig("videoWatermark", log.config.videoWatermark);
-        setResults(log.status === "running" ? [{ id: log.id, status: "pending" }] : log.video ? [{ id: log.video.id, status: "success", video: log.video }] : log.resultUnsaved ? [{ id: log.id, status: "unsaved" }] : log.status === "draft" ? [] : [{ id: log.id, status: "failed", error: log.error || t("workbench.generationFailed") }]);
+        previewResults(log);
+        setRunning(log.status === "running");
+        if (log.status === "running") setStartedAt(performance.now() - Math.max(0, Date.now() - (log.startedAt || log.createdAt)));
     };
 
     return (
@@ -734,7 +801,14 @@ export default function VideoPage() {
                     <div className="thin-scrollbar rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:min-h-0 lg:overflow-y-auto lg:p-5">
                         <div className="mb-4 flex items-center justify-between gap-3">
                             <h2 className="text-xl font-semibold">{t("workbench.results")}</h2>
-                            {running ? <Tag className="m-0 px-2 py-1">{t("workbench.waiting", { time: formatDuration(elapsedMs) })}</Tag> : null}
+                            <div className="flex items-center gap-2">
+                                {running || results.some((result) => result.status === "pending") ? (
+                                    <Tooltip title={t("workbench.refreshTask")}>
+                                        <Button type="text" className="px-1.5" icon={<RefreshCw className="size-4" />} loading={refreshing} disabled={refreshLockedUntil > Date.now()} onClick={() => void refreshTask()} />
+                                    </Tooltip>
+                                ) : null}
+                                {running ? <Tag className="m-0 px-2 py-1">{t("workbench.waiting", { time: formatDuration(elapsedMs) })}</Tag> : null}
+                            </div>
                         </div>
                         {results.length ? (
                             <div className="grid gap-4">

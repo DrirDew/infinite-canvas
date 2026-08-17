@@ -72,8 +72,18 @@ export type GenerationWriteInput = {
 };
 
 export async function fetchGenerations(kind?: GenerationKind) {
-    const response = await appApi.get<{ generations?: GenerationRecord[] }>("/api/generations", { params: kind ? { kind } : undefined });
-    return response.data.generations || [];
+    const response = await appApi.get<{ generations: GenerationRecord[] }>("/api/generations", { params: kind ? { kind } : undefined });
+    return response.data.generations ?? [];
+}
+
+export async function fetchGeneration(id: string) {
+    const response = await appApi.get<GenerationRecord>(`/api/generations/${id}`);
+    return response.data;
+}
+
+export async function refreshGeneration(id: string) {
+    const response = await appApi.post<GenerationRecord>(`/api/generations/${id}/refresh`);
+    return response.data;
 }
 
 export async function createGeneration(input: GenerationWriteInput) {

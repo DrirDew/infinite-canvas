@@ -250,12 +250,20 @@ export function findJobById(id: string) {
     return db().query("SELECT * FROM generation_jobs WHERE id = ?").get(id) as GenerationJobRow | null;
 }
 
+export function listJobsByStatus(status: string) {
+    return db().query("SELECT * FROM generation_jobs WHERE status = ?").all(status) as GenerationJobRow[];
+}
+
 export function listAssetsByJob(jobId: string) {
     return db().query("SELECT * FROM generation_assets WHERE job_id = ? ORDER BY item_index ASC").all(jobId) as GenerationAssetRow[];
 }
 
 export function findAsset(jobId: string, index: number) {
     return db().query("SELECT * FROM generation_assets WHERE job_id = ? AND item_index = ?").get(jobId, index) as GenerationAssetRow | null;
+}
+
+export function deleteAsset(jobId: string, index: number) {
+    db().query("DELETE FROM generation_assets WHERE job_id = ? AND item_index = ?").run(jobId, index);
 }
 
 export function deleteJob(id: string) {

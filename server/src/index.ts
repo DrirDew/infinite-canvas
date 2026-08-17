@@ -1,10 +1,12 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 
 import { clearSessionCookie, createSession, requireAdmin, requireUser, writeSessionCookie, type AppEnv } from "./auth";
 import { bootstrapChannels, createSharedChannel, patchSharedChannel, publicChannels, removeSharedChannel, type ChannelInput } from "./channels";
 import { bootstrapAdmin, findUserByUsername, generatedCountForUser } from "./db";
 import { loadRootEnv } from "./env";
-import { CreditError, createGeneration, generateCompanyImages, getGeneration, getStoreMediaSetting, listGenerations, patchGeneration, readGenerationAsset, removeGeneration, setStoreMediaSetting } from "./generations";
+import { addGenerationEventClient } from "./generation-events";
+import { CreditError, createGeneration, generateCompanyImages, getGeneration, getStoreMediaSetting, handleTencentVodCallback, listGenerations, patchGeneration, readGenerationAsset, refreshGenerationJob, removeGeneration, setStoreMediaSetting } from "./generations";
 import { toPublicUser } from "./schema";
 import { type CompanyImageRequest } from "./tencent-vod";
 import { usageForUser } from "./usage";
@@ -81,6 +83,19 @@ app.post("/api/tencent-vod/images", requireUser, async (c) => {
     }
 });
 
+app.post("/api/tencent-vod/callback", async (c) => {
+    const body = await c.req.json().catch(async () => {
+        const text = await c.req.text().catch(() => "");
+        try {
+            return JSON.parse(text) as unknown;
+        } catch {
+            return {};
+        }
+    });
+    await handleTencentVodCallback(body);
+    return c.json({ code: 0 });
+});
+
 app.get("/api/settings", requireUser, (c) => c.json({ storeMedia: getStoreMediaSetting() }));
 
 app.patch("/api/settings", requireUser, requireAdmin, async (c) => {
@@ -90,6 +105,24 @@ app.patch("/api/settings", requireUser, requireAdmin, async (c) => {
 });
 
 app.get("/api/generations", requireUser, (c) => c.json({ generations: listGenerations(c.get("user").id, c.req.query("kind")) }));
+
+app.get("/api/generations/events", requireUser, (c) => {
+    const userId = c.get("user").id;
+    return streamSSE(c, async (stream) => {
+        const send = (data: string) => {
+            void stream.writeSSE({ event: "generation", data });
+        };
+        const remove = addGenerationEventClient(userId, send);
+        try {
+            while (!c.req.raw.signal.aborted) {
+                await stream.writeSSE({ event: "ping", data: "{}" });
+                await stream.sleep(15000);
+            }
+        } finally {
+            remove();
+        }
+    });
+});
 
 app.post("/api/generations", requireUser, async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as { kind?: string };
@@ -105,6 +138,15 @@ app.patch("/api/generations/:id", requireUser, async (c) => {
 app.get("/api/generations/:id", requireUser, (c) => {
     const item = getGeneration(c.get("user").id, c.req.param("id"));
     return item ? c.json(item) : c.json({ error: "记录不存在" }, 404);
+});
+
+app.post("/api/generations/:id/refresh", requireUser, async (c) => {
+    try {
+        const item = await refreshGenerationJob(c.get("user").id, c.req.param("id"));
+        return item ? c.json(item) : c.json({ error: "记录不存在" }, 404);
+    } catch (error) {
+        return c.json({ error: error instanceof Error ? error.message : "刷新任务失败" }, 400);
+    }
 });
 
 app.get("/api/generations/:id/assets/:index", requireUser, (c) => {
@@ -168,6 +210,7 @@ app.notFound((c) => c.json({ error: "Not Found" }, 404));
 Bun.serve({
     port: PORT,
     hostname: "0.0.0.0",
+    idleTimeout: 255,
     maxRequestBodySize: 50 * 1024 * 1024,
     fetch: app.fetch,
 });

@@ -55,7 +55,7 @@ export default defineConfig({
             "/api": {
                 target: "http://127.0.0.1:8787",
                 changeOrigin: true,
-                timeout: 600000,
+                timeout: 0,
             },
             "/tencent-vod": {
                 target: "https://vod.tencentcloudapi.com",
@@ -70,7 +70,7 @@ export default defineConfig({
             "/api": {
                 target: "http://127.0.0.1:8787",
                 changeOrigin: true,
-                timeout: 600000,
+                timeout: 0,
             },
             "/tencent-vod": {
                 target: "https://vod.tencentcloudapi.com",

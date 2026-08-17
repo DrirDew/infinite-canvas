@@ -157,6 +157,8 @@ export default {
         generationFailed: "Generation failed",
         retrySuccess: "Retry succeeded",
         resultNotSaved: "Generation result was not saved",
+        refreshTask: "Refresh task status",
+        refreshFailed: "Could not refresh the task",
     },
     imageWorkbench: {
         title: "Image Studio",

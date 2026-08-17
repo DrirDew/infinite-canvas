@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, ImagePlus, LoaderCircle, PenLine, Plus, Save, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, History, ImagePlus, LoaderCircle, PenLine, Plus, RefreshCw, Save, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Checkbox, Drawer, Empty, Image, Input, Modal, Tag, Tooltip, Typography } from "antd";
 import { saveAs } from "file-saver";
@@ -17,7 +17,8 @@ import { nanoid } from "nanoid";
 import { formatBytes, formatDuration, getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { isRemoteMediaUrl, persistableImageRefs, persistableResultUrls } from "@/lib/generation-media";
 import { requestEdit, requestGeneration } from "@/services/api/image";
-import { createGeneration, deleteGeneration, fetchGenerations, updateGeneration, type GenerationRecord, type GenerationStatus, type GenerationWriteInput } from "@/services/api/generations";
+import { subscribeGenerationEvents } from "@/services/api/generation-events";
+import { createGeneration, deleteGeneration, fetchGenerations, refreshGeneration, updateGeneration, type GenerationRecord, type GenerationStatus, type GenerationWriteInput } from "@/services/api/generations";
 import { uploadImage } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -73,6 +74,7 @@ type GenerationLogConfig = Pick<AiConfig, "model" | "imageModel" | "quality" | "
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
 
 const RESULT_ACTION_BUTTON_CLASS = "min-w-0 px-1.5 [&_.ant-btn-icon]:shrink-0 [&>span:last-child]:min-w-0 [&>span:last-child]:truncate";
+const REFRESH_INTERVAL_MS = 5000;
 
 export default function ImagePage() {
     const { message } = App.useApp();
@@ -109,7 +111,11 @@ export default function ImagePage() {
     const processedCommandRef = useRef(0);
     const agentTaskIdRef = useRef<string | undefined>(undefined);
     const currentJobIdRef = useRef<string | null>(null);
+    const jobStatusRef = useRef<Record<string, GenerationStatus>>({});
+    const applyRemoteJobRef = useRef<(record: GenerationRecord) => void>(() => undefined);
     const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
+    const [refreshLockedUntil, setRefreshLockedUntil] = useState(0);
 
     const model = effectiveConfig.imageModel || effectiveConfig.model;
     const isManaged = isManagedChannel(resolveModelChannel(effectiveConfig, model));
@@ -125,6 +131,20 @@ export default function ImagePage() {
     useEffect(() => {
         void refreshLogs();
     }, []);
+
+    useEffect(() => {
+        return subscribeGenerationEvents((payload) => {
+            if (typeof payload.creditBalance === "number") useUserStore.getState().setCreditBalance(payload.creditBalance);
+            if (payload.generation.kind && payload.generation.kind !== "image") return;
+            applyRemoteJobRef.current(payload.generation);
+        });
+    }, []);
+
+    useEffect(() => {
+        if (refreshLockedUntil <= Date.now()) return;
+        const timer = window.setTimeout(() => setRefreshLockedUntil(0), refreshLockedUntil - Date.now());
+        return () => window.clearTimeout(timer);
+    }, [refreshLockedUntil]);
 
     const addReferences = async (files?: FileList | null) => {
         const imageFiles = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
@@ -198,6 +218,7 @@ export default function ImagePage() {
         let error: string | undefined;
         let completedImages: GeneratedImage[] = [];
         let jobId: string | undefined;
+        let remotePending = false;
         try {
             const currentStatus = logs.find((log) => log.id === currentJobIdRef.current)?.status;
             const reuse = currentStatus === "draft" || currentStatus === "running";
@@ -212,25 +233,10 @@ export default function ImagePage() {
             jobId = record.id;
             await refreshLogs();
             if (isManaged) {
-                const images = snapshot.references.length ? await requestEdit(snapshot.config, snapshot.text, snapshot.references, undefined, { jobId }) : await requestGeneration(snapshot.config, snapshot.text, { jobId });
-                const durationMs = performance.now() - batchStartedAt;
-                const nextResults = await Promise.all(
-                    Array.from({ length: generationCount }, async (_, index) => {
-                        const image = images[index];
-                        if (!image) return { id: nanoid(), status: "failed" as const, error: t("workbench.generationFailed") };
-                        const meta = await readImageMeta(image.dataUrl);
-                        return {
-                            id: image.id,
-                            status: "success" as const,
-                            image: { id: image.id, dataUrl: image.dataUrl, durationMs, width: meta.width, height: meta.height, bytes: getDataUrlByteSize(image.dataUrl) },
-                        };
-                    }),
-                );
-                setResults(nextResults);
-                completedImages = nextResults.flatMap((item) => (item.image ? [item.image] : []));
-                successCount = completedImages.length;
-                failCount = generationCount - successCount;
-                error = failCount ? t("workbench.generationFailed") : undefined;
+                snapshot.references.length
+                    ? await requestEdit(snapshot.config, snapshot.text, snapshot.references, undefined, { jobId, wait: false })
+                    : await requestGeneration(snapshot.config, snapshot.text, { jobId, wait: false });
+                remotePending = true;
             } else {
                 const result = await Promise.allSettled(Array.from({ length: generationCount }, (_, index) => runGenerationSlot(index, snapshot)));
                 completedImages = result.filter((item): item is PromiseFulfilledResult<GeneratedImage> => item.status === "fulfilled").map((item) => item.value);
@@ -244,29 +250,35 @@ export default function ImagePage() {
             failCount = generationCount;
             setResults(Array.from({ length: generationCount }, () => ({ id: nanoid(), status: "failed", error })));
         } finally {
-            setRunning(false);
-            if (agentTaskId) updateAgentTask(agentTaskId, { status: successCount ? "succeeded" : "failed", successCount, failCount, error: successCount ? undefined : error });
-            if (jobId && !isManaged) {
-                const images = completedImages.flatMap((image) => (image.dataUrl.startsWith("data:") ? [{ dataUrl: image.dataUrl }] : []));
-                const resultUrls = persistableResultUrls(completedImages.map((image) => image.dataUrl));
-                await updateGeneration(jobId, {
-                    ...draftFields(),
-                    prompt: snapshot.text,
-                    model: snapshot.config.model,
-                    size: snapshot.config.size,
-                    quality: snapshot.config.quality,
-                    status: successCount ? "success" : "failed",
-                    error: successCount ? "" : error || t("workbench.generationFailed"),
-                    durationMs: performance.now() - batchStartedAt,
-                    successCount,
-                    failCount,
-                    finishedAt: Date.now(),
-                    ...(storeMediaSetting && images.length ? { images } : {}),
-                    ...(!storeMediaSetting ? { resultUrls } : {}),
-                }).catch(() => undefined);
+            if (!remotePending) {
+                setRunning(false);
+                if (agentTaskId) updateAgentTask(agentTaskId, { status: successCount ? "succeeded" : "failed", successCount, failCount, error: successCount ? undefined : error });
+                if (jobId && !isManaged) {
+                    const images = completedImages.flatMap((image) => (image.dataUrl.startsWith("data:") ? [{ dataUrl: image.dataUrl }] : []));
+                    const resultUrls = persistableResultUrls(completedImages.map((image) => image.dataUrl));
+                    await updateGeneration(jobId, {
+                        ...draftFields(),
+                        prompt: snapshot.text,
+                        model: snapshot.config.model,
+                        size: snapshot.config.size,
+                        quality: snapshot.config.quality,
+                        status: successCount ? "success" : "failed",
+                        error: successCount ? "" : error || t("workbench.generationFailed"),
+                        durationMs: performance.now() - batchStartedAt,
+                        successCount,
+                        failCount,
+                        finishedAt: Date.now(),
+                        ...(storeMediaSetting && images.length ? { images } : {}),
+                        ...(!storeMediaSetting ? { resultUrls } : {}),
+                    }).catch(() => undefined);
+                } else if (jobId && isManaged && error) {
+                    await updateGeneration(jobId, { status: "failed", error, failCount: generationCount, successCount: 0, finishedAt: Date.now() }).catch(() => undefined);
+                }
+                void refreshLogs();
+                successCount ? message.success(t("imageWorkbench.generated")) : message.error(error || t("workbench.generationFailed"));
+            } else {
+                void refreshLogs();
             }
-            void refreshLogs();
-            successCount ? message.success(t("imageWorkbench.generated")) : message.error(error || t("workbench.generationFailed"));
         }
     };
 
@@ -410,9 +422,60 @@ export default function ImagePage() {
 
     const refreshLogs = async () => {
         try {
-            setLogs((await fetchGenerations("image")).map(toGenerationLog));
+            const items = (await fetchGenerations("image")).map(toGenerationLog);
+            setLogs(items);
+            items.forEach((log) => {
+                jobStatusRef.current[log.id] = log.status;
+            });
+            const runningLog = items.find((log) => log.status === "running");
+            if (runningLog && (!currentJobIdRef.current || currentJobIdRef.current === runningLog.id)) {
+                setSessionId(runningLog.id);
+                setRunning(true);
+                setStartedAt(performance.now() - Math.max(0, Date.now() - (runningLog.startedAt || runningLog.createdAt)));
+                setResults(resultsFromLog(runningLog));
+            }
         } catch {
             setLogs([]);
+        }
+    };
+
+    const applyRemoteJob = (record: GenerationRecord) => {
+        const log = toGenerationLog(record);
+        setLogs((items) => {
+            const next = items.some((item) => item.id === log.id) ? items.map((item) => (item.id === log.id ? log : item)) : [log, ...items];
+            return next.toSorted((left, right) => (right.updatedAt || right.createdAt) - (left.updatedAt || left.createdAt));
+        });
+        const previous = jobStatusRef.current[record.id];
+        jobStatusRef.current[record.id] = record.status;
+        if (record.id !== currentJobIdRef.current) return;
+        setResults(resultsFromLog(log));
+        if (record.status === "running") {
+            setRunning(true);
+            return;
+        }
+        setRunning(false);
+        const agentTaskId = agentTaskIdRef.current;
+        if (agentTaskId) {
+            agentTaskIdRef.current = undefined;
+            updateAgentTask(agentTaskId, { status: record.status === "success" ? "succeeded" : "failed", successCount: record.successCount, failCount: record.failCount, error: record.status === "success" ? undefined : record.error || t("workbench.generationFailed") });
+        }
+        if ((record.status === "success" || record.status === "failed") && previous !== record.status) {
+            record.status === "success" ? message.success(t("imageWorkbench.generated")) : message.error(record.error || t("workbench.generationFailed"));
+        }
+    };
+    applyRemoteJobRef.current = applyRemoteJob;
+
+    const refreshTask = async () => {
+        const jobId = currentJobIdRef.current;
+        if (!jobId || refreshing || Date.now() < refreshLockedUntil) return;
+        setRefreshLockedUntil(Date.now() + REFRESH_INTERVAL_MS);
+        setRefreshing(true);
+        try {
+            applyRemoteJob(await refreshGeneration(jobId));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t("workbench.refreshFailed"));
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -426,7 +489,9 @@ export default function ImagePage() {
         if (log.config.quality) updateConfig("quality", log.config.quality);
         if (log.config.size) updateConfig("size", log.config.size);
         if (log.config.count) updateConfig("count", log.config.count);
-        setResults(log.resultUnsaved ? [{ id: log.id, status: "unsaved" }] : log.images.map((image) => ({ id: image.id, status: "success", image })));
+        setResults(resultsFromLog(log));
+        setRunning(log.status === "running");
+        if (log.status === "running") setStartedAt(performance.now() - Math.max(0, Date.now() - (log.startedAt || log.createdAt)));
     };
 
     const buildRequestSnapshot = (count = 1) => {
@@ -610,10 +675,15 @@ export default function ImagePage() {
 
                     <div className="thin-scrollbar rounded-lg border border-stone-200 bg-card p-4 shadow-sm dark:border-stone-800 lg:min-h-0 lg:overflow-y-auto lg:p-5">
                         <div className="mb-4 flex items-center justify-between gap-3">
-                            <div>
-                                <h2 className="text-xl font-semibold">{t("workbench.results")}</h2>
+                            <h2 className="text-xl font-semibold">{t("workbench.results")}</h2>
+                            <div className="flex items-center gap-2">
+                                {running || results.some((result) => result.status === "pending") ? (
+                                    <Tooltip title={t("workbench.refreshTask")}>
+                                        <Button type="text" className="px-1.5" icon={<RefreshCw className="size-4" />} loading={refreshing} disabled={refreshLockedUntil > Date.now()} onClick={() => void refreshTask()} />
+                                    </Tooltip>
+                                ) : null}
+                                {running ? <Tag className="m-0 px-2 py-1">{t("workbench.waiting", { time: formatDuration(elapsedMs) })}</Tag> : null}
                             </div>
-                            {running ? <Tag className="m-0 px-2 py-1">{t("workbench.waiting", { time: formatDuration(elapsedMs) })}</Tag> : null}
                         </div>
                         {results.length ? (
                             <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
@@ -904,24 +974,7 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
 }
 
 function toGenerationLog(item: GenerationRecord): GenerationLog {
-    const assetImages = item.assets.filter((asset) => !asset.mime.startsWith("video/") && !asset.mime.startsWith("audio/")).map((asset) => ({
-        id: `${item.id}-${asset.index}`,
-        dataUrl: asset.url,
-        durationMs: item.durationMs,
-        width: asset.width,
-        height: asset.height,
-        bytes: asset.bytes,
-        mimeType: asset.mime,
-    }));
-    const urlImages = (item.resultUrls || []).filter(isRemoteMediaUrl).map((url, index) => ({
-        id: `${item.id}-url-${index}`,
-        dataUrl: url,
-        durationMs: item.durationMs,
-        width: 0,
-        height: 0,
-        bytes: 0,
-    }));
-    const images = assetImages.length ? assetImages : urlImages;
+    const images = imagesFromRecord(item);
     return {
         id: item.id,
         createdAt: item.createdAt,
@@ -945,6 +998,40 @@ function toGenerationLog(item: GenerationRecord): GenerationLog {
         thumbnails: images.map((image) => image.dataUrl),
         resultUnsaved: item.status === "success" && !images.length,
     };
+}
+
+function imagesFromRecord(item: GenerationRecord): GeneratedImage[] {
+    const slots: Array<GeneratedImage | undefined> = Array.from({ length: Math.max(1, item.count || 1) });
+    for (const asset of item.assets) {
+        if (asset.mime.startsWith("video/") || asset.mime.startsWith("audio/")) continue;
+        if (asset.index < 0 || asset.index >= slots.length) continue;
+        slots[asset.index] = {
+            id: `${item.id}-${asset.index}`,
+            dataUrl: asset.url,
+            durationMs: item.durationMs,
+            width: asset.width,
+            height: asset.height,
+            bytes: asset.bytes,
+            mimeType: asset.mime,
+        };
+    }
+    (item.resultUrls || []).forEach((url, index) => {
+        if (slots[index] || !isRemoteMediaUrl(url)) return;
+        slots[index] = { id: `${item.id}-url-${index}`, dataUrl: url, durationMs: item.durationMs, width: 0, height: 0, bytes: 0 };
+    });
+    return slots.filter((item): item is GeneratedImage => Boolean(item));
+}
+
+function resultsFromLog(log: GenerationLog): GenerationResult[] {
+    if (log.resultUnsaved) return [{ id: log.id, status: "unsaved" }];
+    if (log.status === "draft") return [];
+    const count = Math.max(1, Number(log.config.count) || log.imageCount || 1);
+    return Array.from({ length: count }, (_, index) => {
+        const image = log.images.find((item) => item.id === `${log.id}-${index}` || item.id === `${log.id}-url-${index}`);
+        if (image) return { id: image.id, status: "success" as const, image };
+        if (log.status === "running") return { id: `${log.id}-${index}`, status: "pending" as const };
+        return { id: `${log.id}-${index}`, status: "failed" as const, error: log.error || i18n.t("workbench.generationFailed") };
+    });
 }
 
 function nextSavedStatus(status?: GenerationStatus): GenerationStatus {

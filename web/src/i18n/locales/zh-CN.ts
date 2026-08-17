@@ -157,6 +157,8 @@ export default {
         generationFailed: "生成失败",
         retrySuccess: "重试成功",
         resultNotSaved: "生成结果未保存",
+        refreshTask: "刷新任务状态",
+        refreshFailed: "刷新任务失败",
     },
     imageWorkbench: {
         title: "生图工作台",

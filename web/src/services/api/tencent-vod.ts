@@ -3,6 +3,7 @@ import axios from "axios";
 import i18n from "@/i18n";
 import { signTencentCloudRequest } from "@/lib/tencent-cloud-api";
 import { appApi } from "@/services/api/app-http";
+import { fetchGeneration } from "@/services/api/generations";
 import type { AiConfig } from "@/stores/use-config-store";
 import { TENCENT_VOD_DEFAULT_MODELS, TENCENT_VOD_HOST } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
@@ -43,8 +44,8 @@ export function assertTencentVodReady(config: AiConfig) {
     if (!config.subAppId?.trim()) throw new Error(apiText("tencentVodSubAppIdRequired"));
 }
 
-export async function requestTencentVodImages(config: AiConfig, prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, signal?: AbortSignal, jobId?: string) {
-    if (config.managed) return requestCompanyTencentVodImages(prompt, references, mask, count, quality, size, background, config.model, config.channelId, signal, jobId);
+export async function requestTencentVodImages(config: AiConfig, prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, signal?: AbortSignal, jobId?: string, wait = true) {
+    if (config.managed) return requestCompanyTencentVodImages(prompt, references, mask, count, quality, size, background, config.model, config.channelId, signal, jobId, wait);
     assertTencentVodReady(config);
     const images: Array<{ id: string; dataUrl: string }> = [];
     const total = Math.max(1, count);
@@ -55,8 +56,8 @@ export async function requestTencentVodImages(config: AiConfig, prompt: string, 
     return images;
 }
 
-async function requestCompanyTencentVodImages(prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, model: string, channelId: string | undefined, signal?: AbortSignal, jobId?: string) {
-    const response = await appApi.post<{ images?: Array<{ id?: string; dataUrl?: string }>; error?: string; creditBalance?: number }>("/api/tencent-vod/images", {
+async function requestCompanyTencentVodImages(prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, model: string, channelId: string | undefined, signal?: AbortSignal, jobId?: string, wait = true) {
+    const response = await appApi.post<{ id?: string; status?: string; images?: Array<{ id?: string; dataUrl?: string }>; error?: string; creditBalance?: number }>("/api/tencent-vod/images", {
         channelId,
         jobId,
         model,
@@ -68,12 +69,32 @@ async function requestCompanyTencentVodImages(prompt: string, references: Refere
         size,
         background,
     }, { signal, timeout: 0 });
-    const images = (response.data.images || []).filter((image) => image.dataUrl).map((image) => ({ id: image.id || nanoid(), dataUrl: image.dataUrl! }));
-    if (!images.length) throw new Error(response.data.error || apiText("tencentVodNoImage"));
     if (typeof response.data.creditBalance === "number") {
         void import("@/stores/use-user-store").then(({ useUserStore }) => useUserStore.getState().setCreditBalance(response.data.creditBalance!));
     }
-    return images;
+    const images = (response.data.images || []).filter((image) => image.dataUrl).map((image) => ({ id: image.id || nanoid(), dataUrl: image.dataUrl! }));
+    if (images.length) return images;
+    if (response.data.status === "running" && response.data.id) {
+        if (!wait) return [];
+        return waitForCompanyImages(response.data.id, signal);
+    }
+    throw new Error(response.data.error || apiText("tencentVodNoImage"));
+}
+
+async function waitForCompanyImages(jobId: string, signal?: AbortSignal) {
+    while (true) {
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+        const job = await fetchGeneration(jobId);
+        if (job.status === "success" || job.status === "failed") {
+            const images = [
+                ...job.assets.filter((asset) => !asset.mime.startsWith("video/") && !asset.mime.startsWith("audio/")).map((asset) => ({ id: `${job.id}-${asset.index}`, dataUrl: asset.url })),
+                ...(job.resultUrls || []).filter((url) => /^https?:\/\//i.test(url)).map((url, index) => ({ id: `${job.id}-url-${index}`, dataUrl: url })),
+            ];
+            if (!images.length) throw new Error(job.error || apiText("tencentVodNoImage"));
+            return images;
+        }
+        await sleep(1000, signal);
+    }
 }
 
 async function generateOne(config: AiConfig, prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, quality: string | undefined, size: string | undefined, background: string | undefined, signal?: AbortSignal) {
