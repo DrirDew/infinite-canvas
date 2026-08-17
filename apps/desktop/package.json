@@ -1,0 +1,12 @@
+{
+  "name": "@basketikun/desktop",
+  "private": true,
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "dev": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^43.4.0"
+  }
+}

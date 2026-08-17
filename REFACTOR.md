@@ -6,6 +6,8 @@
 > 三人统一在 `refactor/plugin` 分支协作，不单独创建分支。
 > 最终目标：Core 是独立、稳定的画布引擎；Web 是完整产品和唯一插件平台；Agent Panel 可独立运行也可嵌入 Web。
 
+当前先增加 Electron 桌面壳，只加载完整 Web 应用；桌面原生能力等有真实需求时再接入。
+
 ## 1. 架构结论
 
 项目采用 monorepo，主要由以下部分组成：
@@ -25,6 +27,7 @@ Core 只提供画布能力和扩展切入点，不实现插件、业务、持久
 infinite-canvas/
 ├── apps/
 │   ├── web/                 # 官方 Web 应用与插件宿主
+│   ├── desktop/             # 加载 Web 应用的 Electron 桌面壳
 │   ├── docs/                # 文档站
 │   └── examples/            # Core 独立示例
 ├── packages/
@@ -90,6 +93,8 @@ Web 是 Core 的主要消费者，在画布引擎之上增加：
 生成任务属于 Web。无论从创作台还是画布发起生成，都由 Web 创建和跟踪任务；完成后保存结果，再通过 Core 命令更新画布。Core 不认识任务队列和 AI 服务。
 
 Web 插件产生的节点贡献会转换为 Core 节点定义，画布动作会转换为 Core 命令，插件页面、工具栏和面板仍由 Web 渲染。
+
+Electron 桌面版当前只负责创建原生窗口并加载 Web 开发服务，不复制页面、状态或业务逻辑。首版不增加 preload、IPC、打包、更新和系统集成，后续按真实桌面功能需求补充。
 
 ## 6. Web 插件系统
 
@@ -202,6 +207,7 @@ Core 不提供持久化。第三方使用方自行选择存储方式；官方 We
 - Examples 只依赖 Core，不接入 Web、Plugin SDK、Cordis 和业务能力。
 - Core 不包含应用插件系统，Web 是唯一插件宿主。
 - Web 插件通过公开适配层使用 Core，不直接依赖 Core 内部状态。
+- Electron 桌面壳复用 Web，不建立独立业务实现。
 - Agent Panel 不直接依赖 Web store、画布页面或 Canvas Agent 的 Node 实现。
 - Canvas Agent 不渲染 Web UI，Provider 原始协议不泄漏到通用 Panel 组件。
 - 插件贡献、导航、主题和节点定义各自只有一个权威来源。
@@ -213,6 +219,7 @@ Core 不提供持久化。第三方使用方自行选择存储方式；官方 We
 
 1. **Monorepo 基座（已完成）**：Web、文档、Core、Canvas Agent、Plugin SDK 和插件已迁入统一 workspace。
 2. **Core 拆分与 Web 接入（已完成）**：Core 已独立发布，Examples 和官方 Web 已改用公开 API。
-3. **拆分 Agent Panel**：抽离通用 React UI 和宿主适配器，提供独立入口，再由官方 Web 接回同一实现。
-4. **替换插件运行时**：删除旧 loader/runtime 后接入 Cordis，不保留两套运行时并行。
-5. **扩展真实插件能力**：只按实际插件需求增加 contribution、service、权限或沙箱能力。
+3. **Electron 桌面壳（已完成基础壳）**：先直接加载 Web，桌面原生能力按实际需求增加。
+4. **拆分 Agent Panel**：抽离通用 React UI 和宿主适配器，提供独立入口，再由官方 Web 接回同一实现。
+5. **替换插件运行时**：删除旧 loader/runtime 后接入 Cordis，不保留两套运行时并行。
+6. **扩展真实插件能力**：只按实际插件需求增加 contribution、service、权限或沙箱能力。

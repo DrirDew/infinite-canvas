@@ -7,6 +7,7 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+- Electron desktop shell: `bun run dev:desktop` should start the Web application and open it in a desktop window.
 - Core command architecture: existing flat commands and callbacks should remain compatible, while grouped `policies` and `listeners` options produce the same connection, grouping and state-change behavior.
 - Core transaction and interaction invariants: invalid transaction or preview results should be rejected without changing history, and drag, resize and connection states should expose one mutually exclusive interaction `kind` while preserving existing boolean fields.
 - Core example application: `bun run dev:example` should open the renamed `apps/example` application in pan mode with editable text, uploadable image/video nodes, drag-and-drop media, selectable marquee mode, resize, connection, clipboard shortcuts, undo/redo, minimap, background and theme controls.
