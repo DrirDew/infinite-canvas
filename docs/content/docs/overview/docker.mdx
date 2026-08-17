@@ -39,6 +39,28 @@ docker compose -f docker-compose.local.yml up -d --build
 
 The main application container only runs Next.js. Canvases, My Assets, generation history, and API keys are stored in the browser by default, while prompt repositories are fetched directly by the frontend. No persistent data volume is required for this data.
 
+## Optional access protection
+
+Copy `.env.example` to `.env` in the repository root and set `AUTH_PASSWORD`. Docker Compose reads that file automatically.
+
+```env
+AUTH_USER=admin
+AUTH_PASSWORD=your-password
+```
+
+| Variable | Description |
+| --- | --- |
+| `AUTH_USER` | Username, default `admin` |
+| `AUTH_PASSWORD` | Password; empty disables auth |
+
+```bash
+docker compose -f docker-compose.local.yml up -d --build
+```
+
+Do not reuse another app's `.env.production`. After changing `.env`, run `docker compose -f docker-compose.local.yml up -d` so the container picks up the new password.
+
+Do not commit real passwords. The `/tencent-vod` proxy stays outside Basic Auth because those requests use Tencent Cloud signature headers.
+
 ## Optional analytics
 
 No analytics are enabled by default. A deployment can enable GA4, Baidu Analytics, or both at runtime:

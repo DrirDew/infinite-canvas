@@ -2,6 +2,12 @@
 
 ## Unreleased
 
++ [调整] Docker 访问账号密码改为从项目根目录 `.env` 读取。
++ [修复] Docker 访问保护在 Alpine 镜像中补装 openssl，避免设置密码后容器无法启动。
++ [新增] Docker 部署可通过 AUTH_USER / AUTH_PASSWORD 启用 Nginx HTTP Basic 访问保护。
++ [修复] 腾讯云点播 OG 生图尺寸改为 WIDTHxHEIGHT，避免下游 400。
++ [修复] Windows 下本地 Docker 镜像因入口脚本 CRLF 换行无法启动。
++ [新增] 渠道协议新增腾讯云点播，可配置 SecretId、SecretKey 和 SubAppId 后调用 OG/image2 生图。
 + [新增] 提示词来源新增 Freestylefly GPT Image 2 内置来源。
 
 ## v0.15.1 - 2026-08-07

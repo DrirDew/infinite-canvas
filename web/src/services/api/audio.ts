@@ -90,6 +90,7 @@ function assertAudioConfig(config: AiConfig, model: string) {
     if (!config.baseUrl.trim()) throw new Error(apiText("baseUrlRequired"));
     if (!config.apiKey.trim()) throw new Error(apiText("apiKeyRequired"));
     if (config.apiFormat === "gemini") throw new Error(apiText("geminiAudioUnsupported"));
+    if (config.apiFormat === "tencent-vod") throw new Error(apiText("tencentVodAudioUnsupported"));
 }
 
 async function assertAudioBlob(blob: Blob) {

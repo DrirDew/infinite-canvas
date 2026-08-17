@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
 
-export type ApiCallFormat = "openai" | "gemini" | "ark";
+export type ApiCallFormat = "openai" | "gemini" | "ark" | "tencent-vod";
 export type ModelCapability = "image" | "video" | "text" | "audio";
 export type ReasoningEffort = "auto" | "low" | "medium" | "high" | "xhigh";
 
@@ -20,6 +20,8 @@ export type ModelChannel = {
     name: string;
     baseUrl: string;
     apiKey: string;
+    secretKey?: string;
+    subAppId?: string;
     apiFormat: ApiCallFormat;
     models: ChannelModel[];
 };
@@ -28,6 +30,8 @@ export type AiConfig = {
     channelMode: "remote" | "local";
     baseUrl: string;
     apiKey: string;
+    secretKey?: string;
+    subAppId?: string;
     apiFormat: ApiCallFormat;
     channels: ModelChannel[];
     model: string;
@@ -67,6 +71,13 @@ const CHANNEL_MODEL_SEPARATOR = "::";
 const OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 const ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
+export const TENCENT_VOD_HOST = "vod.tencentcloudapi.com";
+export const TENCENT_VOD_BASE_URL = "/tencent-vod";
+export const TENCENT_VOD_DEFAULT_MODELS: ChannelModel[] = [
+    { name: "image2_low", capability: "image" },
+    { name: "image2_medium", capability: "image" },
+    { name: "image2_high", capability: "image" },
+];
 
 export const defaultConfig: AiConfig = {
     channelMode: "local",
@@ -135,7 +146,7 @@ type ConfigStore = {
 
 const VIDEO_KEYWORDS = ["seedance", "video", "sora", "veo", "kling", "wan", "hailuo"];
 const AUDIO_KEYWORDS = ["audio", "tts", "speech", "voice", "music", "sound"];
-const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image", "dall-e", "dalle", "imagen", "flux", "sdxl", "stable-diffusion", "midjourney"];
+const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image2", "image", "dall-e", "dalle", "imagen", "flux", "sdxl", "stable-diffusion", "midjourney"];
 
 /** Best-effort default capability for a freshly fetched model name; user can override in the channel editor. */
 export function guessCapability(name: string): ModelCapability {
@@ -183,7 +194,9 @@ export function resolveModelScript(config: AiConfig, value: string) {
 
 function isAiConfigReady(config: AiConfig, model: string) {
     const channel = resolveModelChannel(config, model);
-    return Boolean(model.trim() && channel.baseUrl.trim() && channel.apiKey.trim());
+    if (!model.trim() || !channel.apiKey.trim()) return false;
+    if (channel.apiFormat === "tencent-vod") return Boolean(channel.secretKey?.trim() && channel.subAppId?.trim());
+    return Boolean(channel.baseUrl.trim());
 }
 
 export const useConfigStore = create<ConfigStore>()(
@@ -276,13 +289,16 @@ export function normalizeChannelModels(models: Array<string | ChannelModel> | un
 
 export function createModelChannel(channel?: Partial<ModelChannel>): ModelChannel {
     const apiFormat = normalizeApiFormat(channel?.apiFormat);
+    const models = normalizeChannelModels(channel?.models);
     return {
         id: channel?.id?.trim() || nanoid(),
         name: channel?.name?.trim() || i18n.t("config.channels.newName"),
         baseUrl: channel?.baseUrl?.trim() || defaultBaseUrlForApiFormat(apiFormat),
         apiKey: channel?.apiKey || "",
+        secretKey: channel?.secretKey || "",
+        subAppId: channel?.subAppId || "",
         apiFormat,
-        models: normalizeChannelModels(channel?.models),
+        models: apiFormat === "tencent-vod" && !models.length ? TENCENT_VOD_DEFAULT_MODELS : models,
     };
 }
 
@@ -341,6 +357,8 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
         model: modelOptionName(value || config.model),
         baseUrl: channel.baseUrl,
         apiKey: channel.apiKey,
+        secretKey: channel.secretKey || "",
+        subAppId: channel.subAppId || "",
         apiFormat: channel.apiFormat,
     };
 }
@@ -373,11 +391,12 @@ function normalizeChannels(config: AiConfig) {
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
     if (apiFormat === "gemini") return GEMINI_BASE_URL;
     if (apiFormat === "ark") return ARK_BASE_URL;
+    if (apiFormat === "tencent-vod") return TENCENT_VOD_BASE_URL;
     return OPENAI_BASE_URL;
 }
 
 function normalizeApiFormat(apiFormat: unknown): ApiCallFormat {
-    return apiFormat === "gemini" || apiFormat === "ark" ? apiFormat : "openai";
+    return apiFormat === "gemini" || apiFormat === "ark" || apiFormat === "tencent-vod" ? apiFormat : "openai";
 }
 
 function uniqueModelOptions(models: string[]) {

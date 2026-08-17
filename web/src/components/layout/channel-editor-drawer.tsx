@@ -3,7 +3,7 @@ import { ListPlus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
+import { defaultBaseUrlForApiFormat, guessCapability, normalizeChannelModels, TENCENT_VOD_DEFAULT_MODELS, type ApiCallFormat, type ChannelModel, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
 import { ModelScriptEditor } from "./model-script-editor";
 import { ModelSelectModal } from "./model-select-modal";
 
@@ -18,6 +18,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
         { label: "OpenAI", value: "openai" },
         { label: "Gemini", value: "gemini" },
         { label: t("config.protocols.ark"), value: "ark" },
+        { label: t("config.protocols.tencentVod"), value: "tencent-vod" },
     ];
     const capabilityOptions: Array<{ label: string; value: ModelCapability }> = ["image", "video", "text", "audio"].map((value) => ({ label: t(`config.channelEditor.capabilities.${value}`), value: value as ModelCapability }));
 
@@ -32,7 +33,8 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
 
     const changeApiFormat = (apiFormat: ApiCallFormat) => {
         const baseUrl = !draft.baseUrl.trim() || draft.baseUrl.trim() === defaultBaseUrlForApiFormat(draft.apiFormat) ? defaultBaseUrlForApiFormat(apiFormat) : draft.baseUrl;
-        patch({ apiFormat, baseUrl });
+        const models = apiFormat === "tencent-vod" && !draft.models.some((model) => model.name.startsWith("image2")) ? TENCENT_VOD_DEFAULT_MODELS : draft.models;
+        patch({ apiFormat, baseUrl, models });
     };
 
     const applySelection = (names: string[]) => {
@@ -76,12 +78,25 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
                 </label>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.baseUrl")}</span>
-                    <Input value={draft.baseUrl} onChange={(event) => patch({ baseUrl: event.target.value })} placeholder="https://api.example.com" />
+                    <Input value={draft.baseUrl} onChange={(event) => patch({ baseUrl: event.target.value })} placeholder={draft.apiFormat === "tencent-vod" ? "/tencent-vod" : "https://api.example.com"} />
                 </label>
                 <label className="block md:col-span-2">
-                    <span className="mb-1 block text-sm font-medium">API Key</span>
-                    <Input.Password value={draft.apiKey} onChange={(event) => patch({ apiKey: event.target.value })} placeholder="sk-..." />
+                    <span className="mb-1 block text-sm font-medium">{draft.apiFormat === "tencent-vod" ? t("config.channelEditor.secretId") : "API Key"}</span>
+                    <Input.Password value={draft.apiKey} onChange={(event) => patch({ apiKey: event.target.value })} placeholder={draft.apiFormat === "tencent-vod" ? "AKIDxxxxxxxx" : "sk-..."} />
                 </label>
+                {draft.apiFormat === "tencent-vod" ? (
+                    <>
+                        <label className="block md:col-span-2">
+                            <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.secretKey")}</span>
+                            <Input.Password value={draft.secretKey || ""} onChange={(event) => patch({ secretKey: event.target.value })} />
+                        </label>
+                        <label className="block md:col-span-2">
+                            <span className="mb-1 block text-sm font-medium">{t("config.channelEditor.subAppId")}</span>
+                            <Input value={draft.subAppId || ""} onChange={(event) => patch({ subAppId: event.target.value.trim() })} placeholder="251007502" />
+                        </label>
+                        <p className="md:col-span-2 text-xs leading-5 text-stone-500">{t("config.channelEditor.tencentVodHint")}</p>
+                    </>
+                ) : null}
             </div>
 
             <div className="mt-6 mb-3 flex flex-wrap items-center justify-between gap-2">

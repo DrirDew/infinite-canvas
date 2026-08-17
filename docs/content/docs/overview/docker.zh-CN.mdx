@@ -51,6 +51,34 @@ docker compose -f docker-compose.local.yml up -d --build
 
 当前主应用镜像只启动 Next.js。画布、我的素材、生成记录和 AI API Key 默认保存在浏览器本地；第三方提示词由浏览器前端直连拉取，不需要额外挂载数据目录。
 
+## 访问保护（可选）
+
+设置 `AUTH_PASSWORD` 后，打开站点会弹出浏览器自带的用户名密码框。不设置则仍可直接访问。这是 Nginx HTTP Basic 校验，不是账号系统。
+
+把项目根目录的 `.env.example` 复制为 `.env` 后填写：
+
+```env
+AUTH_USER=admin
+AUTH_PASSWORD=your-password
+```
+
+| 变量 | 说明 |
+| --- | --- |
+| `AUTH_USER` | 用户名，默认 `admin` |
+| `AUTH_PASSWORD` | 访问密码；留空则关闭校验 |
+
+然后启动（Compose 会自动读取同目录 `.env`）：
+
+```bash
+docker compose -f docker-compose.local.yml up -d --build
+```
+
+不要使用另一套应用的 `.env.production`。修改 `.env` 后执行 `docker compose -f docker-compose.local.yml up -d` 即可让新密码生效，一般不用重新构建镜像。
+
+<Callout type="warn">
+不要把真实密码提交进仓库。点播反代路径 `/tencent-vod` 需要使用腾讯云签名头，因此不走这层 Basic 校验；页面本身仍需登录后才能打开。
+</Callout>
+
 ## 统计分析（可选）
 
 项目**默认不接入任何统计**：不设置下列环境变量时，页面不会加载任何统计脚本，也不会发送任何外部请求。你在自己的部署上想查看流量时，设置对应环境变量即可，无需修改代码或重新构建镜像——镜像启动时会据此生成运行期配置。

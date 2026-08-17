@@ -50,4 +50,24 @@ export default defineConfig({
         __APP_VERSION__: JSON.stringify(localVersion),
         __APP_RELEASES__: JSON.stringify(parseChangelog(localChangelog)),
     },
+    server: {
+        proxy: {
+            "/tencent-vod": {
+                target: "https://vod.tencentcloudapi.com",
+                changeOrigin: true,
+                secure: true,
+                rewrite: () => "/",
+            },
+        },
+    },
+    preview: {
+        proxy: {
+            "/tencent-vod": {
+                target: "https://vod.tencentcloudapi.com",
+                changeOrigin: true,
+                secure: true,
+                rewrite: () => "/",
+            },
+        },
+    },
 });

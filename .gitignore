@@ -1,7 +1,9 @@
 .next/
 out/
 node_modules/
-.env*
+# 本地环境变量和密钥，勿提交。可复制 .env.example 为 .env
+.env
+.env.*
 !.env.example
 data/
 *.log
