@@ -93,9 +93,6 @@ import {
     type ContextMenuState,
     type Position,
 } from "@/types/canvas";
-import type { ReferenceImage } from "@/types/image";
-import type { ReferenceAudio } from "@/types/media";
-
 // Register built-in nodes in the shared registry once when the module loads.
 registerBuiltinNodes();
 
