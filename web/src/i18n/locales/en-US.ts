@@ -486,7 +486,7 @@ export default {
             secretId: "SecretId",
             secretKey: "SecretKey",
             subAppId: "VOD application ID",
-            tencentVodHint: "For Tencent Cloud VOD OG/image2. The default endpoint /tencent-vod is proxied to the VOD API by the local dev server or Docker Nginx to avoid browser CORS. Use models image2_low, image2_medium, or image2_high.",
+            tencentVodHint: "For Tencent Cloud VOD image generation. The default endpoint /tencent-vod is proxied to the VOD API by the local dev server or Docker Nginx to avoid browser CORS. OG uses image2_low / image2_medium / image2_high. GG (Nano Banana) uses gg_2.5 / gg_3.0 / gg_3.1.",
             models: "Provider models",
             modelDescription: "{{count}} selected; assign a capability to each model and optionally customize its request script.",
             selectModels: "Select models",

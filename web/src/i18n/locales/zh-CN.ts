@@ -486,7 +486,7 @@ export default {
             secretId: "SecretId",
             secretKey: "SecretKey",
             subAppId: "点播应用 ID",
-            tencentVodHint: "用于腾讯云点播 OG/image2。接口地址默认 /tencent-vod，由本地开发服务或 Docker Nginx 转发到点播 API，避免浏览器跨域。模型使用 image2_low / image2_medium / image2_high。",
+            tencentVodHint: "用于腾讯云点播生图。接口地址默认 /tencent-vod，由本地开发服务或 Docker Nginx 转发到点播 API，避免浏览器跨域。OG 使用 image2_low / image2_medium / image2_high；GG（Nano Banana）使用 gg_2.5 / gg_3.0 / gg_3.1。",
             models: "渠道模型",
             modelDescription: "已选 {{count}} 个；为每个模型指定能力并可自定义调用脚本。",
             selectModels: "选择模型",

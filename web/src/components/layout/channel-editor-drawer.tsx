@@ -33,7 +33,7 @@ export function ChannelEditorDrawer({ open, channel, onSave, onClose }: { open: 
 
     const changeApiFormat = (apiFormat: ApiCallFormat) => {
         const baseUrl = !draft.baseUrl.trim() || draft.baseUrl.trim() === defaultBaseUrlForApiFormat(draft.apiFormat) ? defaultBaseUrlForApiFormat(apiFormat) : draft.baseUrl;
-        const models = apiFormat === "tencent-vod" && !draft.models.some((model) => model.name.startsWith("image2")) ? TENCENT_VOD_DEFAULT_MODELS : draft.models;
+        const models = apiFormat === "tencent-vod" && !draft.models.some((model) => model.name.startsWith("image2") || model.name.startsWith("gg_")) ? TENCENT_VOD_DEFAULT_MODELS : draft.models;
         patch({ apiFormat, baseUrl, models });
     };
 

@@ -12,6 +12,9 @@ const SERVICE = "vod";
 const API_VERSION = "2018-07-17";
 const POLL_INTERVAL_MS = 2500;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+const GG_ASPECT_RATIOS = ["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
+
+type VodModel = { modelName: "OG" | "GG"; modelVersion: string };
 
 type TencentCloudResponse<T> = { Response?: T & { Error?: { Code?: string; Message?: string }; RequestId?: string } };
 type CreateTaskPayload = { TaskId?: string };
@@ -51,18 +54,27 @@ export async function requestTencentVodImages(config: AiConfig, prompt: string, 
 }
 
 async function generateOne(config: AiConfig, prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, quality: string | undefined, size: string | undefined, background: string | undefined, signal?: AbortSignal) {
-    const fileInfos = await buildFileInfos(references, mask);
+    const resolved = resolveVodModel(config.model, quality);
+    const isGg = resolved.modelName === "GG";
+    if (isGg && mask) throw new Error(apiText("maskModelUnsupported"));
+    const fileInfos = await buildFileInfos(references.slice(0, maxReferenceCount(resolved)), isGg ? undefined : mask);
     const additional: Record<string, string> = {};
-    const ogSize = toOgSize(size);
-    if (ogSize) additional.size = ogSize;
-    if (background) additional.background = background;
+    const outputConfig: Record<string, string> = { StorageMode: "Temporary" };
+    if (isGg) {
+        const aspectRatio = toGgAspectRatio(size);
+        if (aspectRatio) outputConfig.AspectRatio = aspectRatio;
+    } else {
+        const ogSize = toOgSize(size);
+        if (ogSize) additional.size = ogSize;
+        if (background) additional.background = background;
+    }
     const created = await callVod<CreateTaskPayload>(config, "CreateAigcImageTask", {
         SubAppId: Number(config.subAppId),
-        ModelName: "OG",
-        ModelVersion: resolveOgModelVersion(config.model, quality),
+        ModelName: resolved.modelName,
+        ModelVersion: resolved.modelVersion,
         Prompt: prompt,
         EnhancePrompt: "Disabled",
-        OutputConfig: { StorageMode: "Temporary" },
+        OutputConfig: outputConfig,
         ...(fileInfos.length ? { FileInfos: fileInfos } : {}),
         ...(Object.keys(additional).length ? { ExtInfo: JSON.stringify({ AdditionalParameters: JSON.stringify(additional) }) } : {}),
     }, signal);
@@ -134,6 +146,37 @@ function toOgSize(size?: string) {
     const value = size?.trim();
     if (!value || value.toLowerCase() === "auto") return undefined;
     return value.replace(/\*/g, "x");
+}
+
+function toGgAspectRatio(size?: string) {
+    const value = size?.trim().toLowerCase();
+    if (!value || value === "auto") return undefined;
+    const parts = value.includes(":") ? value.split(":") : value.split(/[x*]/);
+    const width = Number(parts[0]);
+    const height = Number(parts[1]);
+    if (!width || !height) return undefined;
+    const target = width / height;
+    return GG_ASPECT_RATIOS.reduce((best, item) => {
+        const [currentWidth, currentHeight] = item.split(":").map(Number);
+        const [bestWidth, bestHeight] = best.split(":").map(Number);
+        return Math.abs(currentWidth / currentHeight - target) < Math.abs(bestWidth / bestHeight - target) ? item : best;
+    });
+}
+
+function maxReferenceCount(model: VodModel) {
+    if (model.modelName !== "GG") return 16;
+    return model.modelVersion === "2.5" ? 3 : 14;
+}
+
+function resolveVodModel(model: string, quality?: string): VodModel {
+    const name = model.trim().toLowerCase();
+    if (name.includes("image2") || name.endsWith("_high") || name.endsWith("_medium") || name.endsWith("_low")) {
+        return { modelName: "OG", modelVersion: resolveOgModelVersion(name, quality) };
+    }
+    if (name.includes("3.1")) return { modelName: "GG", modelVersion: "3.1" };
+    if (name.includes("3.0") || /gg[_-]?3(?!\.1)/.test(name)) return { modelName: "GG", modelVersion: "3.0" };
+    if (name.includes("2.5") || name.includes("gg") || name.includes("nano")) return { modelName: "GG", modelVersion: "2.5" };
+    return { modelName: "OG", modelVersion: resolveOgModelVersion(name, quality) };
 }
 
 function resolveOgModelVersion(model: string, quality?: string) {

@@ -77,6 +77,9 @@ export const TENCENT_VOD_DEFAULT_MODELS: ChannelModel[] = [
     { name: "image2_low", capability: "image" },
     { name: "image2_medium", capability: "image" },
     { name: "image2_high", capability: "image" },
+    { name: "gg_2.5", capability: "image" },
+    { name: "gg_3.0", capability: "image" },
+    { name: "gg_3.1", capability: "image" },
 ];
 
 export const defaultConfig: AiConfig = {
@@ -146,7 +149,7 @@ type ConfigStore = {
 
 const VIDEO_KEYWORDS = ["seedance", "video", "sora", "veo", "kling", "wan", "hailuo"];
 const AUDIO_KEYWORDS = ["audio", "tts", "speech", "voice", "music", "sound"];
-const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image2", "image", "dall-e", "dalle", "imagen", "flux", "sdxl", "stable-diffusion", "midjourney"];
+const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image2", "gg_2.5", "gg_3.0", "gg_3.1", "nano-banana", "image", "dall-e", "dalle", "imagen", "flux", "sdxl", "stable-diffusion", "midjourney"];
 
 /** Best-effort default capability for a freshly fetched model name; user can override in the channel editor. */
 export function guessCapability(name: string): ModelCapability {

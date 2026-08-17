@@ -2,6 +2,7 @@
 
 ## Unreleased
 
++ [新增] 腾讯云点播渠道支持 GG 2.5 / 3.0 / 3.1（Nano Banana）生图。
 + [调整] Docker 访问账号密码改为从项目根目录 `.env` 读取。
 + [修复] Docker 访问保护在 Alpine 镜像中补装 openssl，避免设置密码后容器无法启动。
 + [新增] Docker 部署可通过 AUTH_USER / AUTH_PASSWORD 启用 Nginx HTTP Basic 访问保护。
