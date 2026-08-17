@@ -570,14 +570,12 @@ export default function ImagePage() {
 
 function GenerationSettings({ config, model, updateConfig, openConfigDialog }: { config: AiConfig; model: string; updateConfig: UpdateAiConfig; openConfigDialog: (shouldPromptContinue?: boolean) => void }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const { t } = useTranslation();
 
     return (
         <>
-            <label className="col-span-2 block min-w-0 sm:col-span-1">
-                <span className="mb-1.5 block text-sm font-semibold sm:mb-2 sm:text-base">{t("workbench.model")}</span>
-                <ModelPicker config={config} value={model} onChange={(value) => updateConfig("imageModel", value)} capability="image" fullWidth onMissingConfig={() => openConfigDialog(false)} />
-            </label>
+            <div className="col-span-2">
+                <ModelPicker split config={config} value={model} onChange={(value) => updateConfig("imageModel", value)} capability="image" onMissingConfig={() => openConfigDialog(false)} />
+            </div>
             <div className="col-span-2">
                 <ImageSettingsPanel config={config} onConfigChange={(key, value) => updateConfig(key, value)} theme={theme} showTitle={false} className="space-y-4" maxCount={10} />
             </div>
