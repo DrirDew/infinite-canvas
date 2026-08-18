@@ -207,12 +207,12 @@ export function parseVodCallback(body: unknown) {
         if (typeof value !== "object") return;
         const record = value as Record<string, unknown>;
         const eventType = String(record.EventType || "").trim();
-        if (eventType === "AigcImageTaskComplete" || record.AigcImageCompleteEvent) {
-            const snapshot = snapshotFromAigcTask(record.AigcImageCompleteEvent, "image");
+        if (eventType === "AigcImageTaskComplete" || record.AigcImageTaskCompleteEvent || record.AigcImageCompleteEvent) {
+            const snapshot = snapshotFromAigcTask(record.AigcImageTaskCompleteEvent || record.AigcImageCompleteEvent, "image");
             if (snapshot) snapshots.push(snapshot);
         }
-        if (eventType === "AigcVideoTaskComplete" || record.AigcVideoCompleteEvent) {
-            const snapshot = snapshotFromAigcTask(record.AigcVideoCompleteEvent, "video");
+        if (eventType === "AigcVideoTaskComplete" || record.AigcVideoTaskCompleteEvent || record.AigcVideoCompleteEvent) {
+            const snapshot = snapshotFromAigcTask(record.AigcVideoTaskCompleteEvent || record.AigcVideoCompleteEvent, "video");
             if (snapshot) snapshots.push(snapshot);
         }
         visit(record.EventSet);
