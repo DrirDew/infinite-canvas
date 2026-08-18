@@ -6,7 +6,7 @@ import { bootstrapChannels, createSharedChannel, patchSharedChannel, publicChann
 import { bootstrapAdmin, findUserByUsername, generatedCountForUser } from "./db";
 import { loadRootEnv } from "./env";
 import { addGenerationEventClient } from "./generation-events";
-import { CreditError, createGeneration, generateCompanyImages, getGeneration, getStoreMediaSetting, handleTencentVodCallback, listGenerations, patchGeneration, readGenerationAsset, refreshGenerationJob, removeGeneration, setStoreMediaSetting } from "./generations";
+import { CreditError, createGeneration, generateCompanyImages, generateCompanyVideos, getGeneration, getStoreMediaSetting, handleTencentVodCallback, listGenerations, patchGeneration, readGenerationAsset, refreshGenerationJob, removeGeneration, setStoreMediaSetting } from "./generations";
 import { toPublicUser } from "./schema";
 import { type CompanyImageRequest } from "./tencent-vod";
 import { usageForUser } from "./usage";
@@ -79,6 +79,18 @@ app.post("/api/tencent-vod/images", requireUser, async (c) => {
         if (isAbortError(error) || c.req.raw.signal.aborted) return c.json({ error: "请求已取消" }, 499);
         if (error instanceof CreditError) return c.json({ error: error.message }, 403);
         const message = error instanceof Error ? error.message : "腾讯云点播生图失败";
+        return c.json({ error: message }, message.includes("未配置") ? 503 : 400);
+    }
+});
+
+app.post("/api/tencent-vod/videos", requireUser, async (c) => {
+    try {
+        const body = (await c.req.json()) as CompanyImageRequest;
+        return c.json(await generateCompanyVideos(c.get("user").id, body, c.req.raw.signal));
+    } catch (error) {
+        if (isAbortError(error) || c.req.raw.signal.aborted) return c.json({ error: "请求已取消" }, 499);
+        if (error instanceof CreditError) return c.json({ error: error.message }, 403);
+        const message = error instanceof Error ? error.message : "腾讯云点播生视频失败";
         return c.json({ error: message }, message.includes("未配置") ? 503 : 400);
     }
 });

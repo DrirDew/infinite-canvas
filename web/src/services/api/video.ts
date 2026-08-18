@@ -8,6 +8,8 @@ import { imageToDataUrl } from "@/services/image-storage";
 import { boolConfig, buildSeedancePromptText, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceVideoReferenceError, SEEDANCE_REFERENCE_LIMITS } from "@/lib/seedance-video";
 import { buildApiUrl, modelOptionName, resolveModelRequestConfig, resolveModelScript, type AiConfig } from "@/stores/use-config-store";
 import { runModelPlugin } from "./model-plugin";
+import { fetchGeneration } from "./generations";
+import { assertTencentVodReady, isTencentVodConfig, pollTencentVodVideoTask, requestTencentVodVideo } from "./tencent-vod";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
@@ -23,11 +25,11 @@ type SeedanceTask = {
     video_url?: string;
 };
 type ApiEnvelope<T> = T | { code?: number | string; data?: T | null; msg?: string; message?: string; error?: { message?: string } };
-type RequestOptions = { signal?: AbortSignal };
+type RequestOptions = { signal?: AbortSignal; jobId?: string; wait?: boolean };
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
 
 export type VideoGenerationResult = { blob?: Blob; url?: string; mimeType?: string };
-export type VideoGenerationTask = { id: string; provider: "openai" | "seedance" | "plugin"; model: string };
+export type VideoGenerationTask = { id: string; provider: "openai" | "seedance" | "plugin" | "tencent-vod"; model: string };
 export type VideoGenerationTaskState = { status: "pending" } | { status: "completed"; result: VideoGenerationResult } | { status: "failed"; error: string };
 
 /** Results for scripted (plugin) video models, which run their own create+poll in one shot at task creation. */
@@ -46,7 +48,7 @@ function aiHeaders(config: AiConfig, contentType?: string) {
 
 export async function requestVideoGeneration(config: AiConfig, prompt: string, references: ReferenceImage[] = [], videoReferences: ReferenceVideo[] = [], audioReferences: ReferenceAudio[] = [], options?: RequestOptions): Promise<VideoGenerationResult> {
     const task = await createVideoGenerationTask(config, prompt, references, videoReferences, audioReferences, options);
-    const delayMs = task.provider === "seedance" ? 5000 : 2500;
+    const delayMs = task.provider === "seedance" || task.provider === "tencent-vod" ? 5000 : 2500;
     for (let attempt = 0; attempt < 120; attempt += 1) {
         if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
         const state = await pollVideoGenerationTask(config, task, options);
@@ -64,6 +66,9 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
     const script = resolveModelScript(config, selectedModel);
     if (script) return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references, options);
     assertVideoConfig(requestConfig, requestConfig.model);
+    if (isTencentVodConfig(requestConfig)) {
+        return createTencentVodVideoTask(requestConfig, selectedModel, prompt, references, videoReferences, audioReferences, options);
+    }
     if (isSeedanceVideoConfig(requestConfig)) {
         return createSeedanceTask(requestConfig, selectedModel, prompt, references, videoReferences, audioReferences, options);
     }
@@ -80,7 +85,32 @@ export async function pollVideoGenerationTask(config: AiConfig, task: VideoGener
     }
     const requestConfig = resolveModelRequestConfig(config, task.model);
     assertVideoConfig(requestConfig, requestConfig.model);
+    if (task.provider === "tencent-vod") return pollTencentVideoTask(requestConfig, task, options);
     return task.provider === "seedance" ? pollSeedanceTask(requestConfig, task, options) : pollOpenAIVideoTask(requestConfig, task, options);
+}
+
+async function createTencentVodVideoTask(config: AiConfig, model: string, prompt: string, references: ReferenceImage[], videoReferences: ReferenceVideo[], audioReferences: ReferenceAudio[], options?: RequestOptions): Promise<VideoGenerationTask> {
+    const created = await requestTencentVodVideo(config, prompt, references, videoReferences, audioReferences, { signal: options?.signal, jobId: options?.jobId, wait: false });
+    if (!created.taskId) throw new Error(apiText("noVideoTaskId"));
+    return { id: created.taskId, provider: "tencent-vod", model };
+}
+
+async function pollTencentVideoTask(config: AiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
+    if (config.managed) {
+        const job = await fetchGeneration(task.id);
+        if (job.status === "failed") return { status: "failed", error: job.error || apiText("tencentVodFailed") };
+        if (job.status !== "success") return { status: "pending" };
+        const url = job.assets.find((asset) => asset.mime.startsWith("video/"))?.url || (job.resultUrls || []).find(Boolean) || "";
+        if (!url) return { status: "failed", error: apiText("tencentVodNoVideo") };
+        return { status: "completed", result: await videoResultFromUrl(url, options) };
+    }
+    try {
+        const url = await pollTencentVodVideoTask(config, task.id, options?.signal);
+        if (!url) return { status: "pending" };
+        return { status: "completed", result: await videoResultFromUrl(url, options) };
+    } catch (error) {
+        return { status: "failed", error: error instanceof Error ? error.message : apiText("tencentVodFailed") };
+    }
 }
 
 async function createPluginVideoTask(config: AiConfig, model: string, script: string, prompt: string, references: ReferenceImage[], options?: RequestOptions): Promise<VideoGenerationTask> {
@@ -291,10 +321,13 @@ async function videoResultFromUrl(url: string, options?: RequestOptions): Promis
 
 function assertVideoConfig(config: AiConfig, model: string) {
     if (!model) throw new Error(apiText("videoModelRequired"));
+    if (config.apiFormat === "gemini") throw new Error(apiText("geminiVideoUnsupported"));
+    if (isTencentVodConfig(config)) {
+        assertTencentVodReady(config);
+        return;
+    }
     if (!config.baseUrl.trim()) throw new Error(apiText("baseUrlRequired"));
     if (!config.apiKey.trim()) throw new Error(apiText("apiKeyRequired"));
-    if (config.apiFormat === "gemini") throw new Error(apiText("geminiVideoUnsupported"));
-    if (config.apiFormat === "tencent-vod") throw new Error(apiText("tencentVodVideoUnsupported"));
 }
 
 function normalizeVideoSeconds(value: string) {

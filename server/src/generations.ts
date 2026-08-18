@@ -5,7 +5,7 @@ import { addCredits, deleteAsset, deleteAssetsByJobRole, deleteJob, findAsset, f
 import type { GenerationAssetRole, GenerationJobRow } from "./schema";
 import { dataDir } from "./env";
 import { publishGenerationEvent } from "./generation-events";
-import { createCompanyImageTask, decodeTaskContext, describeVodTask, encodeTaskContext, fileUrlToDataUrl, parseVodCallback, type CompanyImageRequest, type VodTaskSnapshot } from "./tencent-vod";
+import { createCompanyImageTask, createCompanyVideoTask, decodeTaskContext, describeVodTask, encodeTaskContext, fileUrlToDataUrl, parseVodCallback, type CompanyImageRequest, type VodTaskSnapshot } from "./tencent-vod";
 import { resolveSharedTencentChannel } from "./channels";
 
 export class CreditError extends Error {}
@@ -340,7 +340,7 @@ async function applyVodTaskSnapshot(snapshot: VodTaskSnapshot) {
         success_count: successCount,
         fail_count: failCount,
         status: pending ? "running" : successCount ? "success" : "failed",
-        error: pending ? "" : successCount ? "" : slot.error || job.error || "腾讯云点播生图失败",
+        error: pending ? "" : successCount ? "" : slot.error || job.error || "腾讯云点播任务失败",
         duration_ms: Math.max(0, now - (job.started_at || job.created_at || now)),
         updated_at: now,
         finished_at: pending ? 0 : now,
@@ -382,7 +382,7 @@ export async function refreshGenerationJob(userId: string, jobId: string) {
     return publicJob(latest);
 }
 
-function saveRunningJob(input: { userId: string; jobId?: string; body: CompanyImageRequest; planned: number; extra: Record<string, unknown> }) {
+function saveRunningJob(input: { userId: string; jobId?: string; body: CompanyImageRequest; planned: number; extra: Record<string, unknown>; kind: "image" | "video" }) {
     const existing = input.jobId ? findJobById(input.jobId) : null;
     if (input.jobId && (!existing || existing.user_id !== input.userId)) throw new Error("记录不存在");
     const now = Date.now();
@@ -390,7 +390,7 @@ function saveRunningJob(input: { userId: string; jobId?: string; body: CompanyIm
     const row: GenerationJobRow = {
         id: jobId,
         user_id: input.userId,
-        kind: existing?.kind || "image",
+        kind: existing?.kind || input.kind,
         prompt: String(input.body.prompt || "").trim(),
         model: String(input.body.model || existing?.model || ""),
         size: String(input.body.size || existing?.size || ""),
@@ -422,47 +422,65 @@ function markJobFailed(userId: string, jobId: string, error: string) {
 }
 
 export async function generateCompanyImages(userId: string, body: CompanyImageRequest, signal?: AbortSignal) {
+    return generateCompanyAigc(userId, body, "image", signal);
+}
+
+export async function generateCompanyVideos(userId: string, body: CompanyImageRequest, signal?: AbortSignal) {
+    return generateCompanyAigc(userId, { ...body, count: 1 }, "video", signal);
+}
+
+async function generateCompanyAigc(userId: string, body: CompanyImageRequest, kind: "image" | "video", signal?: AbortSignal) {
     const prompt = String(body.prompt || "").trim();
     if (!prompt) throw new Error("请输入提示词");
     const { credentials, row } = resolveSharedTencentChannel(body.channelId);
-    const planned = plannedCount(body);
+    const planned = kind === "video" ? 1 : plannedCount(body);
     const jobId = String(body.jobId || "").trim() || undefined;
+    const failedLabel = kind === "video" ? "腾讯云点播生视频失败" : "腾讯云点播生图失败";
     reserveCredits(userId, planned);
     const extra = parseExtra(jobId ? findJobById(jobId)?.extra_json : undefined);
     extra.channelId = row.id;
     extra.tencentTasks = [];
-    let job = saveRunningJob({ userId, jobId, body: { ...body, prompt, count: planned }, planned, extra });
+    if (kind === "video") {
+        extra.videoModel = body.model;
+        extra.vquality = body.quality;
+        extra.videoSeconds = body.seconds;
+        extra.videoGenerateAudio = body.generateAudio;
+        extra.videoWatermark = body.watermark;
+    }
+    let job = saveRunningJob({ userId, jobId, body: { ...body, prompt, count: planned }, planned, extra, kind });
     const slots: TencentTaskSlot[] = [];
     try {
         for (let index = 0; index < planned; index += 1) {
             if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
             try {
-                const taskId = await createCompanyImageTask(credentials, prompt, { ...body, count: 1 }, encodeTaskContext(job.id, index), signal);
-                slots.push({ taskId, index, kind: "image", status: "processing" });
+                const taskId = kind === "video"
+                    ? await createCompanyVideoTask(credentials, prompt, { ...body, count: 1 }, encodeTaskContext(job.id, index), signal)
+                    : await createCompanyImageTask(credentials, prompt, { ...body, count: 1 }, encodeTaskContext(job.id, index), signal);
+                slots.push({ taskId, index, kind, status: "processing" });
             } catch (error) {
                 if (isAbortError(error) || signal?.aborted) throw error;
-                slots.push({ taskId: "", index, kind: "image", status: "fail", error: error instanceof Error ? error.message : "腾讯云点播生图失败" });
+                slots.push({ taskId: "", index, kind, status: "fail", error: error instanceof Error ? error.message : failedLabel });
                 withImmediate(() => addCredits(userId, 1));
             }
             extra.tencentTasks = slots;
-            job = saveRunningJob({ userId, jobId: job.id, body: { ...body, prompt, count: planned }, planned, extra });
+            job = saveRunningJob({ userId, jobId: job.id, body: { ...body, prompt, count: planned }, planned, extra, kind });
         }
     } catch (error) {
         const uncreated = planned - slots.length;
         if (uncreated > 0) withImmediate(() => addCredits(userId, uncreated));
         for (let index = slots.length; index < planned; index += 1) {
-            slots.push({ taskId: "", index, kind: "image", status: "fail", error: isAbortError(error) ? "请求已取消" : error instanceof Error ? error.message : "腾讯云点播生图失败" });
+            slots.push({ taskId: "", index, kind, status: "fail", error: isAbortError(error) ? "请求已取消" : error instanceof Error ? error.message : failedLabel });
         }
         extra.tencentTasks = slots;
-        job = saveRunningJob({ userId, jobId: job.id, body: { ...body, prompt, count: planned }, planned, extra });
+        job = saveRunningJob({ userId, jobId: job.id, body: { ...body, prompt, count: planned }, planned, extra, kind });
         if (!slots.some((slot) => slot.status === "processing")) {
-            markJobFailed(userId, job.id, isAbortError(error) ? "请求已取消" : error instanceof Error ? error.message : "腾讯云点播生图失败");
+            markJobFailed(userId, job.id, isAbortError(error) ? "请求已取消" : error instanceof Error ? error.message : failedLabel);
             throw error;
         }
     }
     if (!slots.some((slot) => slot.status === "processing")) {
         const failed = findJobById(job.id)!;
-        const error = slots.find((slot) => slot.error)?.error || "腾讯云点播生图失败";
+        const error = slots.find((slot) => slot.error)?.error || failedLabel;
         const next = { ...failed, extra_json: failed.extra_json || "", status: "failed" as const, error, fail_count: slots.length, updated_at: Date.now(), finished_at: Date.now(), started_at: failed.started_at || 0 };
         updateJob(next);
         notifyJob(findJobById(job.id)!);

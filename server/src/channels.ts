@@ -52,7 +52,14 @@ function normalizeModels(models: ChannelInput["models"], apiFormat: string) {
         return [{ name, capability, ...(script ? { script } : {}) }];
     });
     if (apiFormat === "tencent-vod" && !result.length) return TENCENT_VOD_MODELS;
-    return result;
+    return apiFormat === "tencent-vod" ? mergeTencentDefaultModels(result) : result;
+}
+
+function mergeTencentDefaultModels(models: Array<{ name: string; capability: string; script?: string }>) {
+    if (!models.length) return TENCENT_VOD_MODELS;
+    if (models.some((item) => item.capability === "video")) return models;
+    const names = new Set(models.map((item) => item.name));
+    return [...models, ...TENCENT_VOD_MODELS.filter((item) => item.capability === "video" && !names.has(item.name))];
 }
 
 function normalizeFormat(value: unknown) {
@@ -91,7 +98,7 @@ export function toPublicChannel(row: ChannelRow, reveal = false): PublicChannel 
         name: row.name,
         apiFormat: row.api_format,
         baseUrl: row.base_url,
-        models: parseModels(row.models_json),
+        models: row.api_format === "tencent-vod" ? mergeTencentDefaultModels(parseModels(row.models_json)) : parseModels(row.models_json),
         hasSecrets: hasSecrets(row),
         apiKey: secrets.apiKey,
         secretKey: secrets.secretKey,
@@ -123,21 +130,29 @@ export function resolveSharedTencentChannel(channelId?: string) {
 }
 
 export function bootstrapChannels() {
-    if (channelCount() > 0) return;
-    const env = tencentVodCredentials();
-    const now = Date.now();
-    insertChannel({
-        id: COMPANY_TENCENT_VOD_CHANNEL_ID,
-        name: "腾讯云",
-        api_format: "tencent-vod",
-        base_url: "/tencent-vod",
-        api_key: env?.secretId || "",
-        secret_key: env?.secretKey || "",
-        sub_app_id: env?.subAppId || "",
-        models_json: JSON.stringify(TENCENT_VOD_MODELS),
-        created_at: now,
-        updated_at: now,
-    });
+    if (channelCount() === 0) {
+        const env = tencentVodCredentials();
+        const now = Date.now();
+        insertChannel({
+            id: COMPANY_TENCENT_VOD_CHANNEL_ID,
+            name: "腾讯云",
+            api_format: "tencent-vod",
+            base_url: "/tencent-vod",
+            api_key: env?.secretId || "",
+            secret_key: env?.secretKey || "",
+            sub_app_id: env?.subAppId || "",
+            models_json: JSON.stringify(TENCENT_VOD_MODELS),
+            created_at: now,
+            updated_at: now,
+        });
+        return;
+    }
+    for (const row of listChannels()) {
+        if (row.api_format !== "tencent-vod") continue;
+        const models = mergeTencentDefaultModels(parseModels(row.models_json));
+        if (JSON.stringify(models) === row.models_json) continue;
+        updateChannel({ ...row, models_json: JSON.stringify(models), updated_at: Date.now() });
+    }
 }
 
 export function createSharedChannel(input: ChannelInput) {

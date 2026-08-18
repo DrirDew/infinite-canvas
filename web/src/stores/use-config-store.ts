@@ -87,6 +87,32 @@ export const TENCENT_VOD_DEFAULT_MODELS: ChannelModel[] = [
     { name: "gg_2.5", capability: "image" },
     { name: "gg_3.0", capability: "image" },
     { name: "gg_3.1", capability: "image" },
+    { name: "kling_1.6", capability: "video" },
+    { name: "kling_2.0", capability: "video" },
+    { name: "kling_2.1", capability: "video" },
+    { name: "kling_2.5", capability: "video" },
+    { name: "kling_2.6", capability: "video" },
+    { name: "kling_o1", capability: "video" },
+    { name: "kling_3.0", capability: "video" },
+    { name: "kling_3.0-omni", capability: "video" },
+    { name: "vidu_q2", capability: "video" },
+    { name: "vidu_q2-pro", capability: "video" },
+    { name: "vidu_q2-turbo", capability: "video" },
+    { name: "vidu_q3", capability: "video" },
+    { name: "vidu_q3-pro", capability: "video" },
+    { name: "vidu_q3-turbo", capability: "video" },
+    { name: "hailuo_02", capability: "video" },
+    { name: "hailuo_2.3", capability: "video" },
+    { name: "hailuo_2.3-fast", capability: "video" },
+    { name: "hailuo_h3", capability: "video" },
+    { name: "hunyuan_1.5", capability: "video" },
+    { name: "mingmou_1.0", capability: "video" },
+    { name: "gv_3.1", capability: "video" },
+    { name: "gv_3.1-fast", capability: "video" },
+    { name: "os_2.0", capability: "video" },
+    { name: "pixverse_v5.6", capability: "video" },
+    { name: "pixverse_v6", capability: "video" },
+    { name: "pixverse_c1", capability: "video" },
 ];
 
 export const defaultConfig: AiConfig = {
@@ -145,7 +171,7 @@ type ConfigStore = {
     clearPromptContinue: () => void;
 };
 
-const VIDEO_KEYWORDS = ["seedance", "video", "sora", "veo", "kling", "wan", "hailuo"];
+const VIDEO_KEYWORDS = ["seedance", "video", "sora", "veo", "kling", "wan", "hailuo", "vidu", "pixverse", "mingmou", "hunyuan", "gv_"];
 const AUDIO_KEYWORDS = ["audio", "tts", "speech", "voice", "music", "sound"];
 const IMAGE_KEYWORDS = ["seedream", "gpt-image", "image2", "gg_2.5", "gg_3.0", "gg_3.1", "nano-banana", "image", "dall-e", "dalle", "imagen", "flux", "sdxl", "stable-diffusion", "midjourney"];
 

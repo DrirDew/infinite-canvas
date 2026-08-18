@@ -21,7 +21,7 @@ import { createGeneration, deleteGeneration, fetchGenerations, refreshGeneration
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
-import { modelOptionLabel, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { isManagedChannel, modelOptionLabel, resolveModelChannel, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useConfigAccess } from "@/hooks/use-config-access";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useServerSettingsStore } from "@/stores/use-server-settings-store";
@@ -121,7 +121,9 @@ export default function VideoPage() {
     const [refreshLockedUntil, setRefreshLockedUntil] = useState(0);
 
     const model = effectiveConfig.videoModel || effectiveConfig.model;
-    const canGenerate = Boolean(prompt.trim());
+    const creditBalance = useUserStore((state) => state.user?.creditBalance ?? 0);
+    const isManaged = isManagedChannel(resolveModelChannel(effectiveConfig, model));
+    const canGenerate = Boolean(prompt.trim()) && (!isManaged || creditBalance >= 1);
 
     useEffect(() => {
         if (!running || !startedAt) return;
@@ -231,6 +233,11 @@ export default function VideoPage() {
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("videoWorkbench.invalidParams") });
             return;
         }
+        if (isManaged && creditBalance < 1) {
+            message.error(t("auth.insufficientCredits"));
+            if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("auth.insufficientCredits") });
+            return;
+        }
         setElapsedMs(0);
         setRunning(true);
         if (agentTaskId) updateAgentTask(agentTaskId, { status: "running", error: undefined });
@@ -239,6 +246,7 @@ export default function VideoPage() {
         const batchStartedAt = performance.now();
         setStartedAt(batchStartedAt);
         let jobId: string | undefined;
+        let remotePending = false;
         try {
             const currentStatus = logs.find((log) => log.id === currentJobIdRef.current)?.status;
             const reuse = currentStatus === "draft" || currentStatus === "running";
@@ -252,40 +260,46 @@ export default function VideoPage() {
                 failCount: 0,
             });
             jobId = record.id;
-            const task = await createVideoGenerationTask(snapshot.config, snapshot.text, snapshot.references, snapshot.videoReferences, snapshot.audioReferences);
-            await persistSession("running", { jobId, extra: { task } });
-            await refreshLogs(false);
-            void pollGenerationLog(
-                {
-                    id: jobId,
-                    createdAt: startedAt,
-                    title: snapshot.text.slice(0, 12) || t("workbench.untitled"),
-                    prompt: snapshot.text,
-                    time: new Date(startedAt).toLocaleString(i18n.resolvedLanguage, { hour12: false }),
-                    model,
-                    config: {
-                        model: snapshot.config.model,
-                        videoModel: snapshot.config.videoModel,
+            if (isManaged) {
+                await createVideoGenerationTask(snapshot.config, snapshot.text, snapshot.references, snapshot.videoReferences, snapshot.audioReferences, { jobId, wait: false });
+                remotePending = true;
+                await refreshLogs(false);
+            } else {
+                const task = await createVideoGenerationTask(snapshot.config, snapshot.text, snapshot.references, snapshot.videoReferences, snapshot.audioReferences, { jobId });
+                await persistSession("running", { jobId, extra: { task } });
+                await refreshLogs(false);
+                void pollGenerationLog(
+                    {
+                        id: jobId,
+                        createdAt: startedAt,
+                        title: snapshot.text.slice(0, 12) || t("workbench.untitled"),
+                        prompt: snapshot.text,
+                        time: new Date(startedAt).toLocaleString(i18n.resolvedLanguage, { hour12: false }),
+                        model,
+                        config: {
+                            model: snapshot.config.model,
+                            videoModel: snapshot.config.videoModel,
+                            size: snapshot.config.size,
+                            vquality: normalizeResolution(snapshot.config.vquality),
+                            videoSeconds: snapshot.config.videoSeconds,
+                            videoGenerateAudio: snapshot.config.videoGenerateAudio,
+                            videoWatermark: snapshot.config.videoWatermark,
+                        },
+                        references: snapshot.references,
+                        videoReferences: snapshot.videoReferences,
+                        audioReferences: snapshot.audioReferences,
+                        durationMs: 0,
                         size: snapshot.config.size,
-                        vquality: normalizeResolution(snapshot.config.vquality),
-                        videoSeconds: snapshot.config.videoSeconds,
-                        videoGenerateAudio: snapshot.config.videoGenerateAudio,
-                        videoWatermark: snapshot.config.videoWatermark,
+                        resolution: normalizeResolution(snapshot.config.vquality),
+                        seconds: snapshot.config.videoSeconds,
+                        status: "running",
+                        startedAt,
+                        task,
                     },
-                    references: snapshot.references,
-                    videoReferences: snapshot.videoReferences,
-                    audioReferences: snapshot.audioReferences,
-                    durationMs: 0,
-                    size: snapshot.config.size,
-                    resolution: normalizeResolution(snapshot.config.vquality),
-                    seconds: snapshot.config.videoSeconds,
-                    status: "running",
-                    startedAt,
-                    task,
-                },
-                snapshot.config,
-                agentTaskId,
-            );
+                    snapshot.config,
+                    agentTaskId,
+                );
+            }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : t("workbench.generationFailed");
             setResults([{ id: nanoid(), status: "failed", error: errorMessage }]);
@@ -295,6 +309,7 @@ export default function VideoPage() {
             message.error(errorMessage);
             setRunning(false);
         }
+        if (remotePending) return;
     };
 
     // Handle video-generation commands from the Agent panel by setting the prompt and optionally starting generation.
@@ -330,7 +345,7 @@ export default function VideoPage() {
             requestConfig(true);
             return null;
         }
-        const videoReferenceError = seedanceVideoReferenceError(videoReferences);
+        const videoReferenceError = isSeedanceVideoConfig({ ...effectiveConfig, model }) ? seedanceVideoReferenceError(videoReferences) : "";
         if (videoReferenceError) {
             message.error(t("videoWorkbench.referenceError", { error: videoReferenceError, hint: seedanceVideoReferenceHint() }));
             return null;
@@ -471,6 +486,13 @@ export default function VideoPage() {
                 jobStatusRef.current[log.id] = log.status;
             });
             if (resumePending) resumePendingLogs(nextLogs);
+            const runningLog = nextLogs.find((log) => log.status === "running");
+            if (runningLog && (!currentJobIdRef.current || currentJobIdRef.current === runningLog.id)) {
+                setSessionId(runningLog.id);
+                setRunning(true);
+                setStartedAt(performance.now() - Math.max(0, Date.now() - (runningLog.startedAt || runningLog.createdAt)));
+                previewResults(runningLog);
+            }
             return nextLogs;
         } catch {
             setLogs([]);
@@ -787,6 +809,7 @@ export default function VideoPage() {
                         </div>
 
                         <div className="mt-auto pt-6">
+                            {isManaged ? <div className="mb-2 text-xs text-stone-500">{t("auth.creditsLeft", { count: creditBalance })}</div> : null}
                             <div className="flex items-center gap-2">
                                 <Button type="primary" size="large" className="min-w-0 flex-1" icon={<Sparkles className="size-4" />} loading={running} disabled={!canGenerate || running} onClick={() => void generate()}>
                                     {t("workbench.generate")}

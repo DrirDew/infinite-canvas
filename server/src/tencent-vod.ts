@@ -6,7 +6,7 @@ const HOST = "vod.tencentcloudapi.com";
 const GG_ASPECT_RATIOS = ["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
 
 export const COMPANY_TENCENT_VOD_CHANNEL_ID = "company-tencent-vod";
-export const TENCENT_VOD_MODELS = [
+const TENCENT_VOD_IMAGE_MODELS = [
     { name: "image2_low", capability: "image" as const },
     { name: "image2_medium", capability: "image" as const },
     { name: "image2_high", capability: "image" as const },
@@ -14,8 +14,43 @@ export const TENCENT_VOD_MODELS = [
     { name: "gg_3.0", capability: "image" as const },
     { name: "gg_3.1", capability: "image" as const },
 ];
+const TENCENT_VOD_VIDEO_MODELS = [
+    { name: "kling_1.6", modelName: "Kling", modelVersion: "1.6" },
+    { name: "kling_2.0", modelName: "Kling", modelVersion: "2.0" },
+    { name: "kling_2.1", modelName: "Kling", modelVersion: "2.1" },
+    { name: "kling_2.5", modelName: "Kling", modelVersion: "2.5" },
+    { name: "kling_2.6", modelName: "Kling", modelVersion: "2.6" },
+    { name: "kling_o1", modelName: "Kling", modelVersion: "O1" },
+    { name: "kling_3.0", modelName: "Kling", modelVersion: "3.0" },
+    { name: "kling_3.0-omni", modelName: "Kling", modelVersion: "3.0-Omni" },
+    { name: "vidu_q2", modelName: "Vidu", modelVersion: "q2" },
+    { name: "vidu_q2-pro", modelName: "Vidu", modelVersion: "q2-pro" },
+    { name: "vidu_q2-turbo", modelName: "Vidu", modelVersion: "q2-turbo" },
+    { name: "vidu_q3", modelName: "Vidu", modelVersion: "q3" },
+    { name: "vidu_q3-pro", modelName: "Vidu", modelVersion: "q3-pro" },
+    { name: "vidu_q3-turbo", modelName: "Vidu", modelVersion: "q3-turbo" },
+    { name: "hailuo_02", modelName: "Hailuo", modelVersion: "02" },
+    { name: "hailuo_2.3", modelName: "Hailuo", modelVersion: "2.3" },
+    { name: "hailuo_2.3-fast", modelName: "Hailuo", modelVersion: "2.3-fast" },
+    { name: "hailuo_h3", modelName: "Hailuo", modelVersion: "H3" },
+    { name: "hunyuan_1.5", modelName: "Hunyuan", modelVersion: "1.5" },
+    { name: "mingmou_1.0", modelName: "Mingmou", modelVersion: "1.0" },
+    { name: "gv_3.1", modelName: "GV", modelVersion: "3.1" },
+    { name: "gv_3.1-fast", modelName: "GV", modelVersion: "3.1-fast" },
+    { name: "os_2.0", modelName: "OS", modelVersion: "2.0" },
+    { name: "pixverse_v5.6", modelName: "PixVerse", modelVersion: "v5.6" },
+    { name: "pixverse_v6", modelName: "PixVerse", modelVersion: "v6" },
+    { name: "pixverse_c1", modelName: "PixVerse", modelVersion: "c1" },
+];
+export const TENCENT_VOD_MODELS = [
+    ...TENCENT_VOD_IMAGE_MODELS,
+    ...TENCENT_VOD_VIDEO_MODELS.map((model) => ({ name: model.name, capability: "video" as const })),
+];
 
 type VodModel = { modelName: "OG" | "GG"; modelVersion: string };
+type VodVideoModel = { modelName: string; modelVersion: string };
+const VIDEO_ASPECT_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "2:3", "3:2"];
+const VIDEO_FAMILIES: Record<string, string> = { kling: "Kling", vidu: "Vidu", hailuo: "Hailuo", hunyuan: "Hunyuan", mingmou: "Mingmou", gv: "GV", os: "OS", pixverse: "PixVerse" };
 type TencentCloudResponse<T> = { Response?: T & { Error?: { Code?: string; Message?: string } } };
 type CreateTaskPayload = { TaskId?: string };
 type AigcTaskPayload = {
@@ -33,6 +68,7 @@ type DescribeTaskPayload = {
     AigcVideoTask?: AigcTaskPayload;
 };
 type FileInfo = { Type: "Base64"; Base64: string; ReferenceType?: "mask" };
+type VideoFileInfo = { Type: "Base64" | "Url"; Category: "Image" | "Video" | "Audio"; Base64?: string; Url?: string; Usage?: string };
 
 export type VodTaskKind = "image" | "video";
 export type VodTaskSnapshot = {
@@ -44,18 +80,25 @@ export type VodTaskSnapshot = {
     sessionContext: string;
 };
 
+export type CompanyMediaRef = { dataUrl?: string; url?: string };
 export type CompanyImageRequest = {
     channelId?: string;
     jobId?: string;
     model?: string;
     prompt?: string;
-    references?: Array<{ dataUrl?: string }>;
+    references?: CompanyMediaRef[];
     mask?: { dataUrl?: string } | null;
     count?: number;
     quality?: string;
     size?: string;
     background?: string;
+    seconds?: string;
+    generateAudio?: string;
+    watermark?: string;
+    videoReferences?: CompanyMediaRef[];
+    audioReferences?: CompanyMediaRef[];
 };
+export type CompanyVideoRequest = CompanyImageRequest;
 
 export function tencentVodCredentials() {
     const secretId = process.env.TENCENT_VOD_SECRET_ID?.trim() || "";
@@ -119,6 +162,23 @@ export async function createCompanyImageTask(credentials: { secretId: string; se
     }, signal);
     const taskId = created.TaskId?.trim();
     if (!taskId) throw new Error("腾讯云点播生图失败");
+    return taskId;
+}
+
+export async function createCompanyVideoTask(credentials: { secretId: string; secretKey: string; subAppId: string }, prompt: string, body: CompanyVideoRequest, sessionContext: string, signal?: AbortSignal) {
+    const resolved = resolveVodVideoModel(body.model || "");
+    const created = await callVod<CreateTaskPayload>(credentials, "CreateAigcVideoTask", {
+        SubAppId: Number(credentials.subAppId),
+        ModelName: resolved.modelName,
+        ModelVersion: resolved.modelVersion,
+        Prompt: prompt,
+        EnhancePrompt: "Disabled",
+        SessionContext: sessionContext,
+        OutputConfig: buildVideoOutputConfig(resolved.modelName, body),
+        ...videoFileInfosPayload(body),
+    }, signal);
+    const taskId = created.TaskId?.trim();
+    if (!taskId) throw new Error("腾讯云点播生视频失败");
     return taskId;
 }
 
@@ -202,8 +262,8 @@ async function callVod<T>(credentials: { secretId: string; secretKey: string }, 
     });
     const data = (await response.json()) as TencentCloudResponse<T>;
     const result = data.Response;
-    if (!result) throw new Error("腾讯云点播生图失败");
-    if (result.Error?.Message || result.Error?.Code) throw new Error(result.Error.Message || result.Error.Code || "腾讯云点播生图失败");
+    if (!result) throw new Error("腾讯云点播请求失败");
+    if (result.Error?.Message || result.Error?.Code) throw new Error(result.Error.Message || result.Error.Code || "腾讯云点播请求失败");
     return result;
 }
 
@@ -252,6 +312,97 @@ function resolveOgModelVersion(model: string, quality?: string) {
     if (quality === "high") return "image2_high";
     if (quality === "low") return "image2_low";
     return "image2_medium";
+}
+
+function resolveVodVideoModel(model: string): VodVideoModel {
+    const name = model.trim();
+    const lower = name.toLowerCase();
+    const known = TENCENT_VOD_VIDEO_MODELS.find((item) => item.name === lower);
+    if (known) return { modelName: known.modelName, modelVersion: known.modelVersion };
+    const matched = /^([a-z]+)[_-](.+)$/i.exec(name);
+    const family = matched ? VIDEO_FAMILIES[matched[1].toLowerCase()] : undefined;
+    if (!family || !matched) throw new Error("不支持的腾讯云点播视频模型");
+    return { modelName: family, modelVersion: canonicalVideoVersion(family, matched[2]) };
+}
+
+function canonicalVideoVersion(modelName: string, version: string) {
+    const value = version.trim();
+    if (!value) throw new Error("不支持的腾讯云点播视频模型");
+    if (modelName === "Kling" && /^o1$/i.test(value)) return "O1";
+    if (modelName === "Kling" && /3\.0[-_]?omni/i.test(value)) return "3.0-Omni";
+    if (modelName === "Hailuo" && /^h3$/i.test(value)) return "H3";
+    return value;
+}
+
+function buildVideoOutputConfig(modelName: string, body: CompanyVideoRequest) {
+    const config: Record<string, string | number> = { StorageMode: "Temporary" };
+    const duration = Number(body.seconds);
+    if (Number.isFinite(duration) && duration > 0) config.Duration = duration;
+    const resolution = toVideoResolution(body.quality, modelName);
+    if (resolution) config.Resolution = resolution;
+    const aspectRatio = toVideoAspectRatio(body.size);
+    if (aspectRatio) config.AspectRatio = aspectRatio;
+    config.AudioGeneration = String(body.generateAudio).toLowerCase() === "false" ? "Disabled" : "Enabled";
+    if (String(body.watermark).toLowerCase() === "true") config.LogoAdd = "Enabled";
+    return config;
+}
+
+function toVideoResolution(quality: string | undefined, modelName: string) {
+    const value = String(quality || "").trim().toLowerCase();
+    if (modelName === "Hailuo") return value.includes("1080") || value === "high" ? "1080P" : "768P";
+    if (modelName === "PixVerse") {
+        if (value.includes("1080") || value === "high") return "1080p";
+        if (value.includes("540") || value.includes("480") || value === "low") return "540p";
+        return "720p";
+    }
+    if (value.includes("1080") || value === "high") return "1080P";
+    return "720P";
+}
+
+function toVideoAspectRatio(size?: string) {
+    const value = size?.trim().toLowerCase();
+    if (!value || value === "auto") return undefined;
+    const parts = value.includes(":") ? value.split(":") : value.split(/[x*]/);
+    const width = Number(parts[0]);
+    const height = Number(parts[1]);
+    if (!width || !height) return VIDEO_ASPECT_RATIOS.includes(value) ? value : undefined;
+    const target = width / height;
+    return VIDEO_ASPECT_RATIOS.reduce((best, item) => {
+        const [currentWidth, currentHeight] = item.split(":").map(Number);
+        const [bestWidth, bestHeight] = best.split(":").map(Number);
+        return Math.abs(currentWidth / currentHeight - target) < Math.abs(bestWidth / bestHeight - target) ? item : best;
+    });
+}
+
+function videoFileInfosPayload(body: CompanyVideoRequest) {
+    const images = body.references || [];
+    const videos = body.videoReferences || [];
+    const audios = body.audioReferences || [];
+    const files: VideoFileInfo[] = [];
+    const firstFrame = images.length > 0 && videos.length === 0;
+    images.forEach((item, index) => {
+        const file = toVideoFileInfo(item, "Image");
+        if (!file) return;
+        file.Usage = firstFrame && index === 0 ? "FirstFrame" : firstFrame && index === 1 ? "LastFrame" : "Reference";
+        files.push(file);
+    });
+    videos.forEach((item) => {
+        const file = toVideoFileInfo(item, "Video");
+        if (file) files.push({ ...file, Usage: "Reference" });
+    });
+    audios.forEach((item) => {
+        const file = toVideoFileInfo(item, "Audio");
+        if (file) files.push(file);
+    });
+    return files.length ? { FileInfos: files } : {};
+}
+
+function toVideoFileInfo(item: CompanyMediaRef, category: VideoFileInfo["Category"]): VideoFileInfo | null {
+    const source = String(item.url || item.dataUrl || "").trim();
+    if (/^https?:\/\//i.test(source)) return { Type: "Url", Category: category, Url: source };
+    const base64 = toRawBase64(source);
+    if (!base64) return null;
+    return { Type: "Base64", Category: category, Base64: base64 };
 }
 
 function buildFileInfos(references: Array<{ dataUrl?: string }>, mask?: { dataUrl?: string } | null): FileInfo[] {
