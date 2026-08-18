@@ -1,6 +1,6 @@
 services:
   server:
-    image: infinite-canvas-api:local
+    image: infinite-canvas-server:local
     build:
       context: .
       dockerfile: Dockerfile
@@ -16,7 +16,7 @@ services:
     volumes:
       - ./data:/app/data
   client:
-    image: infinite-canvas:local
+    image: infinite-canvas-client:local
     build:
       context: .
       dockerfile: Dockerfile

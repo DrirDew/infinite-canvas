@@ -1,8 +1,8 @@
 # 阿里云镜像站
 
-本机构建，推到阿里云个人版容器镜像服务，服务器只拉取、不编译。本地镜像名是 `infinite-canvas-client:local` 和 `infinite-canvas-server:local`（见 `docker-compose.local.yml`）。推到仓库时仍使用 `infinite-canvas` 和 `infinite-canvas-api`。
+本机构建，推到阿里云个人版容器镜像服务，服务器只拉取、不编译。本地和镜像站都使用 `infinite-canvas-client` 和 `infinite-canvas-server`。
 
-先在 [容器镜像服务控制台](https://cr.console.aliyun.com/) 确认命名空间 `drir` 下已有仓库 `infinite-canvas` 和 `infinite-canvas-api`（没有就新建，或打开自动创建仓库）。访问凭证在控制台「访问凭证」里设置，登录用户名是阿里云账号（手机号或邮箱）。
+先在 [容器镜像服务控制台](https://cr.console.aliyun.com/) 确认命名空间 `drir` 下已有仓库 `infinite-canvas-client` 和 `infinite-canvas-server`（没有就新建，或打开自动创建仓库）。访问凭证在控制台「访问凭证」里设置，登录用户名是阿里云账号（手机号或邮箱）。
 
 下面命令里的 `IMAGE_TAG` 自行改成这次版本，例如 `20260817`。不要把密码和腾讯云密钥写进仓库。
 
@@ -11,13 +11,13 @@
 ```bash
 REGISTRY=crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com
 NAMESPACE=drir
-IMAGE=infinite-canvas
-API_IMAGE=infinite-canvas-api
-LOCAL=infinite-canvas-client:local
-LOCAL_API=infinite-canvas-server:local
+CLIENT_IMAGE=infinite-canvas-client
+SERVER_IMAGE=infinite-canvas-server
+LOCAL_CLIENT=infinite-canvas-client:local
+LOCAL_SERVER=infinite-canvas-server:local
 IMAGE_TAG=20260817
-REMOTE=$REGISTRY/$NAMESPACE/$IMAGE:$IMAGE_TAG
-REMOTE_API=$REGISTRY/$NAMESPACE/$API_IMAGE:$IMAGE_TAG
+REMOTE_CLIENT=$REGISTRY/$NAMESPACE/$CLIENT_IMAGE:$IMAGE_TAG
+REMOTE_SERVER=$REGISTRY/$NAMESPACE/$SERVER_IMAGE:$IMAGE_TAG
 ```
 
 ## 本机：构建并推送
@@ -29,20 +29,20 @@ REMOTE_API=$REGISTRY/$NAMESPACE/$API_IMAGE:$IMAGE_TAG
 ```powershell
 $REGISTRY = "crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com"
 $NAMESPACE = "drir"
-$IMAGE = "infinite-canvas"
-$API_IMAGE = "infinite-canvas-api"
-$LOCAL = "infinite-canvas-client:local"
-$LOCAL_API = "infinite-canvas-server:local"
+$CLIENT_IMAGE = "infinite-canvas-client"
+$SERVER_IMAGE = "infinite-canvas-server"
+$LOCAL_CLIENT = "infinite-canvas-client:local"
+$LOCAL_SERVER = "infinite-canvas-server:local"
 $IMAGE_TAG = "20260817"
-$REMOTE = "$REGISTRY/$NAMESPACE/${IMAGE}:$IMAGE_TAG"
-$REMOTE_API = "$REGISTRY/$NAMESPACE/${API_IMAGE}:$IMAGE_TAG"
+$REMOTE_CLIENT = "$REGISTRY/$NAMESPACE/${CLIENT_IMAGE}:$IMAGE_TAG"
+$REMOTE_SERVER = "$REGISTRY/$NAMESPACE/${SERVER_IMAGE}:$IMAGE_TAG"
 
 docker compose -f docker-compose.local.yml build
 docker login --username=你的阿里云账号 $REGISTRY
-docker tag $LOCAL $REMOTE
-docker tag $LOCAL_API $REMOTE_API
-docker push $REMOTE
-docker push $REMOTE_API
+docker tag $LOCAL_CLIENT $REMOTE_CLIENT
+docker tag $LOCAL_SERVER $REMOTE_SERVER
+docker push $REMOTE_CLIENT
+docker push $REMOTE_SERVER
 ```
 
 ### Bash
@@ -50,20 +50,20 @@ docker push $REMOTE_API
 ```bash
 REGISTRY=crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com
 NAMESPACE=drir
-IMAGE=infinite-canvas
-API_IMAGE=infinite-canvas-api
-LOCAL=infinite-canvas-client:local
-LOCAL_API=infinite-canvas-server:local
+CLIENT_IMAGE=infinite-canvas-client
+SERVER_IMAGE=infinite-canvas-server
+LOCAL_CLIENT=infinite-canvas-client:local
+LOCAL_SERVER=infinite-canvas-server:local
 IMAGE_TAG=20260817
-REMOTE=$REGISTRY/$NAMESPACE/$IMAGE:$IMAGE_TAG
-REMOTE_API=$REGISTRY/$NAMESPACE/$API_IMAGE:$IMAGE_TAG
+REMOTE_CLIENT=$REGISTRY/$NAMESPACE/$CLIENT_IMAGE:$IMAGE_TAG
+REMOTE_SERVER=$REGISTRY/$NAMESPACE/$SERVER_IMAGE:$IMAGE_TAG
 
 docker compose -f docker-compose.local.yml build
 docker login --username=你的阿里云账号 "$REGISTRY"
-docker tag "$LOCAL" "$REMOTE"
-docker tag "$LOCAL_API" "$REMOTE_API"
-docker push "$REMOTE"
-docker push "$REMOTE_API"
+docker tag "$LOCAL_CLIENT" "$REMOTE_CLIENT"
+docker tag "$LOCAL_SERVER" "$REMOTE_SERVER"
+docker push "$REMOTE_CLIENT"
+docker push "$REMOTE_SERVER"
 ```
 
 `build` 只在本机跑。推送成功后记下这次的 `IMAGE_TAG`。
@@ -75,19 +75,19 @@ docker push "$REMOTE_API"
 ```bash
 REGISTRY=crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com
 NAMESPACE=drir
-IMAGE=infinite-canvas
-API_IMAGE=infinite-canvas-api
-LOCAL=infinite-canvas-client:local
-LOCAL_API=infinite-canvas-server:local
+CLIENT_IMAGE=infinite-canvas-client
+SERVER_IMAGE=infinite-canvas-server
+LOCAL_CLIENT=infinite-canvas-client:local
+LOCAL_SERVER=infinite-canvas-server:local
 IMAGE_TAG=20260817
-REMOTE=$REGISTRY/$NAMESPACE/$IMAGE:$IMAGE_TAG
-REMOTE_API=$REGISTRY/$NAMESPACE/$API_IMAGE:$IMAGE_TAG
+REMOTE_CLIENT=$REGISTRY/$NAMESPACE/$CLIENT_IMAGE:$IMAGE_TAG
+REMOTE_SERVER=$REGISTRY/$NAMESPACE/$SERVER_IMAGE:$IMAGE_TAG
 
 docker login --username=你的阿里云账号 "$REGISTRY"
-docker pull "$REMOTE"
-docker pull "$REMOTE_API"
-docker tag "$REMOTE" "$LOCAL"
-docker tag "$REMOTE_API" "$LOCAL_API"
+docker pull "$REMOTE_CLIENT"
+docker pull "$REMOTE_SERVER"
+docker tag "$REMOTE_CLIENT" "$LOCAL_CLIENT"
+docker tag "$REMOTE_SERVER" "$LOCAL_SERVER"
 docker compose -f docker-compose.local.yml up -d
 ```
 
@@ -99,8 +99,8 @@ docker compose -f docker-compose.local.yml up -d
 
 | 本机 | 镜像站 |
 | --- | --- |
-| `infinite-canvas-client:local` | `crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com/drir/infinite-canvas:<IMAGE_TAG>` |
-| `infinite-canvas-server:local` | `crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com/drir/infinite-canvas-api:<IMAGE_TAG>` |
+| `infinite-canvas-client:local` | `crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com/drir/infinite-canvas-client:<IMAGE_TAG>` |
+| `infinite-canvas-server:local` | `crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com/drir/infinite-canvas-server:<IMAGE_TAG>` |
 
 ## 快速
 
@@ -109,19 +109,19 @@ docker compose -f docker-compose.local.yml up -d
 ```powershell
 $REGISTRY = "crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com"
 $NAMESPACE = "drir"
-$IMAGE = "infinite-canvas"
-$API_IMAGE = "infinite-canvas-api"
-$LOCAL = "infinite-canvas-client:local"
-$LOCAL_API = "infinite-canvas-server:local"
+$CLIENT_IMAGE = "infinite-canvas-client"
+$SERVER_IMAGE = "infinite-canvas-server"
+$LOCAL_CLIENT = "infinite-canvas-client:local"
+$LOCAL_SERVER = "infinite-canvas-server:local"
 $IMAGE_TAG = "latest"
-$REMOTE = "$REGISTRY/$NAMESPACE/${IMAGE}:$IMAGE_TAG"
-$REMOTE_API = "$REGISTRY/$NAMESPACE/${API_IMAGE}:$IMAGE_TAG"
+$REMOTE_CLIENT = "$REGISTRY/$NAMESPACE/${CLIENT_IMAGE}:$IMAGE_TAG"
+$REMOTE_SERVER = "$REGISTRY/$NAMESPACE/${SERVER_IMAGE}:$IMAGE_TAG"
 
 docker compose -f docker-compose.local.yml build
-docker tag $LOCAL $REMOTE
-docker tag $LOCAL_API $REMOTE_API
-docker push $REMOTE
-docker push $REMOTE_API
+docker tag $LOCAL_CLIENT $REMOTE_CLIENT
+docker tag $LOCAL_SERVER $REMOTE_SERVER
+docker push $REMOTE_CLIENT
+docker push $REMOTE_SERVER
 ```
 
 服务器
@@ -129,17 +129,17 @@ docker push $REMOTE_API
 ```bash
 REGISTRY=crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com
 NAMESPACE=drir
-IMAGE=infinite-canvas
-API_IMAGE=infinite-canvas-api
-LOCAL=infinite-canvas-client:local
-LOCAL_API=infinite-canvas-server:local
+CLIENT_IMAGE=infinite-canvas-client
+SERVER_IMAGE=infinite-canvas-server
+LOCAL_CLIENT=infinite-canvas-client:local
+LOCAL_SERVER=infinite-canvas-server:local
 IMAGE_TAG=latest
-REMOTE=$REGISTRY/$NAMESPACE/$IMAGE:$IMAGE_TAG
-REMOTE_API=$REGISTRY/$NAMESPACE/$API_IMAGE:$IMAGE_TAG
+REMOTE_CLIENT=$REGISTRY/$NAMESPACE/$CLIENT_IMAGE:$IMAGE_TAG
+REMOTE_SERVER=$REGISTRY/$NAMESPACE/$SERVER_IMAGE:$IMAGE_TAG
 
-docker pull "$REMOTE"
-docker pull "$REMOTE_API"
-docker tag "$REMOTE" "$LOCAL"
-docker tag "$REMOTE_API" "$LOCAL_API"
+docker pull "$REMOTE_CLIENT"
+docker pull "$REMOTE_SERVER"
+docker tag "$REMOTE_CLIENT" "$LOCAL_CLIENT"
+docker tag "$REMOTE_SERVER" "$LOCAL_SERVER"
 docker compose -f docker-compose.local.yml up -d
 ```
