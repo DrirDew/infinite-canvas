@@ -1,10 +1,10 @@
 services:
-  api:
+  server:
     image: infinite-canvas-api:local
     build:
       context: .
       dockerfile: Dockerfile
-      target: api
+      target: server
     restart: unless-stopped
     environment:
       DATA_DIR: /app/data
@@ -15,18 +15,18 @@ services:
       TENCENT_VOD_SUB_APP_ID: ${TENCENT_VOD_SUB_APP_ID:-}
     volumes:
       - ./data:/app/data
-  app:
+  client:
     image: infinite-canvas:local
     build:
       context: .
       dockerfile: Dockerfile
-      target: app
+      target: client
     container_name: infinite-canvas
     ports:
       - "3000:3000"
     restart: unless-stopped
     depends_on:
-      - api
+      - server
     # 统计分析从项目根目录 .env 读取，模板见 .env.example。
     environment:
       ANALYTICS_GA4_ID: ${ANALYTICS_GA4_ID:-}

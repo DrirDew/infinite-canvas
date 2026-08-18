@@ -151,7 +151,7 @@ Add:
 - `SESSION_SECRET`
 - `DATA_DIR` — default `./data`, holds `app.db` and `generations/`
 
-Mount a volume on `infinite-canvas-api` at `DATA_DIR`. Keep the Nginx `/api` proxy. The site gate is application login; Docker HTTP Basic Auth has been removed.
+Mount a volume on `infinite-canvas-server` at `DATA_DIR`. Keep the Nginx `/api` proxy. The site gate is application login; Docker HTTP Basic Auth has been removed.
 
 ## Delivery stages
 

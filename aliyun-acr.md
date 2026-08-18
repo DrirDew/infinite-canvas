@@ -1,6 +1,6 @@
 # 阿里云镜像站
 
-本机构建，推到阿里云个人版容器镜像服务，服务器只拉取、不编译。本地镜像名是 `infinite-canvas:local` 和 `infinite-canvas-api:local`（见 `docker-compose.local.yml`）。
+本机构建，推到阿里云个人版容器镜像服务，服务器只拉取、不编译。本地镜像名是 `infinite-canvas-client:local` 和 `infinite-canvas-server:local`（见 `docker-compose.local.yml`）。推到仓库时仍使用 `infinite-canvas` 和 `infinite-canvas-api`。
 
 先在 [容器镜像服务控制台](https://cr.console.aliyun.com/) 确认命名空间 `drir` 下已有仓库 `infinite-canvas` 和 `infinite-canvas-api`（没有就新建，或打开自动创建仓库）。访问凭证在控制台「访问凭证」里设置，登录用户名是阿里云账号（手机号或邮箱）。
 
@@ -13,8 +13,8 @@ REGISTRY=crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com
 NAMESPACE=drir
 IMAGE=infinite-canvas
 API_IMAGE=infinite-canvas-api
-LOCAL=infinite-canvas:local
-LOCAL_API=infinite-canvas-api:local
+LOCAL=infinite-canvas-client:local
+LOCAL_API=infinite-canvas-server:local
 IMAGE_TAG=20260817
 REMOTE=$REGISTRY/$NAMESPACE/$IMAGE:$IMAGE_TAG
 REMOTE_API=$REGISTRY/$NAMESPACE/$API_IMAGE:$IMAGE_TAG
@@ -31,8 +31,8 @@ $REGISTRY = "crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com"
 $NAMESPACE = "drir"
 $IMAGE = "infinite-canvas"
 $API_IMAGE = "infinite-canvas-api"
-$LOCAL = "infinite-canvas:local"
-$LOCAL_API = "infinite-canvas-api:local"
+$LOCAL = "infinite-canvas-client:local"
+$LOCAL_API = "infinite-canvas-server:local"
 $IMAGE_TAG = "20260817"
 $REMOTE = "$REGISTRY/$NAMESPACE/${IMAGE}:$IMAGE_TAG"
 $REMOTE_API = "$REGISTRY/$NAMESPACE/${API_IMAGE}:$IMAGE_TAG"
@@ -52,8 +52,8 @@ REGISTRY=crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com
 NAMESPACE=drir
 IMAGE=infinite-canvas
 API_IMAGE=infinite-canvas-api
-LOCAL=infinite-canvas:local
-LOCAL_API=infinite-canvas-api:local
+LOCAL=infinite-canvas-client:local
+LOCAL_API=infinite-canvas-server:local
 IMAGE_TAG=20260817
 REMOTE=$REGISTRY/$NAMESPACE/$IMAGE:$IMAGE_TAG
 REMOTE_API=$REGISTRY/$NAMESPACE/$API_IMAGE:$IMAGE_TAG
@@ -77,8 +77,8 @@ REGISTRY=crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com
 NAMESPACE=drir
 IMAGE=infinite-canvas
 API_IMAGE=infinite-canvas-api
-LOCAL=infinite-canvas:local
-LOCAL_API=infinite-canvas-api:local
+LOCAL=infinite-canvas-client:local
+LOCAL_API=infinite-canvas-server:local
 IMAGE_TAG=20260817
 REMOTE=$REGISTRY/$NAMESPACE/$IMAGE:$IMAGE_TAG
 REMOTE_API=$REGISTRY/$NAMESPACE/$API_IMAGE:$IMAGE_TAG
@@ -99,8 +99,8 @@ docker compose -f docker-compose.local.yml up -d
 
 | 本机 | 镜像站 |
 | --- | --- |
-| `infinite-canvas:local` | `crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com/drir/infinite-canvas:<IMAGE_TAG>` |
-| `infinite-canvas-api:local` | `crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com/drir/infinite-canvas-api:<IMAGE_TAG>` |
+| `infinite-canvas-client:local` | `crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com/drir/infinite-canvas:<IMAGE_TAG>` |
+| `infinite-canvas-server:local` | `crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com/drir/infinite-canvas-api:<IMAGE_TAG>` |
 
 ## 快速
 
@@ -111,8 +111,8 @@ $REGISTRY = "crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com"
 $NAMESPACE = "drir"
 $IMAGE = "infinite-canvas"
 $API_IMAGE = "infinite-canvas-api"
-$LOCAL = "infinite-canvas:local"
-$LOCAL_API = "infinite-canvas-api:local"
+$LOCAL = "infinite-canvas-client:local"
+$LOCAL_API = "infinite-canvas-server:local"
 $IMAGE_TAG = "latest"
 $REMOTE = "$REGISTRY/$NAMESPACE/${IMAGE}:$IMAGE_TAG"
 $REMOTE_API = "$REGISTRY/$NAMESPACE/${API_IMAGE}:$IMAGE_TAG"
@@ -131,8 +131,8 @@ REGISTRY=crpi-e9lbf8hhoxeu7sfj.cn-hangzhou.personal.cr.aliyuncs.com
 NAMESPACE=drir
 IMAGE=infinite-canvas
 API_IMAGE=infinite-canvas-api
-LOCAL=infinite-canvas:local
-LOCAL_API=infinite-canvas-api:local
+LOCAL=infinite-canvas-client:local
+LOCAL_API=infinite-canvas-server:local
 IMAGE_TAG=latest
 REMOTE=$REGISTRY/$NAMESPACE/$IMAGE:$IMAGE_TAG
 REMOTE_API=$REGISTRY/$NAMESPACE/$API_IMAGE:$IMAGE_TAG

@@ -1,10 +1,11 @@
 services:
-  api:
-    image: infinite-canvas-api:local
+  server:
+    image: infinite-canvas-server:local
     build:
       context: .
       dockerfile: Dockerfile
-      target: api
+      target: server
+    container_name: infinite-canvas-server
     restart: unless-stopped
     # 应用登录与公司渠道从项目根目录 .env 读取。ADMIN_PASSWORD 只在空库时创建管理员。
     environment:
@@ -16,14 +17,16 @@ services:
       TENCENT_VOD_SUB_APP_ID: ${TENCENT_VOD_SUB_APP_ID:-}
     volumes:
       - ./data:/app/data
-  app:
-    image: infinite-canvas:local
+
+  client:
+    image: infinite-canvas-client:local
     build:
       context: .
       dockerfile: Dockerfile
-      target: app
+      target: client
+    container_name: infinite-canvas-client
     ports:
       - "3000:3000"
     restart: unless-stopped
     depends_on:
-      - api
+      - server

@@ -168,7 +168,7 @@ Cookie 建议：`HttpOnly`、`SameSite=Lax`、路径 `/`。本地 Vite 与 `/api
 - `SESSION_SECRET`：会话签名或随机 session id 的熵来源
 - `DATA_DIR`：默认 `./data`，内含 `app.db` 和 `generations/`
 
-Docker：给 `infinite-canvas-api` 挂 volume 到 `DATA_DIR`。Nginx `/api` 反代保持不变。站点大门用应用登录，不再使用 Docker HTTP Basic Auth。
+Docker：给 `infinite-canvas-server` 挂 volume 到 `DATA_DIR`。Nginx `/api` 反代保持不变。站点大门用应用登录，不再使用 Docker HTTP Basic Auth。
 
 ## 分期交付
 

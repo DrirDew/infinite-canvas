@@ -10,7 +10,7 @@ COPY web ./
 RUN bun run build
 
 # 公司渠道签名代理：密钥只存在这个容器的环境变量里。
-FROM oven/bun:1.3.13 AS api
+FROM oven/bun:1.3.13 AS server
 WORKDIR /app
 COPY server/package.json ./
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --cache-dir=/root/.bun/install/cache
@@ -22,7 +22,7 @@ ENV DATA_DIR=/app/data
 CMD ["bun", "src/index.ts"]
 
 # 运行镜像：静态前端 + 反代公司渠道 API。默认构建这个阶段。
-FROM nginx:1.27-alpine AS app
+FROM nginx:1.27-alpine AS client
 
 COPY --from=web-build /app/web/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
