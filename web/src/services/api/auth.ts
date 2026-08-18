@@ -6,8 +6,21 @@ export type SessionUser = {
     id: string;
     username: string;
     role: UserRole;
-    creditBalance: number;
-    generatedCount?: number;
+    imageQuota: number;
+    videoQuota: number;
+    imageUsed: number;
+    videoUsed: number;
+    imageRemaining: number;
+    videoRemaining: number;
+};
+
+export type QuotaPatch = {
+    imageRemaining?: number;
+    videoRemaining?: number;
+    imageQuota?: number;
+    videoQuota?: number;
+    imageUsed?: number;
+    videoUsed?: number;
 };
 
 function errorMessage(error: unknown, fallback: string) {
@@ -73,9 +86,9 @@ export async function deleteUserRequest(userId: string) {
     }
 }
 
-export async function adjustCreditsRequest(userId: string, creditBalance: number) {
+export async function adjustQuotasRequest(userId: string, payload: { imageQuota?: number; videoQuota?: number }) {
     try {
-        const response = await appApi.patch<SessionUser>(`/api/users/${userId}/credits`, { creditBalance });
+        const response = await appApi.patch<SessionUser>(`/api/users/${userId}/credits`, payload);
         return response.data;
     } catch (error) {
         throw new Error(errorMessage(error, "调整额度失败"));

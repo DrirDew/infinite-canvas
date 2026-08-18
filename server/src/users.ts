@@ -1,4 +1,4 @@
-import { deleteUserRecords, findUserById, findUserByUsername, generatedCountForUser, generatedCountMap, insertLedger, insertUser, listUsers, setCreditBalance, setPasswordHash, withImmediate } from "./db";
+import { deleteUserRecords, ensureQuotaDay, findUserById, findUserByUsername, insertUser, listUsers, setPasswordHash, setUserQuotas, shanghaiDate, withImmediate } from "./db";
 import { removeUserGenerations } from "./generations";
 import { toPublicUser, type UserRole } from "./schema";
 
@@ -26,16 +26,22 @@ export async function createUser(username: string, password: string, role: UserR
         username: name,
         password_hash: await Bun.password.hash(password),
         role,
-        credit_balance: 0,
+        image_quota: 0,
+        video_quota: 0,
+        image_used: 0,
+        video_used: 0,
+        quota_date: shanghaiDate(),
         created_at: Date.now(),
     };
     insertUser(row);
-    return toPublicUser(row, 0);
+    return toPublicUser(row);
 }
 
 export function publicUsers() {
-    const generated = generatedCountMap();
-    return listUsers().map((row) => toPublicUser(row, generated.get(row.id) || 0));
+    return listUsers().flatMap((row) => {
+        const fresh = ensureQuotaDay(row.id);
+        return fresh ? [toPublicUser(fresh)] : [];
+    });
 }
 
 export async function changeUserPassword(actorId: string, targetId: string, currentPassword: string, newPassword: string) {
@@ -56,14 +62,17 @@ export function removeUser(id: string) {
     removeUserGenerations(id);
 }
 
-export function adjustCredits(userId: string, creditBalance: number) {
-    if (!Number.isInteger(creditBalance) || creditBalance < 0) throw new Error("额度必须是大于等于 0 的整数");
-    const row = findUserById(userId);
+function parseQuota(value: unknown) {
+    const next = Math.floor(Number(value));
+    if (!Number.isInteger(next) || next < 0) throw new Error("额度必须是大于等于 0 的整数");
+    return next;
+}
+
+export function adjustQuotas(userId: string, imageQuota?: unknown, videoQuota?: unknown) {
+    const row = ensureQuotaDay(userId);
     if (!row) throw new Error("用户不存在");
-    const delta = creditBalance - row.credit_balance;
-    withImmediate(() => {
-        setCreditBalance(userId, creditBalance);
-        if (delta) insertLedger({ id: crypto.randomUUID(), user_id: userId, job_id: null, delta, reason: "adjust", created_at: Date.now() });
-    });
-    return toPublicUser({ ...row, credit_balance: creditBalance }, generatedCountForUser(userId));
+    const nextImage = imageQuota === undefined ? row.image_quota : parseQuota(imageQuota);
+    const nextVideo = videoQuota === undefined ? row.video_quota : parseQuota(videoQuota);
+    setUserQuotas(userId, nextImage, nextVideo);
+    return toPublicUser({ ...row, image_quota: nextImage, video_quota: nextVideo });
 }

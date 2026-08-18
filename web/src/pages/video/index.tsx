@@ -121,9 +121,9 @@ export default function VideoPage() {
     const [refreshLockedUntil, setRefreshLockedUntil] = useState(0);
 
     const model = effectiveConfig.videoModel || effectiveConfig.model;
-    const creditBalance = useUserStore((state) => state.user?.creditBalance ?? 0);
+    const videoRemaining = useUserStore((state) => state.user?.videoRemaining ?? 0);
     const isManaged = isManagedChannel(resolveModelChannel(effectiveConfig, model));
-    const canGenerate = Boolean(prompt.trim()) && (!isManaged || creditBalance >= 1);
+    const canGenerate = Boolean(prompt.trim()) && (!isManaged || videoRemaining >= 1);
 
     useEffect(() => {
         if (!running || !startedAt) return;
@@ -137,7 +137,7 @@ export default function VideoPage() {
 
     useEffect(() => {
         return subscribeGenerationEvents((payload) => {
-            if (typeof payload.creditBalance === "number") useUserStore.getState().setCreditBalance(payload.creditBalance);
+            useUserStore.getState().applyQuota(payload);
             if (payload.generation.kind && payload.generation.kind !== "video") return;
             applyRemoteJobRef.current(payload.generation);
         });
@@ -233,7 +233,7 @@ export default function VideoPage() {
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("videoWorkbench.invalidParams") });
             return;
         }
-        if (isManaged && creditBalance < 1) {
+        if (isManaged && videoRemaining < 1) {
             message.error(t("auth.insufficientCredits"));
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("auth.insufficientCredits") });
             return;
@@ -809,7 +809,7 @@ export default function VideoPage() {
                         </div>
 
                         <div className="mt-auto pt-6">
-                            {isManaged ? <div className="mb-2 text-xs text-stone-500">{t("auth.creditsLeft", { count: creditBalance })}</div> : null}
+                            {isManaged ? <div className="mb-2 text-xs text-stone-500">{t("auth.creditsLeftVideo", { count: videoRemaining })}</div> : null}
                             <div className="flex items-center gap-2">
                                 <Button type="primary" size="large" className="min-w-0 flex-1" icon={<Sparkles className="size-4" />} loading={running} disabled={!canGenerate || running} onClick={() => void generate()}>
                                     {t("workbench.generate")}
@@ -1021,7 +1021,7 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
                     </div>
                 </div>
                 <div className="grid justify-items-end gap-2">
-                    <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color={log.status === "success" ? "blue" : log.status === "running" || log.status === "draft" ? (log.status === "running" ? "processing" : "default") : "red"}>
+                    <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color={log.status === "success" ? "blue" : log.status === "running" ? "gold" : log.status === "draft" ? "default" : "red"}>
                         {t(`workbench.${log.status === "success" ? "success" : log.status === "running" ? "generating" : log.status === "draft" ? "draft" : "failed"}`)}
                     </Tag>
                     <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color="green">

@@ -1,24 +1,26 @@
 import { appApi } from "@/services/api/app-http";
+import type { SessionUser } from "@/services/api/auth";
 
-export type UsageEntry = {
-    id: string;
-    delta: number;
-    reason: "generate" | "adjust" | string;
-    jobId?: string | null;
-    createdAt: number;
+export type UsageKind = "image" | "video";
+
+export type UsageStats = {
+    kind: UsageKind;
+    from: number;
+    to: number;
+    totalAmount: number;
+    taskCount: number;
+    buckets: string[];
+    series: Array<{ model: string; values: number[] }>;
+    breakdown: Array<{ channelId: string; channelName: string; model: string; amount: number; taskCount: number }>;
+    shares: Array<{ channelId: string; channelName: string; model: string; amount: number; percent: number }>;
 };
 
-export type UsageSummary = {
-    id: string;
-    username: string;
-    role: "admin" | "user";
-    creditBalance: number;
-    generatedCount: number;
-    jobCount: number;
-    entries: UsageEntry[];
-};
+export async function fetchTodayUsage() {
+    const response = await appApi.get<{ users?: SessionUser[] }>("/api/usage/today");
+    return response.data.users || [];
+}
 
-export async function fetchMyUsage() {
-    const response = await appApi.get<UsageSummary>("/api/usage/me");
+export async function fetchUsageStats(params: { kind: UsageKind; from: number; to: number; userId?: string }) {
+    const response = await appApi.get<UsageStats>("/api/usage/stats", { params });
     return response.data;
 }

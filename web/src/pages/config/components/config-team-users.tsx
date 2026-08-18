@@ -1,8 +1,9 @@
 import { App, Button, Drawer, Form, Input, Space } from "antd";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { QuotaPair } from "@/components/quota-pair";
 import { useUserStore } from "@/stores/use-user-store";
 import type { SessionUser } from "@/services/api/auth";
 
@@ -14,7 +15,18 @@ export function ConfigTeamUsers() {
     const users = useUserStore((state) => state.users);
     const loadUsers = useUserStore((state) => state.loadUsers);
     const deleteUser = useUserStore((state) => state.deleteUser);
+    const adjustQuotas = useUserStore((state) => state.adjustQuotas);
     const [editing, setEditing] = useState<SessionUser | "new" | null>(null);
+
+    const onSaveQuota = async (userId: string, payload: { imageQuota?: number; videoQuota?: number }) => {
+        try {
+            await adjustQuotas(userId, payload);
+            message.success(t("auth.creditsSaved"));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t("auth.adjustCreditsFailed"));
+            throw error;
+        }
+    };
 
     const onDelete = (user: SessionUser) => {
         if (user.role === "admin") {
@@ -40,21 +52,91 @@ export function ConfigTeamUsers() {
             </div>
             <div className="space-y-2">
                 {users.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
-                        <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold">{user.username}</div>
-                            <div className="mt-1 text-xs text-stone-500">{t(user.role === "admin" ? "auth.roleAdmin" : "auth.roleUser")}</div>
-                        </div>
-                        <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                            <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => setEditing(user)}>
-                                {t("auth.editTitle")}
-                            </Button>
-                            <Button size="small" danger icon={<Trash2 className="size-3.5" />} className={user.role === "admin" ? "opacity-40" : undefined} onClick={() => onDelete(user)} />
-                        </div>
-                    </div>
+                    <TeamUserRow key={user.id} user={user} onSaveQuota={onSaveQuota} onEdit={() => setEditing(user)} onDelete={() => onDelete(user)} />
                 ))}
             </div>
             <UserEditorDrawer editing={editing} onClose={() => setEditing(null)} />
+        </div>
+    );
+}
+
+function TeamUserRow({
+    user,
+    onSaveQuota,
+    onEdit,
+    onDelete,
+}: {
+    user: SessionUser;
+    onSaveQuota: (userId: string, payload: { imageQuota: number; videoQuota: number }) => Promise<void>;
+    onEdit: () => void;
+    onDelete: () => void;
+}) {
+    const { t } = useTranslation();
+    const [editing, setEditing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [imageQuota, setImageQuota] = useState(user.imageQuota ?? 0);
+    const [videoQuota, setVideoQuota] = useState(user.videoQuota ?? 0);
+
+    const pairRef = useRef<HTMLDivElement>(null);
+    const saveRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (editing) return;
+        setImageQuota(user.imageQuota ?? 0);
+        setVideoQuota(user.videoQuota ?? 0);
+    }, [editing, user.imageQuota, user.videoQuota]);
+
+    useEffect(() => {
+        if (!editing || saving) return;
+        const onPointerDown = (event: PointerEvent) => {
+            const target = event.target as Node | null;
+            if (!target) return;
+            if (pairRef.current?.contains(target) || saveRef.current?.contains(target)) return;
+            setEditing(false);
+        };
+        document.addEventListener("pointerdown", onPointerDown);
+        return () => document.removeEventListener("pointerdown", onPointerDown);
+    }, [editing, saving]);
+
+    const save = async () => {
+        setSaving(true);
+        try {
+            await onSaveQuota(user.id, { imageQuota, videoQuota });
+            setEditing(false);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
+            <div className="min-w-0">
+                <div className="truncate text-sm font-semibold">{user.username}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-stone-500">
+                    <span className="inline-block w-16 shrink-0">{t(user.role === "admin" ? "auth.roleAdmin" : "auth.roleUser")}</span>
+                    <span>·</span>
+                    <div ref={pairRef}>
+                        <QuotaPair
+                            imageLabel={t("auth.imageQuota")}
+                            videoLabel={t("auth.videoQuota")}
+                            imageValue={imageQuota}
+                            videoValue={videoQuota}
+                            editing={editing}
+                            onImageChange={setImageQuota}
+                            onVideoChange={setVideoQuota}
+                        />
+                    </div>
+                </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <Button ref={saveRef} size="small" type={editing ? "primary" : "default"} loading={saving} onClick={() => (editing ? void save() : setEditing(true))}>
+                    {t(editing ? "common.save" : "auth.setQuota")}
+                </Button>
+                <Button size="small" icon={<Pencil className="size-3.5" />} onClick={onEdit}>
+                    {t("auth.editTitle")}
+                </Button>
+                <Button size="small" danger icon={<Trash2 className="size-3.5" />} className={user.role === "admin" ? "opacity-40" : undefined} onClick={onDelete} />
+            </div>
         </div>
     );
 }

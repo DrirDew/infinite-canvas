@@ -3,14 +3,14 @@ import { streamSSE } from "hono/streaming";
 
 import { clearSessionCookie, createSession, requireAdmin, requireUser, writeSessionCookie, type AppEnv } from "./auth";
 import { bootstrapChannels, createSharedChannel, patchSharedChannel, publicChannels, removeSharedChannel, type ChannelInput } from "./channels";
-import { bootstrapAdmin, findUserByUsername, generatedCountForUser } from "./db";
+import { bootstrapAdmin, ensureQuotaDay, findUserByUsername, shanghaiDayStart, shanghaiDate } from "./db";
 import { loadRootEnv } from "./env";
 import { addGenerationEventClient } from "./generation-events";
 import { CreditError, createGeneration, generateCompanyImages, generateCompanyVideos, getGeneration, getStoreMediaSetting, handleTencentVodCallback, listGenerations, patchGeneration, readGenerationAsset, refreshGenerationJob, removeGeneration, setStoreMediaSetting } from "./generations";
 import { toPublicUser } from "./schema";
 import { type CompanyImageRequest } from "./tencent-vod";
-import { usageForUser } from "./usage";
-import { adjustCredits, changeUserPassword, createUser, normalizeUsername, publicUsers, removeUser } from "./users";
+import { usageForUser, usageStats, usageToday, resolveStatsUserId } from "./usage";
+import { adjustQuotas, changeUserPassword, createUser, normalizeUsername, publicUsers, removeUser } from "./users";
 
 loadRootEnv();
 await bootstrapAdmin();
@@ -31,7 +31,8 @@ app.post("/api/auth/login", async (c) => {
     const row = findUserByUsername(username);
     if (!row || !(await Bun.password.verify(password, row.password_hash))) return c.json({ error: "用户名或密码错误" }, 401);
     writeSessionCookie(c, await createSession(row.id));
-    return c.json(toPublicUser(row, generatedCountForUser(row.id)));
+    const user = ensureQuotaDay(row.id);
+    return c.json(user ? toPublicUser(user) : toPublicUser(row));
 });
 
 app.post("/api/auth/logout", (c) => {
@@ -177,6 +178,29 @@ app.get("/api/usage/me", requireUser, (c) => {
     return usage ? c.json(usage) : c.json({ error: "未登录" }, 401);
 });
 
+app.get("/api/usage/today", requireUser, (c) => {
+    const user = c.get("user");
+    return c.json(usageToday(user.id, user.role === "admin"));
+});
+
+app.get("/api/usage/stats", requireUser, (c) => {
+    try {
+        const user = c.get("user");
+        const kind = c.req.query("kind") === "video" ? "video" : "image";
+        const today = shanghaiDate();
+        const defaultFrom = shanghaiDayStart(today);
+        const defaultTo = defaultFrom + 24 * 60 * 60 * 1000;
+        const from = Number(c.req.query("from"));
+        const to = Number(c.req.query("to"));
+        const rangeFrom = Number.isFinite(from) && from > 0 ? from : defaultFrom;
+        const rangeTo = Number.isFinite(to) && to > rangeFrom ? to : defaultTo;
+        const userId = resolveStatsUserId(user.id, user.role === "admin", String(c.req.query("userId") || ""));
+        return c.json(usageStats(kind, rangeFrom, rangeTo, userId || undefined));
+    } catch (error) {
+        return c.json({ error: error instanceof Error ? error.message : "加载用量失败" }, 500);
+    }
+});
+
 app.get("/api/users", requireUser, requireAdmin, (c) => c.json({ users: publicUsers() }));
 
 app.post("/api/users", requireUser, requireAdmin, async (c) => {
@@ -190,8 +214,8 @@ app.post("/api/users", requireUser, requireAdmin, async (c) => {
 
 app.patch("/api/users/:id/credits", requireUser, requireAdmin, async (c) => {
     try {
-        const body = (await c.req.json().catch(() => ({}))) as { creditBalance?: number };
-        return c.json(adjustCredits(c.req.param("id"), Number(body.creditBalance)));
+        const body = (await c.req.json().catch(() => ({}))) as { imageQuota?: unknown; videoQuota?: unknown };
+        return c.json(adjustQuotas(c.req.param("id"), body.imageQuota, body.videoQuota));
     } catch (error) {
         return c.json({ error: error instanceof Error ? error.message : "调整额度失败" }, 400);
     }

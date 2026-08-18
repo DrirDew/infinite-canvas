@@ -2,7 +2,8 @@ import type { GenerationRecord } from "@/services/api/generations";
 
 export type GenerationEventPayload = {
     generation: GenerationRecord;
-    creditBalance?: number;
+    imageRemaining?: number;
+    videoRemaining?: number;
 };
 
 type Listener = (payload: GenerationEventPayload) => void;

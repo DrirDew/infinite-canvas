@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 
-import { deleteExpiredSessions, deleteSession, findUserById, findValidSession, generatedCountForUser, insertSession } from "./db";
+import { deleteExpiredSessions, deleteSession, ensureQuotaDay, findValidSession, insertSession } from "./db";
 import { toPublicUser, type PublicUser } from "./schema";
 
 export type AppEnv = {
@@ -30,8 +30,8 @@ export function readSessionUser(c: Context) {
     if (!sessionId) return null;
     const session = findValidSession(sessionId, Date.now());
     if (!session) return null;
-    const row = findUserById(session.user_id);
-    return row ? toPublicUser(row, generatedCountForUser(row.id)) : null;
+    const row = ensureQuotaDay(session.user_id);
+    return row ? toPublicUser(row) : null;
 }
 
 export function clearSessionCookie(c: Context) {

@@ -87,7 +87,7 @@ export default function ImagePage() {
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
     const { requestConfig } = useConfigAccess();
     const addAsset = useAssetStore((state) => state.addAsset);
-    const creditBalance = useUserStore((state) => state.user?.creditBalance ?? 0);
+    const imageRemaining = useUserStore((state) => state.user?.imageRemaining ?? 0);
     const storeMediaSetting = useServerSettingsStore((state) => state.storeMedia);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
@@ -120,7 +120,7 @@ export default function ImagePage() {
     const model = effectiveConfig.imageModel || effectiveConfig.model;
     const isManaged = isManagedChannel(resolveModelChannel(effectiveConfig, model));
     const generationCount = Math.max(1, Math.min(10, Number(config.count) || 1));
-    const canGenerate = Boolean(prompt.trim()) && (!isManaged || creditBalance >= generationCount);
+    const canGenerate = Boolean(prompt.trim()) && (!isManaged || imageRemaining >= generationCount);
 
     useEffect(() => {
         if (!running || !startedAt) return;
@@ -134,7 +134,7 @@ export default function ImagePage() {
 
     useEffect(() => {
         return subscribeGenerationEvents((payload) => {
-            if (typeof payload.creditBalance === "number") useUserStore.getState().setCreditBalance(payload.creditBalance);
+            useUserStore.getState().applyQuota(payload);
             if (payload.generation.kind && payload.generation.kind !== "image") return;
             applyRemoteJobRef.current(payload.generation);
         });
@@ -199,7 +199,7 @@ export default function ImagePage() {
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("imageWorkbench.invalidParams") });
             return;
         }
-        if (isManaged && creditBalance < generationCount) {
+        if (isManaged && imageRemaining < generationCount) {
             message.error(t("auth.insufficientCredits"));
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("auth.insufficientCredits") });
             return;
@@ -661,7 +661,7 @@ export default function ImagePage() {
                         </div>
 
                         <div className="mt-auto pt-6">
-                            <div className="mb-2 text-xs text-stone-500">{t("auth.creditsLeft", { count: creditBalance })}</div>
+                            {isManaged ? <div className="mb-2 text-xs text-stone-500">{t("auth.creditsLeftImage", { count: imageRemaining })}</div> : null}
                             <div className="flex items-center gap-2">
                                 <Button type="primary" size="large" className="min-w-0 flex-1" icon={<Sparkles className="size-4" />} loading={running} disabled={!canGenerate || running} onClick={() => void generate()}>
                                     {t("workbench.generate")}
@@ -943,7 +943,7 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
                 </div>
                 <div className="grid justify-items-end gap-2">
                     {log.status === "draft" || log.status === "running" ? (
-                        <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color={log.status === "running" ? "processing" : "default"}>
+                        <Tag className="m-0 flex h-6 items-center rounded-md px-1.5 text-xs leading-none" color={log.status === "running" ? "gold" : "default"}>
                             {t(log.status === "running" ? "workbench.generating" : "workbench.draft")}
                         </Tag>
                     ) : (

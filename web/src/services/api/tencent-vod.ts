@@ -118,7 +118,7 @@ export async function pollTencentVodVideoTask(config: AiConfig, taskId: string, 
 }
 
 async function requestCompanyTencentVodVideo(config: AiConfig, prompt: string, references: ReferenceImage[], videoReferences: ReferenceVideo[], audioReferences: ReferenceAudio[], signal: AbortSignal | undefined, jobId: string | undefined, wait: boolean) {
-    const response = await appApi.post<{ id?: string; status?: string; error?: string; creditBalance?: number }>("/api/tencent-vod/videos", {
+    const response = await appApi.post<{ id?: string; status?: string; error?: string; imageRemaining?: number; videoRemaining?: number }>("/api/tencent-vod/videos", {
         channelId: config.channelId,
         jobId,
         model: config.model,
@@ -132,8 +132,10 @@ async function requestCompanyTencentVodVideo(config: AiConfig, prompt: string, r
         generateAudio: config.videoGenerateAudio,
         watermark: config.videoWatermark,
     }, { signal, timeout: 0 });
-    if (typeof response.data.creditBalance === "number") {
-        void import("@/stores/use-user-store").then(({ useUserStore }) => useUserStore.getState().setCreditBalance(response.data.creditBalance!));
+    if (typeof response.data.imageRemaining === "number" || typeof response.data.videoRemaining === "number") {
+        void import("@/stores/use-user-store").then(({ useUserStore }) =>
+            useUserStore.getState().applyQuota({ imageRemaining: response.data.imageRemaining, videoRemaining: response.data.videoRemaining }),
+        );
     }
     if (response.data.status === "running" && response.data.id) {
         if (!wait) return { taskId: response.data.id, url: "" };
@@ -172,7 +174,7 @@ async function createPersonalVideoTask(config: AiConfig, prompt: string, referen
 }
 
 async function requestCompanyTencentVodImages(prompt: string, references: ReferenceImage[], mask: ReferenceImage | undefined, count: number, quality: string | undefined, size: string | undefined, background: string | undefined, model: string, channelId: string | undefined, signal?: AbortSignal, jobId?: string, wait = true) {
-    const response = await appApi.post<{ id?: string; status?: string; images?: Array<{ id?: string; dataUrl?: string }>; error?: string; creditBalance?: number }>("/api/tencent-vod/images", {
+    const response = await appApi.post<{ id?: string; status?: string; images?: Array<{ id?: string; dataUrl?: string }>; error?: string; imageRemaining?: number; videoRemaining?: number }>("/api/tencent-vod/images", {
         channelId,
         jobId,
         model,
@@ -184,8 +186,10 @@ async function requestCompanyTencentVodImages(prompt: string, references: Refere
         size,
         background,
     }, { signal, timeout: 0 });
-    if (typeof response.data.creditBalance === "number") {
-        void import("@/stores/use-user-store").then(({ useUserStore }) => useUserStore.getState().setCreditBalance(response.data.creditBalance!));
+    if (typeof response.data.imageRemaining === "number" || typeof response.data.videoRemaining === "number") {
+        void import("@/stores/use-user-store").then(({ useUserStore }) =>
+            useUserStore.getState().applyQuota({ imageRemaining: response.data.imageRemaining, videoRemaining: response.data.videoRemaining }),
+        );
     }
     const images = (response.data.images || []).filter((image) => image.dataUrl).map((image) => ({ id: image.id || nanoid(), dataUrl: image.dataUrl! }));
     if (images.length) return images;

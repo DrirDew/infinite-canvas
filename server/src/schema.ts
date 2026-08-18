@@ -1,11 +1,17 @@
 export type UserRole = "admin" | "user";
 
+export type QuotaKind = "image" | "video";
+
 export type UserRow = {
     id: string;
     username: string;
     password_hash: string;
     role: UserRole;
-    credit_balance: number;
+    image_quota: number;
+    video_quota: number;
+    image_used: number;
+    video_used: number;
+    quota_date: string;
     created_at: number;
 };
 
@@ -20,8 +26,12 @@ export type PublicUser = {
     id: string;
     username: string;
     role: UserRole;
-    creditBalance: number;
-    generatedCount: number;
+    imageQuota: number;
+    videoQuota: number;
+    imageUsed: number;
+    videoUsed: number;
+    imageRemaining: number;
+    videoRemaining: number;
 };
 
 export type GenerationJobStatus = "draft" | "running" | "success" | "failed";
@@ -83,6 +93,25 @@ export type ChannelRow = {
     updated_at: number;
 };
 
-export function toPublicUser(row: UserRow, generatedCount = 0): PublicUser {
-    return { id: row.id, username: row.username, role: row.role, creditBalance: row.credit_balance, generatedCount };
+function remainingOf(quota: number, used: number) {
+    return Math.max(0, (Number(quota) || 0) - (Number(used) || 0));
+}
+
+export function toPublicUser(row: UserRow): PublicUser {
+    return {
+        id: row.id,
+        username: row.username,
+        role: row.role,
+        imageQuota: row.image_quota || 0,
+        videoQuota: row.video_quota || 0,
+        imageUsed: row.image_used || 0,
+        videoUsed: row.video_used || 0,
+        imageRemaining: remainingOf(row.image_quota, row.image_used),
+        videoRemaining: remainingOf(row.video_quota, row.video_used),
+    };
+}
+
+export function quotaEventFields(row: UserRow) {
+    const user = toPublicUser(row);
+    return { imageRemaining: user.imageRemaining, videoRemaining: user.videoRemaining };
 }

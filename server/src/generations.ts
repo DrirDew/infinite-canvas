@@ -1,8 +1,9 @@
 import { mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
-import { addCredits, deleteAsset, deleteAssetsByJobRole, deleteJob, findAsset, findJobById, findUserById, getAppSetting, insertAsset, insertJob, insertLedger, listAssetsByJob, listJobsByStatus, listJobsByUser, setAppSetting, updateJob, withImmediate } from "./db";
-import type { GenerationAssetRole, GenerationJobRow } from "./schema";
+import { addQuotaUsed, deleteAsset, deleteAssetsByJobRole, deleteJob, ensureQuotaDay, findAsset, findJobById, getAppSetting, insertAsset, insertJob, insertLedger, listAssetsByJob, listJobsByStatus, listJobsByUser, setAppSetting, updateJob, withImmediate } from "./db";
+import type { GenerationAssetRole, GenerationJobRow, QuotaKind } from "./schema";
+import { quotaEventFields } from "./schema";
 import { dataDir } from "./env";
 import { publishGenerationEvent } from "./generation-events";
 import { createCompanyImageTask, createCompanyVideoTask, decodeTaskContext, describeVodTask, encodeTaskContext, fileUrlToDataUrl, parseVodCallback, type CompanyImageRequest, type VodTaskSnapshot } from "./tencent-vod";
@@ -53,16 +54,26 @@ function tencentSlots(extra: Record<string, unknown>): TencentTaskSlot[] {
 }
 
 function notifyJob(job: GenerationJobRow) {
-    const user = findUserById(job.user_id);
-    publishGenerationEvent(job.user_id, { generation: publicJob(job), creditBalance: user?.credit_balance ?? 0 });
+    const user = ensureQuotaDay(job.user_id);
+    publishGenerationEvent(job.user_id, { generation: publicJob(job), ...(user ? quotaEventFields(user) : { imageRemaining: 0, videoRemaining: 0 }) });
 }
 
-function reserveCredits(userId: string, count: number) {
+function jobQuotaKind(job: GenerationJobRow): QuotaKind {
+    return job.kind === "video" ? "video" : "image";
+}
+
+function reserveCredits(userId: string, kind: QuotaKind, count: number) {
     withImmediate(() => {
-        const row = findUserById(userId);
-        if (!row || row.credit_balance < count) throw new CreditError("额度不足");
-        addCredits(userId, -count);
+        const row = ensureQuotaDay(userId);
+        const quota = kind === "video" ? row?.video_quota || 0 : row?.image_quota || 0;
+        const used = kind === "video" ? row?.video_used || 0 : row?.image_used || 0;
+        if (!row || used + count > quota) throw new CreditError("额度不足");
+        addQuotaUsed(userId, kind, count);
     });
+}
+
+function refundCredits(userId: string, kind: QuotaKind, count: number) {
+    withImmediate(() => addQuotaUsed(userId, kind, -count));
 }
 
 function assetUrl(jobId: string, index: number) {
@@ -328,7 +339,7 @@ async function applyVodTaskSnapshot(snapshot: VodTaskSnapshot) {
     } else {
         slot.status = "fail";
         slot.error = snapshot.error || (snapshot.status === "FINISH" ? "腾讯云点播任务完成但没有返回文件" : "腾讯云点播任务失败");
-        withImmediate(() => addCredits(job.user_id, 1));
+        refundCredits(job.user_id, jobQuotaKind(job), 1);
     }
     extra.tencentTasks = slots;
     const successCount = slots.filter((item) => item.status === "finish").length;
@@ -436,7 +447,7 @@ async function generateCompanyAigc(userId: string, body: CompanyImageRequest, ki
     const planned = kind === "video" ? 1 : plannedCount(body);
     const jobId = String(body.jobId || "").trim() || undefined;
     const failedLabel = kind === "video" ? "腾讯云点播生视频失败" : "腾讯云点播生图失败";
-    reserveCredits(userId, planned);
+    reserveCredits(userId, kind, planned);
     const extra = parseExtra(jobId ? findJobById(jobId)?.extra_json : undefined);
     extra.channelId = row.id;
     extra.tencentTasks = [];
@@ -460,14 +471,14 @@ async function generateCompanyAigc(userId: string, body: CompanyImageRequest, ki
             } catch (error) {
                 if (isAbortError(error) || signal?.aborted) throw error;
                 slots.push({ taskId: "", index, kind, status: "fail", error: error instanceof Error ? error.message : failedLabel });
-                withImmediate(() => addCredits(userId, 1));
+                refundCredits(userId, kind, 1);
             }
             extra.tencentTasks = slots;
             job = saveRunningJob({ userId, jobId: job.id, body: { ...body, prompt, count: planned }, planned, extra, kind });
         }
     } catch (error) {
         const uncreated = planned - slots.length;
-        if (uncreated > 0) withImmediate(() => addCredits(userId, uncreated));
+        if (uncreated > 0) refundCredits(userId, kind, uncreated);
         for (let index = slots.length; index < planned; index += 1) {
             slots.push({ taskId: "", index, kind, status: "fail", error: isAbortError(error) ? "请求已取消" : error instanceof Error ? error.message : failedLabel });
         }
@@ -488,7 +499,8 @@ async function generateCompanyAigc(userId: string, body: CompanyImageRequest, ki
     }
     const latest = findJobById(job.id)!;
     notifyJob(latest);
-    return { id: latest.id, status: latest.status, creditBalance: findUserById(userId)?.credit_balance ?? 0 };
+    const user = ensureQuotaDay(userId);
+    return { id: latest.id, status: latest.status, ...(user ? quotaEventFields(user) : { imageRemaining: 0, videoRemaining: 0 }) };
 }
 
 type MediaInput = {

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Database } from "bun:sqlite";
 
 import { dataDir } from "./env";
-import type { ChannelRow, GenerationAssetRow, GenerationJobRow, LedgerRow, SessionRow, UserRole, UserRow } from "./schema";
+import type { ChannelRow, GenerationAssetRow, GenerationJobRow, QuotaKind, SessionRow, UserRole, UserRow } from "./schema";
 
 let sqlite: Database | undefined;
 
@@ -20,7 +20,11 @@ export function db() {
             username TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL,
-            credit_balance INTEGER NOT NULL DEFAULT 0,
+            image_quota INTEGER NOT NULL DEFAULT 0,
+            video_quota INTEGER NOT NULL DEFAULT 0,
+            image_used INTEGER NOT NULL DEFAULT 0,
+            video_used INTEGER NOT NULL DEFAULT 0,
+            quota_date TEXT NOT NULL DEFAULT '',
             created_at INTEGER NOT NULL
         );
         CREATE TABLE IF NOT EXISTS sessions (
@@ -125,6 +129,18 @@ export function db() {
     } catch {
         // New databases already have role.
     }
+    for (const column of ["image_quota", "video_quota", "image_used", "video_used"]) {
+        try {
+            sqlite.exec(`ALTER TABLE users ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`);
+        } catch {
+            // New databases already have quota columns.
+        }
+    }
+    try {
+        sqlite.exec("ALTER TABLE users ADD COLUMN quota_date TEXT NOT NULL DEFAULT ''");
+    } catch {
+        // New databases already have quota_date.
+    }
     return sqlite;
 }
 
@@ -145,7 +161,9 @@ export function listUsers() {
 }
 
 export function insertUser(row: UserRow) {
-    db().query("INSERT INTO users (id, username, password_hash, role, credit_balance, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(row.id, row.username, row.password_hash, row.role, row.credit_balance, row.created_at);
+    db()
+        .query("INSERT INTO users (id, username, password_hash, role, image_quota, video_quota, image_used, video_used, quota_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(row.id, row.username, row.password_hash, row.role, row.image_quota, row.video_quota, row.image_used, row.video_used, row.quota_date, row.created_at);
 }
 
 export function insertSession(row: SessionRow) {
@@ -164,12 +182,39 @@ export function deleteExpiredSessions(now: number) {
     db().query("DELETE FROM sessions WHERE expires_at <= ?").run(now);
 }
 
-export function addCredits(userId: string, delta: number) {
-    db().query("UPDATE users SET credit_balance = credit_balance + ? WHERE id = ?").run(delta, userId);
+export function shanghaiDate(at = Date.now()) {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(at));
 }
 
-export function setCreditBalance(userId: string, balance: number) {
-    db().query("UPDATE users SET credit_balance = ? WHERE id = ?").run(balance, userId);
+export function shanghaiDayStart(date = shanghaiDate()) {
+    return Date.parse(`${date}T00:00:00+08:00`);
+}
+
+export function ensureQuotaDay(userId: string) {
+    const row = findUserById(userId);
+    if (!row) return null;
+    const today = shanghaiDate();
+    if ((row.quota_date || "") === today) return row;
+    db().query("UPDATE users SET image_used = 0, video_used = 0, quota_date = ? WHERE id = ?").run(today, userId);
+    return findUserById(userId);
+}
+
+export function addQuotaUsed(userId: string, kind: QuotaKind, delta: number) {
+    if (kind === "video") db().query("UPDATE users SET video_used = MAX(0, video_used + ?) WHERE id = ?").run(delta, userId);
+    else db().query("UPDATE users SET image_used = MAX(0, image_used + ?) WHERE id = ?").run(delta, userId);
+}
+
+export function setUserQuotas(userId: string, imageQuota: number, videoQuota: number) {
+    db().query("UPDATE users SET image_quota = ?, video_quota = ? WHERE id = ?").run(imageQuota, videoQuota, userId);
+}
+
+export function listSuccessJobs(kind: string, from: number, to: number, userId?: string) {
+    if (userId) {
+        return db()
+            .query("SELECT * FROM generation_jobs WHERE status = 'success' AND kind = ? AND finished_at >= ? AND finished_at < ? AND user_id = ?")
+            .all(kind, from, to, userId) as GenerationJobRow[];
+    }
+    return db().query("SELECT * FROM generation_jobs WHERE status = 'success' AND kind = ? AND finished_at >= ? AND finished_at < ?").all(kind, from, to) as GenerationJobRow[];
 }
 
 export function setPasswordHash(userId: string, passwordHash: string) {
@@ -217,24 +262,6 @@ export function setAppSetting(key: string, value: string) {
 
 export function insertLedger(row: { id: string; user_id: string; job_id: string | null; delta: number; reason: string; created_at: number }) {
     db().query("INSERT INTO usage_ledger (id, user_id, job_id, delta, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(row.id, row.user_id, row.job_id, row.delta, row.reason, row.created_at);
-}
-
-export function listLedgerByUser(userId: string) {
-    return db().query("SELECT * FROM usage_ledger WHERE user_id = ? ORDER BY created_at DESC").all(userId) as LedgerRow[];
-}
-
-export function generatedCountForUser(userId: string) {
-    const row = db().query("SELECT COALESCE(SUM(CASE WHEN reason = 'generate' THEN -delta ELSE 0 END), 0) AS generated FROM usage_ledger WHERE user_id = ?").get(userId) as { generated: number };
-    return row.generated;
-}
-
-export function generatedCountMap() {
-    const rows = db().query("SELECT user_id, COALESCE(SUM(CASE WHEN reason = 'generate' THEN -delta ELSE 0 END), 0) AS generated FROM usage_ledger GROUP BY user_id").all() as Array<{ user_id: string; generated: number }>;
-    return new Map(rows.map((row) => [row.user_id, row.generated]));
-}
-
-export function jobCountByUser(userId: string) {
-    return (db().query("SELECT COUNT(*) AS count FROM generation_jobs WHERE user_id = ? AND status != 'draft'").get(userId) as { count: number }).count;
 }
 
 export function listJobsByUser(userId: string, kind?: string) {
@@ -332,7 +359,11 @@ export async function bootstrapAdmin() {
         username,
         password_hash: await Bun.password.hash(password),
         role,
-        credit_balance: 0,
+        image_quota: 0,
+        video_quota: 0,
+        image_used: 0,
+        video_used: 0,
+        quota_date: shanghaiDate(),
         created_at: Date.now(),
     });
     console.log(`created admin user ${username}`);
